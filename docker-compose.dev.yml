@@ -33,7 +33,7 @@ services:
     # each run a multi-process Chromium; Baileys (no Chromium) uses far fewer. A fork-bomb guard, not
     # an allocation — raising it is free for light containers. Do NOT use -1 (drops the guard). #636
     pids_limit: ${OPENWA_PIDS_LIMIT:-2048}
-    mem_limit: ${OPENWA_MEM_LIMIT:-2g}
+    mem_limit: ${OPENWA_MEM_LIMIT:-4g}
     ports:
       # Bind to localhost by default; set BIND_HOST=0.0.0.0 in .env to reach it from another host.
       - '${BIND_HOST:-127.0.0.1}:2785:2785'
@@ -44,6 +44,9 @@ services:
     # must match the image/entrypoint. Same convention as the production docker-compose.yml.
     environment:
       - NODE_ENV=${NODE_ENV:-development}
+      # Keep V8 from choosing a cgroup-derived heap ceiling that is too small for large chat stores.
+      # This stays below the 4 GiB container default so Chromium/native buffers retain headroom.
+      - NODE_OPTIONS=${NODE_OPTIONS:---max-old-space-size=2048}
       - PORT=2785
       - HOME=/tmp
       # Chromium reads its home from the passwd entry (no /home/openwa), so it needs writable, existing

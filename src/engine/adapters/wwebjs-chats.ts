@@ -6,6 +6,21 @@ import { chatKind, isChannelJid } from '../identity/wa-id';
 import { WwebjsMessaging } from './wwebjs-messaging';
 import { type WwebjsEngineHost } from './wwebjs-host';
 
+interface PageChatSummary {
+  id: string;
+  name: string;
+  isGroup: boolean;
+  unreadCount: number;
+  timestamp: number;
+  lastMessageType?: string;
+  lastMessageBody?: string;
+}
+
+interface PageChatSummaryResult {
+  chats: PageChatSummary[];
+  skipped: number;
+}
+
 /**
  * Chat-list operations extracted from WhatsAppWebJsAdapter. The adapter keeps the public methods as
  * thin forwarders and injects the shared host surface (./wwebjs-host) via closures, so the delegate
@@ -25,9 +40,74 @@ export class WwebjsChats {
 
   async getChats(): Promise<ChatSummary[]> {
     this.host.ensureReady();
-    let chats: Awaited<ReturnType<Client['getChats']>>;
+    let pageResult: PageChatSummaryResult | undefined;
+    let legacyChats: Awaited<ReturnType<Client['getChats']>> | undefined;
     try {
-      chats = await this.client().getChats();
+      const client = this.client();
+      const page = client.pupPage;
+
+      if (page && typeof page.evaluate === 'function') {
+        // Client.getChats() serializes every complete chat model (including message collections and
+        // refreshed group metadata) before Node can discard all but these seven primitives. Large
+        // accounts therefore allocate several copies of the entire chat store and can exhaust V8's
+        // heap. Project inside WhatsApp Web so Puppeteer only transports the lightweight dashboard
+        // shape. A cached last message is enough for the sidebar preview; deliberately do not fetch
+        // thousands of missing messages while listing chats.
+        pageResult = await page.evaluate((): PageChatSummaryResult => {
+          interface PageWid {
+            _serialized?: string;
+            $1?: string;
+          }
+          interface PageMessage {
+            type?: string;
+            body?: string;
+          }
+          interface PageChat {
+            id?: PageWid;
+            formattedTitle?: string;
+            name?: string;
+            groupMetadata?: unknown;
+            unreadCount?: number;
+            t?: number;
+            lastReceivedKey?: PageWid;
+          }
+          interface WaCollections {
+            Chat: { getModelsArray(): PageChat[] };
+            Msg: { get(id: string): PageMessage | undefined };
+          }
+
+          const waWindow = globalThis as unknown as { require(name: string): WaCollections };
+          const collections = waWindow.require('WAWebCollections');
+          const summaries: PageChatSummary[] = [];
+          let skipped = 0;
+
+          for (const chat of collections.Chat.getModelsArray()) {
+            const id = chat.id?._serialized || chat.id?.$1;
+            if (!id) {
+              skipped++;
+              continue;
+            }
+
+            const lastMessageId = chat.lastReceivedKey?._serialized || chat.lastReceivedKey?.$1;
+            const lastMessage = lastMessageId ? collections.Msg.get(lastMessageId) : undefined;
+            summaries.push({
+              id,
+              name: chat.formattedTitle || chat.name || id,
+              isGroup: Boolean(chat.groupMetadata),
+              unreadCount: Number(chat.unreadCount) || 0,
+              timestamp: Number(chat.t) || 0,
+              lastMessageType: lastMessage?.type,
+              lastMessageBody: typeof lastMessage?.body === 'string' ? lastMessage.body : undefined,
+            });
+          }
+
+          return { chats: summaries, skipped };
+        });
+      } else {
+        // Compatibility for test doubles and any older whatsapp-web.js Client without a public
+        // Puppeteer page. A normal READY production client always takes the bounded path above.
+        legacyChats = await client.getChats();
+      }
     } catch (error) {
       // Same split every sibling read makes (see getChatsByLabel): a dead page is a 503 and an
       // early death signal, not an opaque 500 under a status that still says READY (#1081).
@@ -38,13 +118,27 @@ export class WwebjsChats {
       throw error;
     }
     const summaries: ChatSummary[] = [];
-    let skipped = 0;
+    let skipped = pageResult?.skipped || 0;
+
+    if (pageResult) {
+      for (const chat of pageResult.chats) {
+        summaries.push({
+          id: chat.id,
+          name: chat.name,
+          isGroup: chat.isGroup,
+          kind: chatKind(chat.id),
+          unreadCount: chat.unreadCount,
+          timestamp: chat.timestamp,
+          lastMessage: chat.lastMessageType === MessageTypes.LOCATION ? '📍' : chat.lastMessageBody || undefined,
+        });
+      }
+    }
 
     // Map the raw whatsapp-web.js chat objects to the library-agnostic ChatSummary
     // shape so that no library types leak past the engine boundary. Some WA system
     // or channel-like entries can lack the normal serialized id; skip those instead
     // of failing the whole dashboard chats request.
-    for (const chat of chats) {
+    for (const chat of legacyChats || []) {
       const id = chat.id?._serialized;
       if (!id) {
         skipped++;
