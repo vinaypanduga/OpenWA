@@ -7,7 +7,6 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health/ready
-    maxShutdownDelaySeconds: 45
     disk:
       name: openwa-data
       mountPath: /app/data
