@@ -805,12 +805,8 @@ export function Sessions() {
                 <div className="qr-placeholder">
                   <QrCode size={80} className="qr-icon" />
                   <p>{session.status === 'qr_ready' ? t('sessions.qr.scanToConnect') : t('sessions.qr.preparing')}</p>
-                  <button
-                    className="btn-sm"
-                    onClick={() => handleShowQR(session.id)}
-                    disabled={session.status !== 'qr_ready'}
-                  >
-                    {session.status === 'qr_ready' ? t('sessions.qr.showQr') : t('sessions.qr.loading')}
+                  <button className="btn-sm" onClick={() => handleShowQR(session.id)}>
+                    {t('sessions.qr.showQr')}
                   </button>
                 </div>
               ) : (

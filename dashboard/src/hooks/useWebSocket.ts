@@ -175,6 +175,11 @@ export function useWebSocket(events: WebSocketEvents = {}) {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      // Render supports native WebSocket upgrades, while its HTTP long-polling path can surface a
+      // proxy-level 502 before Socket.IO reaches the application. Try WebSocket first and retain
+      // polling only as a compatibility fallback for networks that block WebSocket connections.
+      transports: ['websocket', 'polling'],
+      tryAllTransports: true,
       // Send the key via `auth` (and a header for proxies). NOT via `query` — a key in the
       // handshake URL leaks into access logs / Referer. The gateway reads auth first.
       auth: {

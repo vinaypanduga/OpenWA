@@ -68,9 +68,10 @@ export function useSessionPairing({ sessions, sessionsRef, reloadSessions }: Use
         currentSessionName.current = '';
         return;
       }
-      // Poll only while a QR actually exists to refresh (qr_ready): before that the endpoint 400s
-      // by design (the engine hasn't produced one), and the WS session.qr push covers first display.
-      if (currentSession?.status !== 'qr_ready') return;
+      // Poll even while the session is still initializing. Normally the session.qr WebSocket push
+      // displays the first code immediately, but reverse proxies can temporarily reject the socket
+      // handshake (for example Render returning 502). GET /qr returning 400 until the engine has a
+      // code is expected; continuing this REST fallback prevents the modal waiting forever on WS.
       try {
         const qr = await sessionApi.getQR(sessionId);
         setQrData({ sessionId, sessionName: currentSessionName.current, qrCode: qr.qrCode });
@@ -163,19 +164,9 @@ export function useSessionPairing({ sessions, sessionsRef, reloadSessions }: Use
     // even before Chromium has finished initializing.
     setQrData({ sessionId: id, sessionName, qrCode: '' });
     currentSessionName.current = sessionName;
-    // Eager-fetch only when a QR already exists (qr_ready): before that the endpoint 400s BY DESIGN
-    // (the engine hasn't produced one), and the WS session.qr push + gated 5s poll deliver it
-    // without spamming the console with expected failures.
-    if (session?.status === 'qr_ready') {
-      try {
-        const qr = await sessionApi.getQR(id);
-        setQrData({ sessionId: id, sessionName, qrCode: qr.qrCode });
-      } catch (err) {
-        console.error('Failed to get QR:', err);
-        // Do not clear qrData here — keep the loading modal open so the
-        // polling interval (every 5 s) retries until the QR becomes available.
-      }
-    }
+    // Start the REST fallback immediately. A 400 while the engine initializes is expected and the
+    // open modal's 5-second interval keeps retrying; WebSocket push remains the fast path.
+    void fetchQR(id);
   };
 
   // Fill the open QR modal straight from the push — the REST endpoint 400s BY DESIGN until a QR

@@ -31,6 +31,18 @@ const SESSION_QR: Session = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+// A Render/proxy WebSocket outage can leave the browser's local projection at `initializing` even
+// after the engine has produced a QR. The REST fallback must still let the operator open the modal.
+const SESSION_INITIALIZING: Session = {
+  id: 'sess-initializing-1',
+  name: 'render-device',
+  status: 'initializing',
+  engineLoaded: true,
+  phone: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
 // `disconnected` is a status the pre-engineLoaded fallback rule treats as NOT started (Start would
 // be offered). engineLoaded: true overrides that — the gateway still holds a live engine (e.g. mid
 // automatic-reconnect backoff), so the card must offer Stop/Unlink/Kill Stuck instead. Pins that
@@ -59,7 +71,7 @@ const SESSION_TIMELOCKED: Session = {
   restriction: { kind: 'reachout_timelock', code: 'BIZ_QUALITY', expiresAt: '2026-08-04T09:00:00.000Z' },
 };
 
-const SESSIONS = [SESSION_QR, SESSION_STALE_ENGINE, SESSION_TIMELOCKED];
+const SESSIONS = [SESSION_QR, SESSION_INITIALIZING, SESSION_STALE_ENGINE, SESSION_TIMELOCKED];
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -263,6 +275,21 @@ test('creating a session issues POST /api/sessions with the entered name', async
   });
 
   await screen.findByText('backup-bot');
+});
+
+test('an initializing session can fetch and display QR without a WebSocket status event', async () => {
+  const { screen, fireEvent, within } = rtl;
+  resetFetchCalls();
+  renderSessions();
+
+  const card = (await screen.findByText('render-device')).closest('.session-card') as HTMLElement;
+  fireEvent.click(within(card).getByRole('button', { name: 'Show QR' }));
+
+  await screen.findByAltText('QR');
+  assert.ok(
+    findFetchCall('GET', '/api/sessions/sess-initializing-1/qr'),
+    'initializing session never attempted the REST QR fallback',
+  );
 });
 
 test('a typed pairing phone number survives toggling to the QR tab and back', async () => {
