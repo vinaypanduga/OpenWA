@@ -268,7 +268,7 @@ EXPOSE 2785
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:2785/api/health/ready || exit 1
+    CMD curl -f "http://localhost:${PORT:-2785}/api/health/ready" || exit 1
 
 # dumb-init is PID 1 and handles signal forwarding.
 # It execs docker-entrypoint.sh (as root), which fixes volume ownership and

@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: openwa-api
+    runtime: docker
+    plan: standard
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health/ready
+    maxShutdownDelaySeconds: 45
+    disk:
+      name: openwa-data
+      mountPath: /app/data
+      sizeGB: 10
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: ENGINE_TYPE
+        value: baileys
+      - key: AUTO_START_SESSIONS
+        value: "true"
+      - key: BAILEYS_MARK_ONLINE_ON_CONNECT
+        value: "false"
+      - key: DATABASE_TYPE
+        value: sqlite
+      - key: DATABASE_NAME
+        value: /app/data/openwa.sqlite
+      - key: MAIN_DATABASE_NAME
+        value: /app/data/main.sqlite
+      - key: DATABASE_SYNCHRONIZE
+        value: "false"
+      - key: SESSION_DATA_PATH
+        value: /app/data/sessions
+      - key: BAILEYS_AUTH_DIR
+        value: /app/data/baileys
+      - key: STORAGE_TYPE
+        value: local
+      - key: STORAGE_LOCAL_PATH
+        value: /app/data/media
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=1024
+      # Enter the final HTTPS URL Render assigns, for example:
+      # https://openwa-api-xxxx.onrender.com
+      - key: BASE_URL
+        sync: false
