@@ -39,15 +39,16 @@ describe('writeSecretFile', () => {
     expect(readFileSync(p, 'utf8')).toBe('new');
   });
 
-  it('warns to the console when a chmod fails (does not stay silently world-readable)', () => {
+  it('does not warn when the pre-write chmod finds no file on a normal first write', () => {
     const p = join(dir, 'ghost');
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    // chmod a path that does not exist → ENOENT on the pre-write call. The write still succeeds
-    // (create-mode), and the failure is surfaced via console.warn instead of being swallowed.
+    // chmod sees ENOENT before writeFileSync creates the file. This is expected, and create-mode
+    // still guarantees owner-only permissions without producing a misleading deployment warning.
     writeSecretFile(p, 'secret');
 
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pre-write chmod 0o600 failed'));
+    expect(warnSpy).not.toHaveBeenCalled();
+    expectOwnerOnly(p);
     expect(readFileSync(p, 'utf8')).toBe('secret');
 
     warnSpy.mockRestore();
