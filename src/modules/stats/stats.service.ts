@@ -62,7 +62,14 @@ export interface TimeSeriesPoint {
   received: number;
 }
 
+export interface MessageAnalyticsSummary {
+  sent: number;
+  received: number;
+  interactions: number;
+}
+
 export interface MessageStats {
+  summary: MessageAnalyticsSummary;
   timeSeries: TimeSeriesPoint[];
   byType: Record<string, number>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;
@@ -195,6 +202,26 @@ export class StatsService {
     const since = this.getPeriodStart(period);
     const interval = period === '24h' ? 'hour' : 'day';
 
+    // One bounded aggregate supplies the analytics KPI cards. An interaction is one distinct chat
+    // with any recorded inbound or outbound activity in the period; unlike raw message volume this
+    // answers "how many conversations did we engage with?".
+    const summaryRaw = await this.messageRepo
+      .createQueryBuilder('m')
+      .select(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
+      .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
+      // A chat JID can appear under multiple sessions; those are separate operator conversations.
+      // `||` string concatenation is shared by SQLite and PostgreSQL, unlike multi-column
+      // COUNT(DISTINCT ...), whose syntax differs between the two engines.
+      .addSelect(`COUNT(DISTINCT (m.sessionId || ':' || m.chatId))`, 'interactions')
+      .where('m.createdAt >= :since', { since })
+      .getRawOne<{ sent: string; received: string; interactions: string }>();
+
+    const summary: MessageAnalyticsSummary = {
+      sent: parseInt(summaryRaw?.sent || '0'),
+      received: parseInt(summaryRaw?.received || '0'),
+      interactions: parseInt(summaryRaw?.interactions || '0'),
+    };
+
     // Time series - using raw query for SQLite compatibility
     const timeSeries = await this.getTimeSeries(since, interval);
 
@@ -260,6 +287,7 @@ export class StatsService {
       .getRawMany<{ chatId: string; messageCount: string; chatName: string | null }>();
 
     return {
+      summary,
       timeSeries,
       byType,
       bySession,

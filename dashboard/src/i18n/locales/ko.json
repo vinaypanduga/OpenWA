@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "대시보드",
+    "analytics": "분석",
     "sessions": "세션",
     "chats": "채팅",
     "webhooks": "웹훅",

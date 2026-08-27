@@ -2,16 +2,16 @@ import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Webhook, Activity, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Activity, Loader2 } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
   useSessionsQuery,
   useSessionStatsQuery,
-  useWebhooksQuery,
   useStopSessionMutation,
   useStatsOverviewQuery,
 } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { WidgetTooltip } from '../components/WidgetTooltip';
 import './Dashboard.css';
 
 // recharts is heavy (~150kB gzip); load the analytics section on demand so it never bloats the
@@ -24,7 +24,6 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { data: sessions = [], isLoading: loadingSessions, error: sessionsError } = useSessionsQuery();
   const { data: stats } = useSessionStatsQuery();
-  const { data: webhooks = [] } = useWebhooksQuery();
   // /stats/overview is ADMIN-only; for a non-admin key it 403s → overview stays undefined and the
   // message cards fall back to '—' without breaking the (un-gated) session cards.
   const { data: overview } = useStatsOverviewQuery();
@@ -34,7 +33,6 @@ export function Dashboard() {
   const loading = loadingSessions;
   const error =
     sessionsError instanceof Error ? sessionsError.message : sessionsError ? t('dashboard.loadError') : null;
-  const webhookCount = webhooks.length;
 
   const handleDisconnect = async (id: string) => {
     try {
@@ -53,10 +51,27 @@ export function Dashboard() {
       value: stats?.ready ?? 0,
       icon: MessageSquare,
       detail: stats ? t('dashboard.stats.sessionsDetail', { running: stats.active, total: stats.total }) : undefined,
+      tooltip: t('dashboard.tooltips.activeSessions', {
+        defaultValue: 'Sessions currently ready and able to send or receive WhatsApp messages.',
+      }),
     },
-    { label: t('dashboard.stats.messagesToday'), value: messagesToday, icon: Send },
-    { label: t('dashboard.stats.webhooksConfigured'), value: webhookCount, icon: Webhook },
-    { label: t('dashboard.stats.totalMessages'), value: totalMessages, icon: Activity },
+    {
+      label: t('dashboard.stats.messagesToday'),
+      value: messagesToday,
+      icon: Send,
+      tooltip: t('dashboard.tooltips.messagesToday', {
+        defaultValue: "Incoming and outgoing messages recorded since midnight in the server's local time.",
+      }),
+    },
+    // The "Webhooks Configured" widget is intentionally hidden from the dashboard.
+    {
+      label: t('dashboard.stats.totalM  essages'),
+      value: totalMessages,
+      icon: Activity,
+      tooltip: t('dashboard.tooltips.totalMessages', {
+        defaultValue: 'All incoming and outgoing messages stored across every session.',
+      }),
+    },
   ];
 
   const formatLastActive = (date?: string | null) => {
@@ -106,11 +121,14 @@ export function Dashboard() {
       />
 
       <div className="stats-grid">
-        {statsCards.map(({ label, value, icon: Icon, detail }) => (
+        {statsCards.map(({ label, value, icon: Icon, detail, tooltip }) => (
           <div key={label} className="stat-card">
             <Icon className="stat-watermark" />
             <div className="stat-header">
-              <span className="stat-label">{label}</span>
+              <div className="stat-heading">
+                <span className="stat-label">{label}</span>
+                <WidgetTooltip text={tooltip} />
+              </div>
               <Icon size={20} className="stat-icon" />
             </div>
             <div className="stat-value">{typeof value === 'number' ? value.toLocaleString() : value}</div>
@@ -125,7 +143,15 @@ export function Dashboard() {
 
       <section className="sessions-section">
         <div className="section-header">
-          <h2>{t('dashboard.sessionsOverview')}</h2>
+          <div className="section-title">
+            <h2>{t('dashboard.sessionsOverview')}</h2>
+            <WidgetTooltip
+              text={t('dashboard.tooltips.sessionsOverview', {
+                defaultValue:
+                  'Lists every WhatsApp session with its phone number, connection state, and last activity.',
+              })}
+            />
+          </div>
           <span className="section-subtitle">
             {t('dashboard.showingSessions', { shown: sessions.length, total: stats?.total ?? 0 })}
           </span>

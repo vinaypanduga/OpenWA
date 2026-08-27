@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "דאשבורד",
+    "analytics": "ניתוח נתונים",
     "sessions": "Sessions",
     "chats": "שיחות",
     "webhooks": "Webhooks",

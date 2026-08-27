@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "仪表盘",
+    "analytics": "分析",
     "sessions": "会话",
     "chats": "聊天",
     "webhooks": "Webhooks",

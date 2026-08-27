@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "控制面板",
+    "analytics": "分析",
     "sessions": "工作階段",
     "chats": "聊天",
     "webhooks": "Webhooks",

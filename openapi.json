@@ -59,11 +59,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "enum": [
-                "info",
-                "warn",
-                "error"
-              ],
+              "enum": ["info", "warn", "error"],
               "type": "string"
             }
           },
@@ -113,9 +109,7 @@
           }
         },
         "summary": "List audit logs with optional filters",
-        "tags": [
-          "audit"
-        ]
+        "tags": ["audit"]
       }
     },
     "/api/auth/api-keys": {
@@ -145,9 +139,7 @@
           }
         },
         "summary": "Create a new API key (admin only)",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       },
       "get": {
         "operationId": "AuthController_findAll",
@@ -168,9 +160,7 @@
           }
         },
         "summary": "List all API keys (admin only)",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       }
     },
     "/api/auth/api-keys/{id}": {
@@ -199,9 +189,7 @@
           }
         },
         "summary": "Get API key details (admin only)",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       },
       "put": {
         "operationId": "AuthController_update",
@@ -241,9 +229,7 @@
           }
         },
         "summary": "Update API key (admin only)",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       },
       "delete": {
         "operationId": "AuthController_delete",
@@ -266,9 +252,7 @@
           }
         },
         "summary": "Delete API key (admin only)",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       }
     },
     "/api/auth/api-keys/{id}/revoke": {
@@ -300,9 +284,7 @@
           }
         },
         "summary": "Revoke API key (admin only)",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       }
     },
     "/api/auth/validate": {
@@ -334,9 +316,7 @@
           }
         },
         "summary": "Validate an API key",
-        "tags": [
-          "auth"
-        ]
+        "tags": ["auth"]
       }
     },
     "/api/sessions": {
@@ -369,9 +349,7 @@
           }
         },
         "summary": "Create a new WhatsApp session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       },
       "get": {
         "operationId": "SessionController_findAll",
@@ -411,9 +389,7 @@
           }
         },
         "summary": "List all sessions",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}": {
@@ -446,9 +422,7 @@
           }
         },
         "summary": "Get session by ID",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       },
       "delete": {
         "operationId": "SessionController_delete",
@@ -475,9 +449,7 @@
           }
         },
         "summary": "Delete a session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/config": {
@@ -510,9 +482,7 @@
           }
         },
         "summary": "Get the tunable configuration for a session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       },
       "patch": {
         "description": "Merges the supplied keys into the session config; omitted keys are left unchanged and an explicit null clears a key back to its default. No restart is required or performed. `autoRejectCalls` is re-read on every incoming call, so it applies immediately; the two reconnect settings are read once per start and therefore apply on the next start.",
@@ -557,9 +527,7 @@
           }
         },
         "summary": "Update the tunable configuration for a session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/start": {
@@ -598,9 +566,7 @@
           }
         },
         "summary": "Start a session and initialize WhatsApp connection",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/stop": {
@@ -639,9 +605,7 @@
           }
         },
         "summary": "Stop a session and disconnect WhatsApp",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/logout": {
@@ -695,9 +659,7 @@
           }
         },
         "summary": "Log out of WhatsApp (unlinks this device) and stop the session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/force-kill": {
@@ -733,9 +695,7 @@
           }
         },
         "summary": "Force-kill a stuck session (SIGKILL its wedged engine, then tear it down)",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/qr": {
@@ -771,9 +731,7 @@
           }
         },
         "summary": "Get QR code for session authentication",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/pairing-code": {
@@ -822,9 +780,7 @@
           }
         },
         "summary": "Request an 8-char pairing code to link via phone number (alternative to QR)",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/groups": {
@@ -887,9 +843,7 @@
           }
         },
         "summary": "Get all groups for a session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       },
       "post": {
         "operationId": "GroupController_create",
@@ -939,9 +893,7 @@
           }
         },
         "summary": "Create a new group",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/chats": {
@@ -1004,9 +956,7 @@
           }
         },
         "summary": "Get active chats for a session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/read": {
@@ -1058,9 +1008,7 @@
           }
         },
         "summary": "Mark a chat as read/seen",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/presence/subscribe": {
@@ -1113,9 +1061,7 @@
           }
         },
         "summary": "Subscribe to a chat's presence",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/presence": {
@@ -1165,9 +1111,7 @@
           }
         },
         "summary": "Set the account's own global presence (appear online or offline)",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/presence/{chatId}": {
@@ -1210,9 +1154,7 @@
           }
         },
         "summary": "Read a chat's last reported presence",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/unread": {
@@ -1264,9 +1206,7 @@
           }
         },
         "summary": "Mark a chat as unread",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/{chatId}/messages": {
@@ -1317,9 +1257,7 @@
           }
         },
         "summary": "Delete every message in a chat, keeping the chat itself",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/archive": {
@@ -1371,9 +1309,7 @@
           }
         },
         "summary": "Archive or unarchive a chat",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/mute": {
@@ -1425,9 +1361,7 @@
           }
         },
         "summary": "Mute or unmute a chat",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/pin": {
@@ -1479,9 +1413,7 @@
           }
         },
         "summary": "Pin or unpin a chat at the top of the chat list",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/delete": {
@@ -1533,9 +1465,7 @@
           }
         },
         "summary": "Delete a chat from the chat list (e.g. a group you have left)",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/chats/typing": {
@@ -1581,9 +1511,7 @@
           }
         },
         "summary": "Send a typing/recording presence indicator to a chat (or clear it with 'paused')",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/stats/overview": {
@@ -1603,9 +1531,7 @@
           }
         },
         "summary": "Get session statistics for multi-session monitoring",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{sessionId}/webhooks": {
@@ -1648,9 +1574,7 @@
           }
         },
         "summary": "Create a webhook for the session",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       },
       "get": {
         "operationId": "WebhookController_findBySession",
@@ -1681,9 +1605,7 @@
           }
         },
         "summary": "List all webhooks for a session",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/api/sessions/{sessionId}/webhooks/{id}": {
@@ -1725,9 +1647,7 @@
           }
         },
         "summary": "Get a webhook by ID",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       },
       "put": {
         "operationId": "WebhookController_update",
@@ -1777,9 +1697,7 @@
           }
         },
         "summary": "Update a webhook",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       },
       "delete": {
         "operationId": "WebhookController_delete",
@@ -1812,9 +1730,7 @@
           }
         },
         "summary": "Delete a webhook",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/api/sessions/{sessionId}/webhooks/{id}/test": {
@@ -1856,9 +1772,7 @@
           }
         },
         "summary": "Test a webhook by sending a test payload",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/api/webhooks/delivery-failures": {
@@ -1909,9 +1823,7 @@
           }
         },
         "summary": "List recently-failed webhook deliveries (all retries exhausted)",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/api/webhooks": {
@@ -1953,9 +1865,7 @@
           }
         },
         "summary": "List webhooks visible to the calling key (scoped to its allowed sessions)",
-        "tags": [
-          "webhooks"
-        ]
+        "tags": ["webhooks"]
       }
     },
     "/api/sessions/{sessionId}/automation-rules": {
@@ -1998,9 +1908,7 @@
           }
         },
         "summary": "Create an autoreply rule",
-        "tags": [
-          "automation"
-        ]
+        "tags": ["automation"]
       },
       "get": {
         "operationId": "AutomationRuleController_findAll",
@@ -2031,9 +1939,7 @@
           }
         },
         "summary": "List the session’s autoreply rules",
-        "tags": [
-          "automation"
-        ]
+        "tags": ["automation"]
       }
     },
     "/api/sessions/{sessionId}/automation-rules/{ruleId}": {
@@ -2075,9 +1981,7 @@
           }
         },
         "summary": "Get one autoreply rule",
-        "tags": [
-          "automation"
-        ]
+        "tags": ["automation"]
       },
       "put": {
         "operationId": "AutomationRuleController_update",
@@ -2127,9 +2031,7 @@
           }
         },
         "summary": "Update an autoreply rule",
-        "tags": [
-          "automation"
-        ]
+        "tags": ["automation"]
       },
       "delete": {
         "operationId": "AutomationRuleController_remove",
@@ -2162,9 +2064,7 @@
           }
         },
         "summary": "Delete an autoreply rule",
-        "tags": [
-          "automation"
-        ]
+        "tags": ["automation"]
       }
     },
     "/api/sessions/{sessionId}/messages": {
@@ -2230,9 +2130,7 @@
           }
         },
         "summary": "Get message history for a session",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-text": {
@@ -2269,9 +2167,7 @@
                   "value": {
                     "chatId": "120363000000000000@g.us",
                     "text": "Hello @62811",
-                    "mentions": [
-                      "62811@c.us"
-                    ]
+                    "mentions": ["62811@c.us"]
                   }
                 }
               }
@@ -2300,9 +2196,7 @@
           }
         },
         "summary": "Send a text message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-template": {
@@ -2351,9 +2245,7 @@
           }
         },
         "summary": "Render a stored text template and send it as a text message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-image": {
@@ -2412,9 +2304,7 @@
           }
         },
         "summary": "Send an image message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-video": {
@@ -2472,9 +2362,7 @@
           }
         },
         "summary": "Send a video message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-audio": {
@@ -2533,9 +2421,7 @@
           }
         },
         "summary": "Send an audio/voice message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-document": {
@@ -2594,9 +2480,7 @@
           }
         },
         "summary": "Send a document/file",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-location": {
@@ -2653,9 +2537,7 @@
           }
         },
         "summary": "Send a location message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-contact": {
@@ -2711,9 +2593,7 @@
           }
         },
         "summary": "Send a contact card message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-sticker": {
@@ -2771,9 +2651,7 @@
           }
         },
         "summary": "Send a sticker message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-poll": {
@@ -2803,10 +2681,7 @@
                   "value": {
                     "chatId": "120363000000000000@g.us",
                     "name": "Where should we meet?",
-                    "options": [
-                      "Park",
-                      "Beach"
-                    ]
+                    "options": ["Park", "Beach"]
                   }
                 }
               }
@@ -2832,9 +2707,7 @@
           }
         },
         "summary": "Send a native WhatsApp poll",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/reply": {
@@ -2883,9 +2756,7 @@
           }
         },
         "summary": "Reply to a message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/forward": {
@@ -2934,9 +2805,7 @@
           }
         },
         "summary": "Forward a message to another chat",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/react": {
@@ -2985,9 +2854,7 @@
           }
         },
         "summary": "Add or remove a reaction to a message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/{chatId}/history": {
@@ -3063,9 +2930,7 @@
           }
         },
         "summary": "Fetch chat history live from WhatsApp",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/{chatId}/{messageId}/reactions": {
@@ -3125,9 +2990,7 @@
           }
         },
         "summary": "Get reactions for a specific message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/{chatId}/{messageId}/media": {
@@ -3179,9 +3042,7 @@
           }
         },
         "summary": "Download a message’s stored media",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/delete": {
@@ -3233,9 +3094,7 @@
           }
         },
         "summary": "Delete a message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/vote-poll": {
@@ -3287,9 +3146,7 @@
           }
         },
         "summary": "Cast a vote on a poll",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/pin": {
@@ -3341,9 +3198,7 @@
           }
         },
         "summary": "Pin a message in its chat",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/unpin": {
@@ -3395,9 +3250,7 @@
           }
         },
         "summary": "Remove a message’s pin",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/star": {
@@ -3449,9 +3302,7 @@
           }
         },
         "summary": "Star or unstar a message",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/edit": {
@@ -3503,9 +3354,7 @@
           }
         },
         "summary": "Edit the text of a message sent by this account",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-bulk": {
@@ -3548,9 +3397,7 @@
           }
         },
         "summary": "Send messages to multiple recipients (async batch processing)",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/batch/{batchId}": {
@@ -3592,9 +3439,7 @@
           }
         },
         "summary": "Get batch processing status",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/messages/batch/{batchId}/cancel": {
@@ -3639,9 +3484,7 @@
           }
         },
         "summary": "Cancel a running batch",
-        "tags": [
-          "messages"
-        ]
+        "tags": ["messages"]
       }
     },
     "/api/sessions/{sessionId}/templates": {
@@ -3684,9 +3527,7 @@
           }
         },
         "summary": "Create a message template for the session",
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       },
       "get": {
         "operationId": "TemplateController_findBySession",
@@ -3717,9 +3558,7 @@
           }
         },
         "summary": "List all templates for a session",
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/sessions/{sessionId}/templates/{id}": {
@@ -3761,9 +3600,7 @@
           }
         },
         "summary": "Get a template by ID",
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       },
       "put": {
         "operationId": "TemplateController_update",
@@ -3816,9 +3653,7 @@
           }
         },
         "summary": "Update a template",
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       },
       "delete": {
         "operationId": "TemplateController_delete",
@@ -3851,9 +3686,7 @@
           }
         },
         "summary": "Delete a template",
-        "tags": [
-          "templates"
-        ]
+        "tags": ["templates"]
       }
     },
     "/api/health": {
@@ -3873,9 +3706,7 @@
           }
         },
         "summary": "Basic health check",
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "security": []
       }
     },
@@ -3896,9 +3727,7 @@
           }
         },
         "summary": "Liveness probe for Kubernetes",
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "security": []
       }
     },
@@ -3922,9 +3751,7 @@
           }
         },
         "summary": "Readiness probe — verifies the auth/audit + data databases respond",
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "security": []
       }
     },
@@ -3945,9 +3772,7 @@
           }
         },
         "summary": "Get application settings",
-        "tags": [
-          "settings"
-        ]
+        "tags": ["settings"]
       }
     },
     "/api/infra/status": {
@@ -3967,9 +3792,7 @@
           }
         },
         "summary": "Get infrastructure status",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/engines": {
@@ -3992,9 +3815,7 @@
           }
         },
         "summary": "Get available WhatsApp engines",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/engines/current": {
@@ -4014,9 +3835,7 @@
           }
         },
         "summary": "Get current active engine",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/health": {
@@ -4036,9 +3855,7 @@
           }
         },
         "summary": "Health check endpoint",
-        "tags": [
-          "infrastructure"
-        ],
+        "tags": ["infrastructure"],
         "security": []
       }
     },
@@ -4059,9 +3876,7 @@
           }
         },
         "summary": "Read the effective infrastructure configuration for the dashboard form",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       },
       "put": {
         "operationId": "InfraConfigController_saveConfig",
@@ -4090,9 +3905,7 @@
           }
         },
         "summary": "Save infrastructure configuration to .env file",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/restart": {
@@ -4122,9 +3935,7 @@
           }
         },
         "summary": "Request server restart with Docker orchestration",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/export-data": {
@@ -4144,9 +3955,7 @@
           }
         },
         "summary": "Export all data from Data DB for migration",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/import-data": {
@@ -4183,9 +3992,7 @@
           }
         },
         "summary": "Import data to Data DB (replaces existing data)",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/storage/files/count": {
@@ -4205,9 +4012,7 @@
           }
         },
         "summary": "Get file count in current storage",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/storage/export": {
@@ -4227,9 +4032,7 @@
           }
         },
         "summary": "Export all storage files as tar.gz",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/infra/storage/import": {
@@ -4260,9 +4063,7 @@
           }
         },
         "summary": "Import storage files from tar.gz",
-        "tags": [
-          "infrastructure"
-        ]
+        "tags": ["infrastructure"]
       }
     },
     "/api/sessions/{sessionId}/contacts": {
@@ -4319,9 +4120,7 @@
           }
         },
         "summary": "Get all contacts for a session",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/profile-pictures": {
@@ -4364,9 +4163,7 @@
           }
         },
         "summary": "Batch-resolve profile picture URLs for up to 50 contacts",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/blocked": {
@@ -4406,9 +4203,7 @@
           }
         },
         "summary": "List the contacts this account has blocked",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/{contactId}": {
@@ -4453,9 +4248,7 @@
           }
         },
         "summary": "Get a specific contact by ID",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       },
       "put": {
         "operationId": "ContactController_upsertContact",
@@ -4511,9 +4304,7 @@
           }
         },
         "summary": "Save a contact to the account's addressbook, or edit an existing entry",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       },
       "delete": {
         "operationId": "ContactController_deleteContact",
@@ -4559,9 +4350,7 @@
           }
         },
         "summary": "Remove a contact from the account's addressbook",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/check/{number}": {
@@ -4607,9 +4396,7 @@
           }
         },
         "summary": "Check if a phone number exists on WhatsApp",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/{contactId}/profile-picture": {
@@ -4654,9 +4441,7 @@
           }
         },
         "summary": "Get profile picture URL for a contact",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/{contactId}/phone": {
@@ -4698,9 +4483,7 @@
           }
         },
         "summary": "Resolve a contact id (e.g. an @lid) to a phone number — best-effort",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/contacts/{contactId}/block": {
@@ -4745,9 +4528,7 @@
           }
         },
         "summary": "Block a contact",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       },
       "delete": {
         "operationId": "ContactController_unblockContact",
@@ -4790,9 +4571,7 @@
           }
         },
         "summary": "Unblock a contact",
-        "tags": [
-          "contacts"
-        ]
+        "tags": ["contacts"]
       }
     },
     "/api/sessions/{sessionId}/groups/join-info": {
@@ -4844,9 +4623,7 @@
           }
         },
         "summary": "Preview a group from its invite code, without joining",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}": {
@@ -4894,9 +4671,7 @@
           }
         },
         "summary": "Get detailed group info",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/join": {
@@ -4945,9 +4720,7 @@
           }
         },
         "summary": "Join a group via invite code",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/settings": {
@@ -4995,9 +4768,7 @@
           }
         },
         "summary": "Get group settings (announce / locked / ephemeral timer)",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       },
       "put": {
         "operationId": "GroupController_updateSettings",
@@ -5062,9 +4833,7 @@
           }
         },
         "summary": "Update group settings (announce / locked / ephemeral timer)",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/participants": {
@@ -5125,9 +4894,7 @@
           }
         },
         "summary": "Add participants to a group",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       },
       "delete": {
         "operationId": "GroupController_removeParticipants",
@@ -5186,9 +4953,7 @@
           }
         },
         "summary": "Remove participants from a group",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/participants/promote": {
@@ -5249,9 +5014,7 @@
           }
         },
         "summary": "Promote participants to admin",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/participants/demote": {
@@ -5312,9 +5075,7 @@
           }
         },
         "summary": "Demote participants from admin",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/membership-requests": {
@@ -5366,9 +5127,7 @@
           }
         },
         "summary": "List pending join requests for a group",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/membership-requests/approve": {
@@ -5427,9 +5186,7 @@
           }
         },
         "summary": "Approve pending join requests",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/membership-requests/reject": {
@@ -5488,9 +5245,7 @@
           }
         },
         "summary": "Reject pending join requests",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/subject": {
@@ -5548,9 +5303,7 @@
           }
         },
         "summary": "Change group name/subject",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/description": {
@@ -5608,9 +5361,7 @@
           }
         },
         "summary": "Change group description",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/leave": {
@@ -5655,9 +5406,7 @@
           }
         },
         "summary": "Leave a group",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/picture": {
@@ -5705,9 +5454,7 @@
           }
         },
         "summary": "Get the group's picture URL",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       },
       "put": {
         "operationId": "GroupController_setPicture",
@@ -5769,9 +5516,7 @@
           }
         },
         "summary": "Set the group's picture",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       },
       "delete": {
         "operationId": "GroupController_deletePicture",
@@ -5823,9 +5568,7 @@
           }
         },
         "summary": "Remove the group's picture",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/invite-code": {
@@ -5873,9 +5616,7 @@
           }
         },
         "summary": "Get group invite code/link",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/groups/{groupId}/invite-code/revoke": {
@@ -5923,9 +5664,7 @@
           }
         },
         "summary": "Revoke group invite code and generate new one",
-        "tags": [
-          "groups"
-        ]
+        "tags": ["groups"]
       }
     },
     "/api/sessions/{sessionId}/profile/name": {
@@ -5977,9 +5716,7 @@
           }
         },
         "summary": "Set the account display name",
-        "tags": [
-          "profile"
-        ]
+        "tags": ["profile"]
       }
     },
     "/api/sessions/{sessionId}/profile/status": {
@@ -6028,9 +5765,7 @@
           }
         },
         "summary": "Set the account about/status text",
-        "tags": [
-          "profile"
-        ]
+        "tags": ["profile"]
       }
     },
     "/api/sessions/{sessionId}/profile/picture": {
@@ -6085,9 +5820,7 @@
           }
         },
         "summary": "Set the account profile picture (URL or base64 image)",
-        "tags": [
-          "profile"
-        ]
+        "tags": ["profile"]
       },
       "delete": {
         "operationId": "ProfileController_deletePicture",
@@ -6127,9 +5860,7 @@
           }
         },
         "summary": "Remove the account's profile picture",
-        "tags": [
-          "profile"
-        ]
+        "tags": ["profile"]
       }
     },
     "/api/sessions/{sessionId}/calls/link": {
@@ -6181,9 +5912,7 @@
           }
         },
         "summary": "Generate a shareable WhatsApp call link",
-        "tags": [
-          "calls"
-        ]
+        "tags": ["calls"]
       }
     },
     "/api/sessions/{sessionId}/calls/{callId}/reject": {
@@ -6234,9 +5963,7 @@
           }
         },
         "summary": "Reject a ringing incoming call",
-        "tags": [
-          "calls"
-        ]
+        "tags": ["calls"]
       }
     },
     "/api/sessions/{sessionId}/labels": {
@@ -6278,9 +6005,7 @@
           }
         },
         "summary": "Get all labels (WhatsApp Business only)",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       }
     },
     "/api/sessions/{sessionId}/labels/{labelId}": {
@@ -6328,9 +6053,7 @@
           }
         },
         "summary": "Get a specific label by ID",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       },
       "put": {
         "description": "Baileys only. `PUT` rather than `POST` because the label id is chosen by the caller: WhatsApp carries one `label_edit` write keyed on that id, so whether this creates or updates depends purely on whether the id already exists, and there is no server-assigned id to return.\n\n**Choose an unused id to create.** Reusing one silently rewrites that label rather than failing, because the protocol has no create-only form. Fields left out are left alone.\n\nwhatsapp-web.js can read and assign labels but cannot edit one, and answers `501`.",
@@ -6390,9 +6113,7 @@
           }
         },
         "summary": "Create or update a label",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       },
       "delete": {
         "description": "Baileys only. The label disappears from every chat it was on. whatsapp-web.js cannot edit labels and answers `501`.",
@@ -6442,9 +6163,7 @@
           }
         },
         "summary": "Delete a label",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       }
     },
     "/api/sessions/{sessionId}/labels/{labelId}/chats": {
@@ -6502,9 +6221,7 @@
           }
         },
         "summary": "Get every chat carrying a label",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       }
     },
     "/api/sessions/{sessionId}/labels/chat/{chatId}": {
@@ -6552,9 +6269,7 @@
           }
         },
         "summary": "Get labels for a specific chat",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       },
       "post": {
         "operationId": "LabelController_addLabelToChat",
@@ -6590,9 +6305,7 @@
                     "description": "Label ID to add"
                   }
                 },
-                "required": [
-                  "labelId"
-                ]
+                "required": ["labelId"]
               }
             }
           }
@@ -6619,9 +6332,7 @@
           }
         },
         "summary": "Add a label to a chat",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       }
     },
     "/api/sessions/{sessionId}/labels/chat/{chatId}/{labelId}": {
@@ -6678,9 +6389,7 @@
           }
         },
         "summary": "Remove a label from a chat",
-        "tags": [
-          "labels"
-        ]
+        "tags": ["labels"]
       }
     },
     "/api/sessions/{sessionId}/channels": {
@@ -6722,9 +6431,7 @@
           }
         },
         "summary": "Get all subscribed channels/newsletters",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       },
       "post": {
         "description": "The account becomes the channel owner, which is what makes deleting it possible later — neither engine can delete a channel it does not own.",
@@ -6772,9 +6479,7 @@
           }
         },
         "summary": "Create a channel",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/{channelId}": {
@@ -6822,9 +6527,7 @@
           }
         },
         "summary": "Get a specific channel by ID",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       },
       "delete": {
         "operationId": "ChannelController_unsubscribe",
@@ -6870,9 +6573,7 @@
           }
         },
         "summary": "Unsubscribe from a channel",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/{channelId}/messages": {
@@ -6932,9 +6633,7 @@
           }
         },
         "summary": "Get messages from a channel",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/{channelId}/delete": {
@@ -6986,9 +6685,7 @@
           }
         },
         "summary": "Delete a channel this account owns",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/{channelId}/mute": {
@@ -7053,9 +6750,7 @@
           }
         },
         "summary": "Mute or unmute a channel",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/{channelId}/admins/demote": {
@@ -7120,9 +6815,7 @@
           }
         },
         "summary": "Demote a channel admin back to a subscriber",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/{channelId}/owner/transfer": {
@@ -7187,9 +6880,7 @@
           }
         },
         "summary": "Transfer channel ownership to another account",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/sessions/{sessionId}/channels/subscribe": {
@@ -7219,9 +6910,7 @@
                     "example": "ABC123xyz"
                   }
                 },
-                "required": [
-                  "inviteCode"
-                ]
+                "required": ["inviteCode"]
               }
             }
           }
@@ -7251,9 +6940,7 @@
           }
         },
         "summary": "Subscribe to a channel using invite code",
-        "tags": [
-          "channels"
-        ]
+        "tags": ["channels"]
       }
     },
     "/api/stats/overview": {
@@ -7273,9 +6960,7 @@
           }
         },
         "summary": "Get overall statistics",
-        "tags": [
-          "statistics"
-        ]
+        "tags": ["statistics"]
       }
     },
     "/api/stats/messages": {
@@ -7290,11 +6975,7 @@
             "schema": {
               "default": "24h",
               "type": "string",
-              "enum": [
-                "24h",
-                "7d",
-                "30d"
-              ]
+              "enum": ["24h", "7d", "30d"]
             }
           }
         ],
@@ -7311,9 +6992,7 @@
           }
         },
         "summary": "Get message statistics with time series",
-        "tags": [
-          "statistics"
-        ]
+        "tags": ["statistics"]
       }
     },
     "/api/stats/sessions/{sessionId}": {
@@ -7342,9 +7021,7 @@
           }
         },
         "summary": "Get statistics for a specific session",
-        "tags": [
-          "statistics"
-        ]
+        "tags": ["statistics"]
       }
     },
     "/api/metrics": {
@@ -7375,9 +7052,7 @@
           }
         ],
         "summary": "Prometheus metrics (requires METRICS_TOKEN bearer)",
-        "tags": [
-          "metrics"
-        ]
+        "tags": ["metrics"]
       }
     },
     "/api/sessions/{sessionId}/status": {
@@ -7406,9 +7081,7 @@
           }
         },
         "summary": "Get all contact status updates",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/status/{id}": {
@@ -7446,9 +7119,7 @@
           }
         },
         "summary": "Get status updates from a specific contact",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       },
       "delete": {
         "operationId": "StatusController_deleteStatus",
@@ -7490,9 +7161,7 @@
           }
         },
         "summary": "Delete own status",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/status/{statusId}/media": {
@@ -7533,9 +7202,7 @@
           }
         },
         "summary": "Stream a stored status media file",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/status/send-text": {
@@ -7583,9 +7250,7 @@
           }
         },
         "summary": "Post a text status",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/status/send-image": {
@@ -7636,9 +7301,7 @@
           }
         },
         "summary": "Post an image status",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/status/send-video": {
@@ -7689,9 +7352,7 @@
           }
         },
         "summary": "Post a video status",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/status/send-voice": {
@@ -7742,9 +7403,7 @@
           }
         },
         "summary": "Post an audio status as a voice note",
-        "tags": [
-          "status"
-        ]
+        "tags": ["status"]
       }
     },
     "/api/sessions/{sessionId}/media/convert": {
@@ -7774,9 +7433,7 @@
           }
         },
         "summary": "Whether server-side media conversion is available",
-        "tags": [
-          "media"
-        ]
+        "tags": ["media"]
       }
     },
     "/api/sessions/{sessionId}/media/convert/voice": {
@@ -7825,9 +7482,7 @@
           }
         },
         "summary": "Convert audio into a WhatsApp voice note (Ogg/Opus)",
-        "tags": [
-          "media"
-        ]
+        "tags": ["media"]
       }
     },
     "/api/sessions/{sessionId}/media/convert/video": {
@@ -7876,9 +7531,7 @@
           }
         },
         "summary": "Convert video into a WhatsApp-compatible MP4",
-        "tags": [
-          "media"
-        ]
+        "tags": ["media"]
       }
     },
     "/api/sessions/{sessionId}/catalog": {
@@ -7919,9 +7572,7 @@
           }
         },
         "summary": "Get business catalog info (Baileys engine only)",
-        "tags": [
-          "catalog"
-        ]
+        "tags": ["catalog"]
       }
     },
     "/api/sessions/{sessionId}/catalog/products": {
@@ -7984,9 +7635,7 @@
           }
         },
         "summary": "List catalog products (Baileys engine only)",
-        "tags": [
-          "catalog"
-        ]
+        "tags": ["catalog"]
       }
     },
     "/api/sessions/{sessionId}/catalog/products/{productId}": {
@@ -8035,9 +7684,7 @@
           }
         },
         "summary": "Get a specific product (Baileys engine only)",
-        "tags": [
-          "catalog"
-        ]
+        "tags": ["catalog"]
       }
     },
     "/api/sessions/{sessionId}/messages/send-product": {
@@ -8091,9 +7738,7 @@
           }
         },
         "summary": "Send a product message (Baileys engine only)",
-        "tags": [
-          "catalog"
-        ]
+        "tags": ["catalog"]
       }
     },
     "/api/plugins": {
@@ -8116,9 +7761,7 @@
           }
         },
         "summary": "List all plugins",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/install": {
@@ -8131,9 +7774,7 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "file"
-                ],
+                "required": ["file"],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -8164,9 +7805,7 @@
           }
         },
         "summary": "Install a plugin from an uploaded .zip package",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/install-url": {
@@ -8202,9 +7841,7 @@
           }
         },
         "summary": "Install a plugin by downloading its .zip from a URL (SSRF-guarded)",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/catalog": {
@@ -8230,9 +7867,7 @@
           }
         },
         "summary": "List the remote plugin catalog, annotated with install state",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}": {
@@ -8264,9 +7899,7 @@
           }
         },
         "summary": "Get plugin by ID",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       },
       "delete": {
         "operationId": "PluginsController_uninstall",
@@ -8299,9 +7932,7 @@
           }
         },
         "summary": "Uninstall a plugin (removes its files; built-ins are protected)",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/enable": {
@@ -8330,9 +7961,7 @@
           }
         },
         "summary": "Enable a plugin",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/disable": {
@@ -8361,9 +7990,7 @@
           }
         },
         "summary": "Disable a plugin",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/config": {
@@ -8402,9 +8029,7 @@
           }
         },
         "summary": "Update plugin configuration",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/config-ui": {
@@ -8436,9 +8061,7 @@
           }
         },
         "summary": "Serve a plugin's sandboxed config-UI entry HTML (for an iframe srcdoc)",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/config/{sessionId}": {
@@ -8491,9 +8114,7 @@
           }
         },
         "summary": "Set a plugin config override for a specific session (empty = clear it)",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/sessions": {
@@ -8541,9 +8162,7 @@
           }
         },
         "summary": "Set which sessions a session-scoped plugin is activated for (['*'] = all)",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/update": {
@@ -8588,9 +8207,7 @@
           }
         },
         "summary": "Update an installed plugin in place from a URL (preserves config + enabled state)",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/plugins/{id}/health": {
@@ -8619,9 +8236,7 @@
           }
         },
         "summary": "Check plugin health",
-        "tags": [
-          "plugins"
-        ]
+        "tags": ["plugins"]
       }
     },
     "/api/ingress/{pluginId}/{instanceId}/{path}": {
@@ -8678,9 +8293,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       },
       "post": {
@@ -8736,9 +8349,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       },
       "put": {
@@ -8794,9 +8405,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       },
       "delete": {
@@ -8852,9 +8461,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       },
       "patch": {
@@ -8910,9 +8517,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       },
       "options": {
@@ -8968,9 +8573,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       },
       "head": {
@@ -9026,9 +8629,7 @@
             "description": "Rate limit exceeded: the per-instance bucket (INGRESS_INSTANCE_LIMIT) or the per-client-IP bucket (INGRESS_IP_LIMIT). The `Retry-After-instance` / `Retry-After-ingress-ip` header names which one shed the request."
           }
         },
-        "tags": [
-          "integration"
-        ],
+        "tags": ["integration"],
         "security": []
       }
     },
@@ -9065,9 +8666,7 @@
             }
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       }
     },
     "/api/integration/plugins/{pluginId}/instances": {
@@ -9108,9 +8707,7 @@
             "description": "An instance with that id already exists for the plugin"
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       },
       "get": {
         "operationId": "IntegrationInstanceController_list",
@@ -9139,9 +8736,7 @@
             }
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       }
     },
     "/api/integration/plugins/{pluginId}/instances/{instanceId}": {
@@ -9177,9 +8772,7 @@
             }
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       },
       "patch": {
         "operationId": "IntegrationInstanceController_patch",
@@ -9223,9 +8816,7 @@
             }
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       },
       "delete": {
         "operationId": "IntegrationInstanceController_remove",
@@ -9252,9 +8843,7 @@
             "description": "Instance deleted and its session scope torn down."
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       }
     },
     "/api/integration/plugins/{pluginId}/instances/{instanceId}/regenerate-secret": {
@@ -9290,9 +8879,7 @@
             }
           }
         },
-        "tags": [
-          "integration"
-        ]
+        "tags": ["integration"]
       }
     },
     "/api/search": {
@@ -9342,10 +8929,7 @@
             "description": "incoming | outgoing",
             "schema": {
               "type": "string",
-              "enum": [
-                "incoming",
-                "outgoing"
-              ]
+              "enum": ["incoming", "outgoing"]
             }
           },
           {
@@ -9419,9 +9003,7 @@
           }
         },
         "summary": "Search messages across sessions (active search provider)",
-        "tags": [
-          "search"
-        ]
+        "tags": ["search"]
       }
     }
   },
@@ -9573,11 +9155,7 @@
           },
           "severity": {
             "type": "string",
-            "enum": [
-              "info",
-              "warn",
-              "error"
-            ],
+            "enum": ["info", "warn", "error"],
             "example": "info"
           },
           "apiKeyId": {
@@ -9671,10 +9249,7 @@
             "example": 128
           }
         },
-        "required": [
-          "data",
-          "total"
-        ]
+        "required": ["data", "total"]
       },
       "CreateApiKeyDto": {
         "type": "object",
@@ -9687,19 +9262,12 @@
           "role": {
             "type": "string",
             "description": "Role/permission level",
-            "enum": [
-              "admin",
-              "operator",
-              "viewer"
-            ],
+            "enum": ["admin", "operator", "viewer"],
             "default": "operator"
           },
           "allowedIps": {
             "description": "Allowed IP addresses (whitelist)",
-            "example": [
-              "192.168.1.1",
-              "10.0.0.0/8"
-            ],
+            "example": ["192.168.1.1", "10.0.0.0/8"],
             "type": "array",
             "items": {
               "type": "string"
@@ -9707,10 +9275,7 @@
           },
           "allowedSessions": {
             "description": "Session **ids** this key may act on — the server-generated UUIDs, not session names. Matched by exact equality against the id in the request path, so a name never matches and would silently scope the key to nothing. Omit or leave empty to let the key reach every session.",
-            "example": [
-              "0a941dac-a965-45e7-b318-74ae8be134f0",
-              "8f3c2b1a-9d4e-4c7a-8b2f-1e6d5a4c3b2a"
-            ],
+            "example": ["0a941dac-a965-45e7-b318-74ae8be134f0", "8f3c2b1a-9d4e-4c7a-8b2f-1e6d5a4c3b2a"],
             "type": "array",
             "items": {
               "type": "string"
@@ -9722,9 +9287,7 @@
             "example": "2027-12-31T23:59:59Z"
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "ApiKeyCreatedResponseDto": {
         "type": "object",
@@ -9741,11 +9304,7 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "operator",
-              "viewer"
-            ]
+            "enum": ["admin", "operator", "viewer"]
           },
           "allowedIps": {
             "type": "array",
@@ -9783,16 +9342,7 @@
             "example": "owa_k1_abc123..."
           }
         },
-        "required": [
-          "id",
-          "name",
-          "keyPrefix",
-          "role",
-          "isActive",
-          "usageCount",
-          "createdAt",
-          "apiKey"
-        ]
+        "required": ["id", "name", "keyPrefix", "role", "isActive", "usageCount", "createdAt", "apiKey"]
       },
       "ApiKeyResponseDto": {
         "type": "object",
@@ -9809,11 +9359,7 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "operator",
-              "viewer"
-            ]
+            "enum": ["admin", "operator", "viewer"]
           },
           "allowedIps": {
             "type": "array",
@@ -9846,15 +9392,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "keyPrefix",
-          "role",
-          "isActive",
-          "usageCount",
-          "createdAt"
-        ]
+        "required": ["id", "name", "keyPrefix", "role", "isActive", "usageCount", "createdAt"]
       },
       "UpdateApiKeyDto": {
         "type": "object",
@@ -9864,11 +9402,7 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "operator",
-              "viewer"
-            ]
+            "enum": ["admin", "operator", "viewer"]
           },
           "allowedIps": {
             "type": "array",
@@ -9897,17 +9431,11 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "operator",
-              "viewer"
-            ],
+            "enum": ["admin", "operator", "viewer"],
             "description": "The key's role; present only when valid."
           }
         },
-        "required": [
-          "valid"
-        ]
+        "required": ["valid"]
       },
       "CreateSessionDto": {
         "type": "object",
@@ -9935,29 +9463,18 @@
           "proxyType": {
             "type": "string",
             "description": "Proxy type",
-            "enum": [
-              "http",
-              "https",
-              "socks4",
-              "socks5"
-            ],
+            "enum": ["http", "https", "socks4", "socks5"],
             "example": "http"
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "AccountRestrictionDto": {
         "type": "object",
         "properties": {
           "kind": {
             "type": "string",
-            "enum": [
-              "reachout_timelock",
-              "tos_block",
-              "proxy_block"
-            ],
+            "enum": ["reachout_timelock", "tos_block", "proxy_block"],
             "description": "What WhatsApp is restricting. `reachout_timelock` leaves the session connected and existing chats working, blocking only the start of new conversations. `tos_block` and `proxy_block` are connection-level refusals — the session cannot stay linked while one is in force, so seeing either alongside a `ready` status is not possible.",
             "example": "reachout_timelock"
           },
@@ -9974,10 +9491,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "kind",
-          "code"
-        ]
+        "required": ["kind", "code"]
       },
       "SessionResponseDto": {
         "type": "object",
@@ -10058,14 +9572,7 @@
             "example": true
           }
         },
-        "required": [
-          "id",
-          "name",
-          "status",
-          "createdAt",
-          "updatedAt",
-          "engineLoaded"
-        ]
+        "required": ["id", "name", "status", "createdAt", "updatedAt", "engineLoaded"]
       },
       "SessionConfigResponseDto": {
         "type": "object",
@@ -10087,11 +9594,7 @@
             "example": 5000
           }
         },
-        "required": [
-          "autoRejectCalls",
-          "maxReconnectAttempts",
-          "reconnectBaseDelay"
-        ]
+        "required": ["autoRejectCalls", "maxReconnectAttempts", "reconnectBaseDelay"]
       },
       "UpdateSessionConfigDto": {
         "type": "object",
@@ -10143,10 +9646,7 @@
             "example": "qr_ready"
           }
         },
-        "required": [
-          "qrCode",
-          "status"
-        ]
+        "required": ["qrCode", "status"]
       },
       "RequestPairingCodeDto": {
         "type": "object",
@@ -10157,9 +9657,7 @@
             "example": "628123456789"
           }
         },
-        "required": [
-          "phoneNumber"
-        ]
+        "required": ["phoneNumber"]
       },
       "PairingCodeResponseDto": {
         "type": "object",
@@ -10175,10 +9673,7 @@
             "example": "qr_ready"
           }
         },
-        "required": [
-          "pairingCode",
-          "status"
-        ]
+        "required": ["pairingCode", "status"]
       },
       "SessionGroupSummaryDto": {
         "type": "object",
@@ -10200,10 +9695,7 @@
             "example": null
           }
         },
-        "required": [
-          "id",
-          "name"
-        ]
+        "required": ["id", "name"]
       },
       "ChatSummaryDto": {
         "type": "object",
@@ -10223,14 +9715,7 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "individual",
-              "group",
-              "channel",
-              "status",
-              "broadcast",
-              "unknown"
-            ],
+            "enum": ["individual", "group", "channel", "status", "broadcast", "unknown"],
             "description": "User-facing chat kind.",
             "example": "individual"
           },
@@ -10248,14 +9733,7 @@
             "example": "hi"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "isGroup",
-          "kind",
-          "unreadCount",
-          "timestamp"
-        ]
+        "required": ["id", "name", "isGroup", "kind", "unreadCount", "timestamp"]
       },
       "MarkChatReadDto": {
         "type": "object",
@@ -10269,19 +9747,14 @@
             "description": "Specific message IDs to mark read. Baileys acknowledges individual messages, so without this only the newest message the engine still holds in memory gets a receipt — a burst leaves its earlier messages unread forever, and a restarted session has no message to acknowledge at all. Callers that persist inbound message IDs should send them here. Ignored by whatsapp-web.js, whose own sendSeen is chat-level.",
             "maxItems": 100,
             "minItems": 1,
-            "example": [
-              "3EB0C767D26B8A3F1A2B",
-              "3EB0C767D26B8A3F1A2C"
-            ],
+            "example": ["3EB0C767D26B8A3F1A2B", "3EB0C767D26B8A3F1A2C"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "SessionActionResponseDto": {
         "type": "object",
@@ -10292,9 +9765,7 @@
             "example": true
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "SubscribePresenceDto": {
         "type": "object",
@@ -10305,9 +9776,7 @@
             "example": "1234567890@c.us"
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "SetOwnPresenceDto": {
         "type": "object",
@@ -10318,9 +9787,7 @@
             "example": false
           }
         },
-        "required": [
-          "available"
-        ]
+        "required": ["available"]
       },
       "ParticipantPresenceDto": {
         "type": "object",
@@ -10332,13 +9799,7 @@
           },
           "state": {
             "type": "string",
-            "enum": [
-              "available",
-              "unavailable",
-              "composing",
-              "recording",
-              "paused"
-            ],
+            "enum": ["available", "unavailable", "composing", "recording", "paused"],
             "description": "`composing` and `recording` mean actively typing or recording in this chat; `paused` means they stopped without sending. `available`/`unavailable` describe reachability.",
             "example": "composing"
           },
@@ -10348,10 +9809,7 @@
             "example": 1786000000
           }
         },
-        "required": [
-          "id",
-          "state"
-        ]
+        "required": ["id", "state"]
       },
       "ChatPresenceResponseDto": {
         "type": "object",
@@ -10378,11 +9836,7 @@
             "example": "2026-08-03T12:00:00Z"
           }
         },
-        "required": [
-          "chatId",
-          "participants",
-          "observedAt"
-        ]
+        "required": ["chatId", "participants", "observedAt"]
       },
       "MarkChatUnreadDto": {
         "type": "object",
@@ -10393,9 +9847,7 @@
             "example": "1234567890@c.us"
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "ArchiveChatDto": {
         "type": "object",
@@ -10410,10 +9862,7 @@
             "description": "true to archive, false to unarchive."
           }
         },
-        "required": [
-          "chatId",
-          "archive"
-        ]
+        "required": ["chatId", "archive"]
       },
       "MuteChatDto": {
         "type": "object",
@@ -10430,10 +9879,7 @@
             "nullable": true
           }
         },
-        "required": [
-          "chatId",
-          "muteUntil"
-        ]
+        "required": ["chatId", "muteUntil"]
       },
       "PinChatDto": {
         "type": "object",
@@ -10448,10 +9894,7 @@
             "description": "true to pin the chat to the top of the list, false to unpin it."
           }
         },
-        "required": [
-          "chatId",
-          "pin"
-        ]
+        "required": ["chatId", "pin"]
       },
       "DeleteChatDto": {
         "type": "object",
@@ -10462,9 +9905,7 @@
             "example": "1234567890-123@g.us"
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "SendChatStateDto": {
         "type": "object",
@@ -10477,18 +9918,11 @@
           "state": {
             "type": "string",
             "description": "Presence to send: 'typing' or 'recording' shows the indicator; 'paused' clears it",
-            "enum": [
-              "typing",
-              "recording",
-              "paused"
-            ],
+            "enum": ["typing", "recording", "paused"],
             "example": "typing"
           }
         },
-        "required": [
-          "chatId",
-          "state"
-        ]
+        "required": ["chatId", "state"]
       },
       "SessionMemoryUsageDto": {
         "type": "object",
@@ -10509,11 +9943,7 @@
             "example": 512
           }
         },
-        "required": [
-          "heapUsed",
-          "heapTotal",
-          "rss"
-        ]
+        "required": ["heapUsed", "heapTotal", "rss"]
       },
       "SessionsOverviewResponseDto": {
         "type": "object",
@@ -10558,14 +9988,7 @@
             ]
           }
         },
-        "required": [
-          "total",
-          "active",
-          "ready",
-          "disconnected",
-          "byStatus",
-          "memoryUsage"
-        ]
+        "required": ["total", "active", "ready", "disconnected", "byStatus", "memoryUsage"]
       },
       "WebhookFilterConditionDto": {
         "type": "object",
@@ -10577,12 +10000,7 @@
           },
           "operator": {
             "type": "string",
-            "enum": [
-              "is",
-              "isNot",
-              "contains",
-              "equals"
-            ],
+            "enum": ["is", "isNot", "contains", "equals"],
             "example": "is"
           },
           "value": {
@@ -10600,20 +10018,14 @@
                 "type": "boolean"
               }
             ],
-            "example": [
-              "1234567890@c.us"
-            ]
+            "example": ["1234567890@c.us"]
           },
           "caseSensitive": {
             "type": "boolean",
             "description": "Only meaningful for text fields. Defaults to false."
           }
         },
-        "required": [
-          "field",
-          "operator",
-          "value"
-        ]
+        "required": ["field", "operator", "value"]
       },
       "WebhookFiltersDto": {
         "type": "object",
@@ -10628,9 +10040,7 @@
             }
           }
         },
-        "required": [
-          "conditions"
-        ]
+        "required": ["conditions"]
       },
       "CreateWebhookDto": {
         "type": "object",
@@ -10643,10 +10053,7 @@
           "events": {
             "type": "array",
             "description": "Event types to subscribe to. '*' subscribes to all events.",
-            "example": [
-              "message.received",
-              "session.status"
-            ],
+            "example": ["message.received", "session.status"],
             "minItems": 1,
             "items": {
               "type": "string",
@@ -10697,9 +10104,7 @@
                 {
                   "field": "sender",
                   "operator": "is",
-                  "value": [
-                    "1234567890@c.us"
-                  ]
+                  "value": ["1234567890@c.us"]
                 },
                 {
                   "field": "body",
@@ -10724,9 +10129,7 @@
             "maximum": 5
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "WebhookResponseDto": {
         "type": "object",
@@ -10779,9 +10182,7 @@
                 {
                   "field": "sender",
                   "operator": "is",
-                  "value": [
-                    "1234567890@c.us"
-                  ]
+                  "value": ["1234567890@c.us"]
                 },
                 {
                   "field": "body",
@@ -10818,16 +10219,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "sessionId",
-          "url",
-          "events",
-          "active",
-          "retryCount",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "sessionId", "url", "events", "active", "retryCount", "createdAt", "updatedAt"]
       },
       "UpdateWebhookDto": {
         "type": "object",
@@ -10885,9 +10277,7 @@
                 {
                   "field": "sender",
                   "operator": "is",
-                  "value": [
-                    "1234567890@c.us"
-                  ]
+                  "value": ["1234567890@c.us"]
                 },
                 {
                   "field": "body",
@@ -10936,9 +10326,7 @@
             "example": "timeout"
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "WebhookDeliveryFailureDto": {
         "type": "object",
@@ -10993,16 +10381,7 @@
             "description": "When the delivery was finally abandoned."
           }
         },
-        "required": [
-          "id",
-          "webhookId",
-          "sessionId",
-          "event",
-          "url",
-          "attempts",
-          "lastError",
-          "createdAt"
-        ]
+        "required": ["id", "webhookId", "sessionId", "event", "url", "attempts", "lastError", "createdAt"]
       },
       "CreateAutomationRuleDto": {
         "type": "object",
@@ -11036,10 +10415,7 @@
             "default": true
           }
         },
-        "required": [
-          "name",
-          "replyText"
-        ]
+        "required": ["name", "replyText"]
       },
       "AutomationRuleResponseDto": {
         "type": "object",
@@ -11076,16 +10452,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "sessionId",
-          "name",
-          "enabled",
-          "replyText",
-          "cooldownSeconds",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "sessionId", "name", "enabled", "replyText", "cooldownSeconds", "createdAt", "updatedAt"]
       },
       "UpdateAutomationRuleDto": {
         "type": "object",
@@ -11170,10 +10537,7 @@
           },
           "direction": {
             "type": "string",
-            "enum": [
-              "incoming",
-              "outgoing"
-            ],
+            "enum": ["incoming", "outgoing"],
             "example": "incoming"
           },
           "timestamp": {
@@ -11200,13 +10564,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "sent",
-              "delivered",
-              "read",
-              "failed"
-            ],
+            "enum": ["pending", "sent", "delivered", "read", "failed"],
             "example": "delivered"
           },
           "createdAt": {
@@ -11215,17 +10573,7 @@
             "example": "2026-08-13T09:00:00Z"
           }
         },
-        "required": [
-          "id",
-          "sessionId",
-          "chatId",
-          "from",
-          "to",
-          "type",
-          "direction",
-          "status",
-          "createdAt"
-        ]
+        "required": ["id", "sessionId", "chatId", "from", "to", "type", "direction", "status", "createdAt"]
       },
       "MessageListResponseDto": {
         "type": "object",
@@ -11243,10 +10591,7 @@
             "example": 132
           }
         },
-        "required": [
-          "messages",
-          "total"
-        ]
+        "required": ["messages", "total"]
       },
       "CustomLinkPreviewDto": {
         "type": "object",
@@ -11269,10 +10614,7 @@
             "maxLength": 1024
           }
         },
-        "required": [
-          "url",
-          "title"
-        ]
+        "required": ["url", "title"]
       },
       "SendTextMessageDto": {
         "type": "object",
@@ -11290,9 +10632,7 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
@@ -11317,10 +10657,7 @@
             "example": "true_628123456789@c.us_3EB0ABCD"
           }
         },
-        "required": [
-          "chatId",
-          "text"
-        ]
+        "required": ["chatId", "text"]
       },
       "MessageResponseDto": {
         "type": "object",
@@ -11336,10 +10673,7 @@
             "example": 1706868000
           }
         },
-        "required": [
-          "messageId",
-          "timestamp"
-        ]
+        "required": ["messageId", "timestamp"]
       },
       "SendTemplateMessageDto": {
         "type": "object",
@@ -11369,9 +10703,7 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
@@ -11383,9 +10715,7 @@
             "example": false
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "SendMediaMessageDto": {
         "type": "object",
@@ -11422,9 +10752,7 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
@@ -11436,9 +10764,7 @@
             "example": "true_628123456789@c.us_3EB0ABCD"
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "SendAudioMessageDto": {
         "type": "object",
@@ -11475,9 +10801,7 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
@@ -11493,9 +10817,7 @@
             "description": "Send as a WhatsApp voice note (PTT — mic bubble + waveform). Provide audio/ogg; codecs=opus bytes for reliable playback; when the mimetype is omitted it defaults to that for voice notes. Expects a JSON boolean. Default false = plain audio file. Only valid on send-audio."
           }
         },
-        "required": [
-          "chatId"
-        ]
+        "required": ["chatId"]
       },
       "SendLocationDto": {
         "type": "object",
@@ -11526,11 +10848,7 @@
             "example": "true_628123456789@c.us_3EB0ABCD"
           }
         },
-        "required": [
-          "chatId",
-          "latitude",
-          "longitude"
-        ]
+        "required": ["chatId", "latitude", "longitude"]
       },
       "SendContactDto": {
         "type": "object",
@@ -11552,11 +10870,7 @@
             "example": "true_628123456789@c.us_3EB0ABCD"
           }
         },
-        "required": [
-          "chatId",
-          "contactName",
-          "contactNumber"
-        ]
+        "required": ["chatId", "contactName", "contactNumber"]
       },
       "SendPollDto": {
         "type": "object",
@@ -11573,11 +10887,7 @@
           },
           "options": {
             "description": "Options to vote on (WhatsApp allows between 2 and 12)",
-            "example": [
-              "Park",
-              "Beach",
-              "Downtown"
-            ],
+            "example": ["Park", "Beach", "Downtown"],
             "type": "array",
             "items": {
               "type": "string"
@@ -11593,11 +10903,7 @@
             "example": "true_628123456789@c.us_3EB0ABCD"
           }
         },
-        "required": [
-          "chatId",
-          "name",
-          "options"
-        ]
+        "required": ["chatId", "name", "options"]
       },
       "ReplyMessageDto": {
         "type": "object",
@@ -11614,20 +10920,14 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "chatId",
-          "quotedMessageId",
-          "text"
-        ]
+        "required": ["chatId", "quotedMessageId", "text"]
       },
       "ForwardMessageDto": {
         "type": "object",
@@ -11642,11 +10942,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "fromChatId",
-          "toChatId",
-          "messageId"
-        ]
+        "required": ["fromChatId", "toChatId", "messageId"]
       },
       "ReactMessageDto": {
         "type": "object",
@@ -11663,11 +10959,7 @@
             "maxLength": 32
           }
         },
-        "required": [
-          "chatId",
-          "messageId",
-          "emoji"
-        ]
+        "required": ["chatId", "messageId", "emoji"]
       },
       "MessageActionResponseDto": {
         "type": "object",
@@ -11678,9 +10970,7 @@
             "example": true
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "ChatHistoryCallDto": {
         "type": "object",
@@ -11696,10 +10986,7 @@
             "example": true
           }
         },
-        "required": [
-          "video",
-          "missed"
-        ]
+        "required": ["video", "missed"]
       },
       "ChatHistoryContactDto": {
         "type": "object",
@@ -11796,9 +11083,7 @@
             "example": 102400
           }
         },
-        "required": [
-          "mimetype"
-        ]
+        "required": ["mimetype"]
       },
       "ChatHistoryQuotedMessageDto": {
         "type": "object",
@@ -11812,10 +11097,7 @@
             "example": "original text"
           }
         },
-        "required": [
-          "id",
-          "body"
-        ]
+        "required": ["id", "body"]
       },
       "ChatHistoryLocationDto": {
         "type": "object",
@@ -11841,10 +11123,7 @@
             "example": "https://maps.example.com/…"
           }
         },
-        "required": [
-          "latitude",
-          "longitude"
-        ]
+        "required": ["latitude", "longitude"]
       },
       "ChatHistoryMessageDto": {
         "type": "object",
@@ -11905,14 +11184,7 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "individual",
-              "group",
-              "channel",
-              "status",
-              "broadcast",
-              "unknown"
-            ],
+            "enum": ["individual", "group", "channel", "status", "broadcast", "unknown"],
             "description": "User-facing chat kind of the conversation.",
             "example": "individual"
           },
@@ -11984,18 +11256,7 @@
             "$ref": "#/components/schemas/ChatHistoryLocationDto"
           }
         },
-        "required": [
-          "id",
-          "from",
-          "to",
-          "chatId",
-          "body",
-          "type",
-          "timestamp",
-          "fromMe",
-          "isGroup",
-          "kind"
-        ]
+        "required": ["id", "from", "to", "chatId", "body", "type", "timestamp", "fromMe", "isGroup", "kind"]
       },
       "MessageReactionSenderDto": {
         "type": "object",
@@ -12014,11 +11275,7 @@
             "example": 1700000010
           }
         },
-        "required": [
-          "senderId",
-          "emoji",
-          "timestamp"
-        ]
+        "required": ["senderId", "emoji", "timestamp"]
       },
       "MessageReactionDto": {
         "type": "object",
@@ -12036,10 +11293,7 @@
             }
           }
         },
-        "required": [
-          "emoji",
-          "senders"
-        ]
+        "required": ["emoji", "senders"]
       },
       "DeleteMessageDto": {
         "type": "object",
@@ -12055,10 +11309,7 @@
             "description": "Delete for everyone (default true)"
           }
         },
-        "required": [
-          "chatId",
-          "messageId"
-        ]
+        "required": ["chatId", "messageId"]
       },
       "VotePollDto": {
         "type": "object",
@@ -12079,11 +11330,7 @@
             }
           }
         },
-        "required": [
-          "chatId",
-          "pollMessageId",
-          "options"
-        ]
+        "required": ["chatId", "pollMessageId", "options"]
       },
       "PinMessageDto": {
         "type": "object",
@@ -12097,18 +11344,11 @@
           "durationSeconds": {
             "type": "number",
             "description": "Pin duration in seconds: 86400 (24h), 604800 (7d) or 2592000 (30d). Defaults to 24h.",
-            "enum": [
-              86400,
-              604800,
-              2592000
-            ],
+            "enum": [86400, 604800, 2592000],
             "default": 86400
           }
         },
-        "required": [
-          "chatId",
-          "messageId"
-        ]
+        "required": ["chatId", "messageId"]
       },
       "UnpinMessageDto": {
         "type": "object",
@@ -12120,10 +11360,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "chatId",
-          "messageId"
-        ]
+        "required": ["chatId", "messageId"]
       },
       "StarMessageDto": {
         "type": "object",
@@ -12139,11 +11376,7 @@
             "description": "true to star, false to remove the star."
           }
         },
-        "required": [
-          "chatId",
-          "messageId",
-          "star"
-        ]
+        "required": ["chatId", "messageId", "star"]
       },
       "EditMessageDto": {
         "type": "object",
@@ -12161,20 +11394,14 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "chatId",
-          "messageId",
-          "body"
-        ]
+        "required": ["chatId", "messageId", "body"]
       },
       "BulkMediaDto": {
         "type": "object",
@@ -12248,9 +11475,7 @@
           },
           "mentions": {
             "description": "WIDs to @mention (e.g. [\"62811@c.us\"]). The text/caption must also contain the @<number> token.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "type": "array",
             "items": {
               "type": "string"
@@ -12269,13 +11494,7 @@
           "type": {
             "type": "string",
             "description": "Message type",
-            "enum": [
-              "text",
-              "image",
-              "video",
-              "audio",
-              "document"
-            ]
+            "enum": ["text", "image", "video", "audio", "document"]
           },
           "content": {
             "description": "Message content based on type",
@@ -12290,11 +11509,7 @@
             "description": "Variables for template substitution"
           }
         },
-        "required": [
-          "chatId",
-          "type",
-          "content"
-        ]
+        "required": ["chatId", "type", "content"]
       },
       "BulkMessageOptionsDto": {
         "type": "object",
@@ -12341,9 +11556,7 @@
             ]
           }
         },
-        "required": [
-          "messages"
-        ]
+        "required": ["messages"]
       },
       "BulkMessageResponseDto": {
         "type": "object",
@@ -12364,12 +11577,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "batchId",
-          "status",
-          "totalMessages",
-          "statusUrl"
-        ]
+        "required": ["batchId", "status", "totalMessages", "statusUrl"]
       },
       "BatchProgressDto": {
         "type": "object",
@@ -12395,13 +11603,7 @@
             "example": 0
           }
         },
-        "required": [
-          "total",
-          "sent",
-          "failed",
-          "pending",
-          "cancelled"
-        ]
+        "required": ["total", "sent", "failed", "pending", "cancelled"]
       },
       "BatchMessageErrorDto": {
         "type": "object",
@@ -12416,10 +11618,7 @@
             "example": "The number is not registered on WhatsApp"
           }
         },
-        "required": [
-          "code",
-          "message"
-        ]
+        "required": ["code", "message"]
       },
       "BatchMessageResultDto": {
         "type": "object",
@@ -12430,12 +11629,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "sent",
-              "failed",
-              "cancelled"
-            ],
+            "enum": ["pending", "sent", "failed", "cancelled"],
             "example": "sent"
           },
           "messageId": {
@@ -12457,10 +11651,7 @@
             "description": "When the send completed."
           }
         },
-        "required": [
-          "chatId",
-          "status"
-        ]
+        "required": ["chatId", "status"]
       },
       "BatchStatusResponseDto": {
         "type": "object",
@@ -12471,13 +11662,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "processing",
-              "completed",
-              "cancelled",
-              "failed"
-            ],
+            "enum": ["pending", "processing", "completed", "cancelled", "failed"],
             "example": "processing"
           },
           "progress": {
@@ -12503,12 +11688,7 @@
             "description": "When the batch reached a terminal status; null while it is still running."
           }
         },
-        "required": [
-          "batchId",
-          "status",
-          "progress",
-          "results"
-        ]
+        "required": ["batchId", "status", "progress", "results"]
       },
       "BatchCancelResponseDto": {
         "type": "object",
@@ -12519,24 +11699,14 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "processing",
-              "completed",
-              "cancelled",
-              "failed"
-            ],
+            "enum": ["pending", "processing", "completed", "cancelled", "failed"],
             "example": "cancelled"
           },
           "progress": {
             "$ref": "#/components/schemas/BatchProgressDto"
           }
         },
-        "required": [
-          "batchId",
-          "status",
-          "progress"
-        ]
+        "required": ["batchId", "status", "progress"]
       },
       "CreateTemplateDto": {
         "type": "object",
@@ -12566,10 +11736,7 @@
             "maxLength": 1024
           }
         },
-        "required": [
-          "name",
-          "body"
-        ]
+        "required": ["name", "body"]
       },
       "TemplateResponseDto": {
         "type": "object",
@@ -12603,14 +11770,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "sessionId",
-          "name",
-          "body",
-          "createdAt",
-          "updatedAt"
-        ]
+        "required": ["id", "sessionId", "name", "body", "createdAt", "updatedAt"]
       },
       "UpdateTemplateDto": {
         "type": "object",
@@ -12656,10 +11816,7 @@
             "example": "0.14.4"
           }
         },
-        "required": [
-          "status",
-          "timestamp"
-        ]
+        "required": ["status", "timestamp"]
       },
       "LivenessResponseDto": {
         "type": "object",
@@ -12670,9 +11827,7 @@
             "example": "ok"
           }
         },
-        "required": [
-          "status"
-        ]
+        "required": ["status"]
       },
       "ReadinessResponseDto": {
         "type": "object",
@@ -12698,10 +11853,7 @@
             }
           }
         },
-        "required": [
-          "status",
-          "details"
-        ]
+        "required": ["status", "details"]
       },
       "SettingsGeneralDto": {
         "type": "object",
@@ -12722,11 +11874,7 @@
             "example": false
           }
         },
-        "required": [
-          "apiBaseUrl",
-          "autoReconnect",
-          "debugMode"
-        ]
+        "required": ["apiBaseUrl", "autoReconnect", "debugMode"]
       },
       "SettingsApiDto": {
         "type": "object",
@@ -12747,11 +11895,7 @@
             "example": false
           }
         },
-        "required": [
-          "rateLimit",
-          "rateLimitWindow",
-          "enableDocs"
-        ]
+        "required": ["rateLimit", "rateLimitWindow", "enableDocs"]
       },
       "SettingsNotificationsDto": {
         "type": "object",
@@ -12769,11 +11913,7 @@
             "example": true
           }
         },
-        "required": [
-          "emailEnabled",
-          "notificationEmail",
-          "webhookAlerts"
-        ]
+        "required": ["emailEnabled", "notificationEmail", "webhookAlerts"]
       },
       "SettingsResponseDto": {
         "type": "object",
@@ -12788,11 +11928,7 @@
             "$ref": "#/components/schemas/SettingsNotificationsDto"
           }
         },
-        "required": [
-          "general",
-          "api",
-          "notifications"
-        ]
+        "required": ["general", "api", "notifications"]
       },
       "InfraDatabaseStatusDto": {
         "type": "object",
@@ -12818,12 +11954,7 @@
             "example": true
           }
         },
-        "required": [
-          "connected",
-          "type",
-          "host",
-          "builtIn"
-        ]
+        "required": ["connected", "type", "host", "builtIn"]
       },
       "InfraRedisStatusDto": {
         "type": "object",
@@ -12852,13 +11983,7 @@
             "example": true
           }
         },
-        "required": [
-          "enabled",
-          "connected",
-          "host",
-          "port",
-          "builtIn"
-        ]
+        "required": ["enabled", "connected", "host", "port", "builtIn"]
       },
       "InfraQueueDepthDto": {
         "type": "object",
@@ -12879,11 +12004,7 @@
             "example": 2
           }
         },
-        "required": [
-          "pending",
-          "completed",
-          "failed"
-        ]
+        "required": ["pending", "completed", "failed"]
       },
       "InfraQueueStatusDto": {
         "type": "object",
@@ -12902,20 +12023,14 @@
             ]
           }
         },
-        "required": [
-          "enabled",
-          "webhooks"
-        ]
+        "required": ["enabled", "webhooks"]
       },
       "InfraStorageStatusDto": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "local",
-              "s3"
-            ],
+            "enum": ["local", "s3"],
             "example": "local"
           },
           "path": {
@@ -12938,10 +12053,7 @@
             "description": "Whether the S3 endpoint answered a probe. Present only for `s3`."
           }
         },
-        "required": [
-          "type",
-          "builtIn"
-        ]
+        "required": ["type", "builtIn"]
       },
       "InfraEngineStatusDto": {
         "type": "object",
@@ -12973,21 +12085,12 @@
           },
           "webVersionSource": {
             "type": "string",
-            "enum": [
-              "pinned",
-              "auto",
-              "native"
-            ],
+            "enum": ["pinned", "auto", "native"],
             "description": "How that build was chosen. Omitted for other engines.",
             "example": "pinned"
           }
         },
-        "required": [
-          "type",
-          "headless",
-          "sessionDataPath",
-          "browserArgs"
-        ]
+        "required": ["type", "headless", "sessionDataPath", "browserArgs"]
       },
       "InfraStatusResponseDto": {
         "type": "object",
@@ -13009,23 +12112,14 @@
           },
           "envPinned": {
             "description": "Which of the four settings the dashboard can edit are supplied by a layer ABOVE `data/.env.generated` — the container environment or a project `.env` — and so cannot be changed from the dashboard until that layer is. Reported, not inferred from a running-vs-saved mismatch: a save that has not been restarted yet looks identical and needs the opposite advice.",
-            "example": [
-              "ENGINE_TYPE"
-            ],
+            "example": ["ENGINE_TYPE"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "database",
-          "redis",
-          "queue",
-          "storage",
-          "engine",
-          "envPinned"
-        ]
+        "required": ["database", "redis", "queue", "storage", "engine", "envPinned"]
       },
       "EngineLibraryDto": {
         "type": "object",
@@ -13041,10 +12135,7 @@
             "example": "1.34.7"
           }
         },
-        "required": [
-          "name",
-          "version"
-        ]
+        "required": ["name", "version"]
       },
       "AvailableEngineDto": {
         "type": "object",
@@ -13066,11 +12157,7 @@
           },
           "features": {
             "description": "Capabilities the engine declares.",
-            "example": [
-              "text-messages",
-              "media-messages",
-              "group-management"
-            ],
+            "example": ["text-messages", "media-messages", "group-management"],
             "type": "array",
             "items": {
               "type": "string"
@@ -13085,12 +12172,7 @@
             ]
           }
         },
-        "required": [
-          "id",
-          "name",
-          "enabled",
-          "features"
-        ]
+        "required": ["id", "name", "enabled", "features"]
       },
       "InfraCurrentEngineResponseDto": {
         "type": "object",
@@ -13101,9 +12183,7 @@
             "example": "baileys"
           }
         },
-        "required": [
-          "engineType"
-        ]
+        "required": ["engineType"]
       },
       "InfraHealthResponseDto": {
         "type": "object",
@@ -13119,20 +12199,14 @@
             "example": "2026-08-07T12:00:00.000Z"
           }
         },
-        "required": [
-          "status",
-          "timestamp"
-        ]
+        "required": ["status", "timestamp"]
       },
       "InfraConfigDatabaseDto": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "sqlite",
-              "postgres"
-            ],
+            "enum": ["sqlite", "postgres"],
             "example": "postgres"
           },
           "builtIn": {
@@ -13219,13 +12293,7 @@
             "example": false
           }
         },
-        "required": [
-          "enabled",
-          "builtIn",
-          "host",
-          "port",
-          "passwordSet"
-        ]
+        "required": ["enabled", "builtIn", "host", "port", "passwordSet"]
       },
       "InfraConfigQueueDto": {
         "type": "object",
@@ -13235,19 +12303,14 @@
             "example": true
           }
         },
-        "required": [
-          "enabled"
-        ]
+        "required": ["enabled"]
       },
       "InfraConfigStorageDto": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "local",
-              "s3"
-            ],
+            "enum": ["local", "s3"],
             "example": "local"
           },
           "builtIn": {
@@ -13276,15 +12339,7 @@
             "example": false
           }
         },
-        "required": [
-          "type",
-          "builtIn",
-          "localPath",
-          "s3Bucket",
-          "s3Region",
-          "s3Endpoint",
-          "s3CredentialsSet"
-        ]
+        "required": ["type", "builtIn", "localPath", "s3Bucket", "s3Region", "s3Endpoint", "s3CredentialsSet"]
       },
       "InfraConfigEngineDto": {
         "type": "object",
@@ -13306,12 +12361,7 @@
             "example": ""
           }
         },
-        "required": [
-          "type",
-          "headless",
-          "sessionDataPath",
-          "browserArgs"
-        ]
+        "required": ["type", "headless", "sessionDataPath", "browserArgs"]
       },
       "InfraConfigResponseDto": {
         "type": "object",
@@ -13332,23 +12382,14 @@
             "$ref": "#/components/schemas/InfraConfigEngineDto"
           }
         },
-        "required": [
-          "database",
-          "redis",
-          "queue",
-          "storage",
-          "engine"
-        ]
+        "required": ["database", "redis", "queue", "storage", "engine"]
       },
       "DatabaseConfigDto": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "sqlite",
-              "postgres"
-            ]
+            "enum": ["sqlite", "postgres"]
           },
           "builtIn": {
             "type": "boolean"
@@ -13381,9 +12422,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "type"
-        ]
+        "required": ["type"]
       },
       "RedisConfigDto": {
         "type": "object",
@@ -13418,10 +12457,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "local",
-              "s3"
-            ]
+            "enum": ["local", "s3"]
           },
           "builtIn": {
             "type": "boolean"
@@ -13445,9 +12481,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "type"
-        ]
+        "required": ["type"]
       },
       "EngineConfigDto": {
         "type": "object",
@@ -13505,21 +12539,14 @@
           },
           "profiles": {
             "description": "Docker profiles the saved selection requires.",
-            "example": [
-              "postgres"
-            ],
+            "example": ["postgres"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "message",
-          "saved",
-          "envPath",
-          "profiles"
-        ]
+        "required": ["message", "saved", "envPath", "profiles"]
       },
       "RestartDto": {
         "type": "object",
@@ -13552,9 +12579,7 @@
           },
           "profiles": {
             "description": "Docker profiles to bring up.",
-            "example": [
-              "postgres"
-            ],
+            "example": ["postgres"],
             "type": "array",
             "items": {
               "type": "string"
@@ -13582,13 +12607,7 @@
             "description": "Raw per-service stop outcome, present only when profiles were torn down."
           }
         },
-        "required": [
-          "message",
-          "restarting",
-          "profiles",
-          "profilesToRemove",
-          "estimatedTime"
-        ]
+        "required": ["message", "restarting", "profiles", "profilesToRemove", "estimatedTime"]
       },
       "MigrationTablesDto": {
         "type": "object",
@@ -13798,10 +12817,7 @@
             "example": 0
           }
         },
-        "required": [
-          "messages",
-          "messageBatches"
-        ]
+        "required": ["messages", "messageBatches"]
       },
       "InfraExportDataResponseDto": {
         "type": "object",
@@ -13844,14 +12860,7 @@
             ]
           }
         },
-        "required": [
-          "exportedAt",
-          "dataDbType",
-          "tables",
-          "counts",
-          "skippedTables",
-          "omittedInlineMedia"
-        ]
+        "required": ["exportedAt", "dataDbType", "tables", "counts", "skippedTables", "omittedInlineMedia"]
       },
       "ImportDataDto": {
         "type": "object",
@@ -13945,9 +12954,7 @@
             "description": "Ignored. Present so the export file posts back unmodified."
           }
         },
-        "required": [
-          "tables"
-        ]
+        "required": ["tables"]
       },
       "InfraImportDataResponseDto": {
         "type": "object",
@@ -14026,10 +13033,7 @@
         "properties": {
           "storageType": {
             "type": "string",
-            "enum": [
-              "local",
-              "s3"
-            ],
+            "enum": ["local", "s3"],
             "example": "local"
           },
           "count": {
@@ -14048,12 +13052,7 @@
             "example": "10.00"
           }
         },
-        "required": [
-          "storageType",
-          "count",
-          "sizeBytes",
-          "sizeMB"
-        ]
+        "required": ["storageType", "count", "sizeBytes", "sizeMB"]
       },
       "StorageExportResponseDto": {
         "type": "object",
@@ -14068,10 +13067,7 @@
             "example": "/api/infra/storage/download/xyz.tar"
           }
         },
-        "required": [
-          "message",
-          "download"
-        ]
+        "required": ["message", "download"]
       },
       "ImportStorageDto": {
         "type": "object",
@@ -14081,9 +13077,7 @@
             "description": "Path to the tar.gz file to import (must be inside the data directory)"
           }
         },
-        "required": [
-          "filePath"
-        ]
+        "required": ["filePath"]
       },
       "StorageImportResponseDto": {
         "type": "object",
@@ -14099,18 +13093,11 @@
           },
           "storageType": {
             "type": "string",
-            "enum": [
-              "local",
-              "s3"
-            ],
+            "enum": ["local", "s3"],
             "example": "local"
           }
         },
-        "required": [
-          "imported",
-          "count",
-          "storageType"
-        ]
+        "required": ["imported", "count", "storageType"]
       },
       "ContactDto": {
         "type": "object",
@@ -14151,12 +13138,7 @@
             "example": "https://pps.whatsapp.net/v/t61.24694-24/12345_678_910_n.jpg"
           }
         },
-        "required": [
-          "id",
-          "number",
-          "isMyContact",
-          "isBlocked"
-        ]
+        "required": ["id", "number", "isMyContact", "isBlocked"]
       },
       "ProfilePicturesResponseDto": {
         "type": "object",
@@ -14173,9 +13155,7 @@
             }
           }
         },
-        "required": [
-          "pictures"
-        ]
+        "required": ["pictures"]
       },
       "NumberCheckResponseDto": {
         "type": "object",
@@ -14197,11 +13177,7 @@
             "example": "628123456789@c.us"
           }
         },
-        "required": [
-          "number",
-          "exists",
-          "whatsappId"
-        ]
+        "required": ["number", "exists", "whatsappId"]
       },
       "ProfilePictureResponseDto": {
         "type": "object",
@@ -14213,9 +13189,7 @@
             "example": "https://pps.whatsapp.net/v/t61.24694-24/12345_678_910_n.jpg"
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "ResolvedPhoneResponseDto": {
         "type": "object",
@@ -14232,10 +13206,7 @@
             "example": "628123456789"
           }
         },
-        "required": [
-          "contactId",
-          "phone"
-        ]
+        "required": ["contactId", "phone"]
       },
       "UpsertContactDto": {
         "type": "object",
@@ -14251,9 +13222,7 @@
             "maxLength": 100
           }
         },
-        "required": [
-          "firstName"
-        ]
+        "required": ["firstName"]
       },
       "ContactAckResponseDto": {
         "type": "object",
@@ -14269,10 +13238,7 @@
             "example": "Contact saved"
           }
         },
-        "required": [
-          "success",
-          "message"
-        ]
+        "required": ["success", "message"]
       },
       "GroupJoinInfoDto": {
         "type": "object",
@@ -14308,10 +13274,7 @@
             "example": 42
           }
         },
-        "required": [
-          "id",
-          "name"
-        ]
+        "required": ["id", "name"]
       },
       "GroupParticipantDto": {
         "type": "object",
@@ -14342,12 +13305,7 @@
             "example": false
           }
         },
-        "required": [
-          "id",
-          "number",
-          "isAdmin",
-          "isSuperAdmin"
-        ]
+        "required": ["id", "number", "isAdmin", "isSuperAdmin"]
       },
       "GroupInfoDto": {
         "type": "object",
@@ -14417,19 +13375,12 @@
           },
           "memberAddMode": {
             "type": "string",
-            "enum": [
-              "all",
-              "admins"
-            ],
+            "enum": ["all", "admins"],
             "description": "Who may add participants. Absent when the engine did not report it.",
             "example": "admins"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "participants"
-        ]
+        "required": ["id", "name", "participants"]
       },
       "JoinGroupDto": {
         "type": "object",
@@ -14440,9 +13391,7 @@
             "maxLength": 128
           }
         },
-        "required": [
-          "inviteCode"
-        ]
+        "required": ["inviteCode"]
       },
       "GroupJoinedResponseDto": {
         "type": "object",
@@ -14458,10 +13407,7 @@
             "example": "120363000000000000@g.us"
           }
         },
-        "required": [
-          "success",
-          "groupId"
-        ]
+        "required": ["success", "groupId"]
       },
       "GroupSettingsResponseDto": {
         "type": "object",
@@ -14483,10 +13429,7 @@
           },
           "memberAddMode": {
             "type": "string",
-            "enum": [
-              "all",
-              "admins"
-            ],
+            "enum": ["all", "admins"],
             "description": "Who may add participants. Absent when the engine did not report it.",
             "example": "admins"
           }
@@ -14511,10 +13454,7 @@
           "memberAddMode": {
             "type": "string",
             "description": "Who may add participants: 'all' (any member) or 'admins' (admins only)",
-            "enum": [
-              "all",
-              "admins"
-            ]
+            "enum": ["all", "admins"]
           }
         }
       },
@@ -14532,10 +13472,7 @@
             "example": "Group subject updated"
           }
         },
-        "required": [
-          "success",
-          "message"
-        ]
+        "required": ["success", "message"]
       },
       "CreateGroupDto": {
         "type": "object",
@@ -14554,10 +13491,7 @@
             }
           }
         },
-        "required": [
-          "name",
-          "participants"
-        ]
+        "required": ["name", "participants"]
       },
       "GroupSummaryDto": {
         "type": "object",
@@ -14589,10 +13523,7 @@
             "example": null
           }
         },
-        "required": [
-          "id",
-          "name"
-        ]
+        "required": ["id", "name"]
       },
       "ParticipantsDto": {
         "type": "object",
@@ -14606,9 +13537,7 @@
             }
           }
         },
-        "required": [
-          "participants"
-        ]
+        "required": ["participants"]
       },
       "ParticipantOperationResultDto": {
         "type": "object",
@@ -14634,10 +13563,7 @@
             "example": "ok"
           }
         },
-        "required": [
-          "id",
-          "success"
-        ]
+        "required": ["id", "success"]
       },
       "ParticipantsOperationResponseDto": {
         "type": "object",
@@ -14660,11 +13586,7 @@
             }
           }
         },
-        "required": [
-          "success",
-          "message",
-          "results"
-        ]
+        "required": ["success", "message", "results"]
       },
       "GroupMembershipRequestDto": {
         "type": "object",
@@ -14682,11 +13604,7 @@
           "method": {
             "type": "string",
             "description": "How the request was made, when the engine reports it.",
-            "enum": [
-              "invite_link",
-              "non_admin_add",
-              "linked_group_join"
-            ],
+            "enum": ["invite_link", "non_admin_add", "linked_group_join"],
             "example": "invite_link"
           },
           "requestedAt": {
@@ -14695,9 +13613,7 @@
             "example": 1754700000
           }
         },
-        "required": [
-          "participantId"
-        ]
+        "required": ["participantId"]
       },
       "MembershipRequestActionDto": {
         "type": "object",
@@ -14721,9 +13637,7 @@
             "maxLength": 100
           }
         },
-        "required": [
-          "subject"
-        ]
+        "required": ["subject"]
       },
       "GroupDescriptionDto": {
         "type": "object",
@@ -14734,9 +13648,7 @@
             "maxLength": 1024
           }
         },
-        "required": [
-          "description"
-        ]
+        "required": ["description"]
       },
       "GroupPictureResponseDto": {
         "type": "object",
@@ -14748,9 +13660,7 @@
             "example": "https://pps.whatsapp.net/v/t61.24694-24/12345_678_910_n.jpg"
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "SetGroupPictureDto": {
         "type": "object",
@@ -14785,10 +13695,7 @@
             "example": "https://chat.whatsapp.com/EXAMPLEINVITECODE12345"
           }
         },
-        "required": [
-          "inviteCode",
-          "inviteLink"
-        ]
+        "required": ["inviteCode", "inviteLink"]
       },
       "GroupInviteCodeRevokedResponseDto": {
         "type": "object",
@@ -14809,11 +13716,7 @@
             "example": "Invite code revoked and new one generated"
           }
         },
-        "required": [
-          "inviteCode",
-          "inviteLink",
-          "message"
-        ]
+        "required": ["inviteCode", "inviteLink", "message"]
       },
       "SetProfileNameDto": {
         "type": "object",
@@ -14824,9 +13727,7 @@
             "maxLength": 25
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "ProfileAckResponseDto": {
         "type": "object",
@@ -14842,10 +13743,7 @@
             "example": "Profile name updated"
           }
         },
-        "required": [
-          "success",
-          "message"
-        ]
+        "required": ["success", "message"]
       },
       "SetProfileStatusDto": {
         "type": "object",
@@ -14856,9 +13754,7 @@
             "maxLength": 139
           }
         },
-        "required": [
-          "status"
-        ]
+        "required": ["status"]
       },
       "SetProfilePictureDto": {
         "type": "object",
@@ -14885,10 +13781,7 @@
           "type": {
             "type": "string",
             "description": "Which kind of call the link opens. WhatsApp's own URL path for `audio` is `/voice/`.",
-            "enum": [
-              "audio",
-              "video"
-            ],
+            "enum": ["audio", "video"],
             "example": "video"
           },
           "startTime": {
@@ -14897,10 +13790,7 @@
             "example": 1800000000000
           }
         },
-        "required": [
-          "type",
-          "startTime"
-        ]
+        "required": ["type", "startTime"]
       },
       "CallLinkResponseDto": {
         "type": "object",
@@ -14911,9 +13801,7 @@
             "example": "https://call.whatsapp.com/video/XxXxXxXxXxXxXx"
           }
         },
-        "required": [
-          "link"
-        ]
+        "required": ["link"]
       },
       "CallAckResponseDto": {
         "type": "object",
@@ -14924,9 +13812,7 @@
             "example": true
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "LabelDto": {
         "type": "object",
@@ -14947,11 +13833,7 @@
             "example": "#5bc0de"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "hexColor"
-        ]
+        "required": ["id", "name", "hexColor"]
       },
       "LabelChatDto": {
         "type": "object",
@@ -14992,14 +13874,7 @@
             "example": "See you then"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "isGroup",
-          "kind",
-          "unreadCount",
-          "timestamp"
-        ]
+        "required": ["id", "name", "isGroup", "kind", "unreadCount", "timestamp"]
       },
       "UpsertLabelDto": {
         "type": "object",
@@ -15029,9 +13904,7 @@
             "example": true
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "ChannelDto": {
         "type": "object",
@@ -15075,10 +13948,7 @@
             "example": 1786000000
           }
         },
-        "required": [
-          "id",
-          "name"
-        ]
+        "required": ["id", "name"]
       },
       "ChannelMessageDto": {
         "type": "object",
@@ -15108,12 +13978,7 @@
             "description": "Media URL, when the engine resolved one."
           }
         },
-        "required": [
-          "id",
-          "body",
-          "timestamp",
-          "hasMedia"
-        ]
+        "required": ["id", "body", "timestamp", "hasMedia"]
       },
       "CreateChannelDto": {
         "type": "object",
@@ -15130,9 +13995,7 @@
             "example": "Release notes and downtime notices"
           }
         },
-        "required": [
-          "name"
-        ]
+        "required": ["name"]
       },
       "ChannelAckResponseDto": {
         "type": "object",
@@ -15143,9 +14006,7 @@
             "example": true
           }
         },
-        "required": [
-          "success"
-        ]
+        "required": ["success"]
       },
       "MuteChannelDto": {
         "type": "object",
@@ -15156,9 +14017,7 @@
             "example": true
           }
         },
-        "required": [
-          "mute"
-        ]
+        "required": ["mute"]
       },
       "DemoteChannelAdminDto": {
         "type": "object",
@@ -15169,9 +14028,7 @@
             "example": "628123456789@c.us"
           }
         },
-        "required": [
-          "userId"
-        ]
+        "required": ["userId"]
       },
       "TransferChannelOwnershipDto": {
         "type": "object",
@@ -15182,9 +14039,7 @@
             "example": "628123456789@c.us"
           }
         },
-        "required": [
-          "newOwnerId"
-        ]
+        "required": ["newOwnerId"]
       },
       "OverviewSessionsDto": {
         "type": "object",
@@ -15211,11 +14066,7 @@
             }
           }
         },
-        "required": [
-          "active",
-          "total",
-          "byStatus"
-        ]
+        "required": ["active", "total", "byStatus"]
       },
       "OverviewTodayDto": {
         "type": "object",
@@ -15229,10 +14080,7 @@
             "example": 34
           }
         },
-        "required": [
-          "sent",
-          "received"
-        ]
+        "required": ["sent", "received"]
       },
       "OverviewMessagesDto": {
         "type": "object",
@@ -15261,12 +14109,7 @@
             ]
           }
         },
-        "required": [
-          "sent",
-          "received",
-          "failed",
-          "today"
-        ]
+        "required": ["sent", "received", "failed", "today"]
       },
       "OverviewStatsResponseDto": {
         "type": "object",
@@ -15278,10 +14121,28 @@
             "$ref": "#/components/schemas/OverviewMessagesDto"
           }
         },
-        "required": [
-          "sessions",
-          "messages"
-        ]
+        "required": ["sessions", "messages"]
+      },
+      "MessageAnalyticsSummaryDto": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "number",
+            "description": "Outgoing messages recorded during the period.",
+            "example": 120
+          },
+          "received": {
+            "type": "number",
+            "description": "Incoming messages recorded during the period.",
+            "example": 85
+          },
+          "interactions": {
+            "type": "number",
+            "description": "Distinct chats with message activity during the period.",
+            "example": 42
+          }
+        },
+        "required": ["sent", "received", "interactions"]
       },
       "TimeSeriesPointDto": {
         "type": "object",
@@ -15300,11 +14161,7 @@
             "example": 34
           }
         },
-        "required": [
-          "timestamp",
-          "sent",
-          "received"
-        ]
+        "required": ["timestamp", "sent", "received"]
       },
       "StatsBySessionDto": {
         "type": "object",
@@ -15326,12 +14183,7 @@
             "example": 34
           }
         },
-        "required": [
-          "sessionId",
-          "name",
-          "sent",
-          "received"
-        ]
+        "required": ["sessionId", "name", "sent", "received"]
       },
       "StatsTopChatDto": {
         "type": "object",
@@ -15350,15 +14202,19 @@
             "example": 42
           }
         },
-        "required": [
-          "chatId",
-          "chatName",
-          "messageCount"
-        ]
+        "required": ["chatId", "chatName", "messageCount"]
       },
       "MessageStatsResponseDto": {
         "type": "object",
         "properties": {
+          "summary": {
+            "description": "Headline metrics for the requested period.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageAnalyticsSummaryDto"
+              }
+            ]
+          },
           "timeSeries": {
             "description": "One point per bucket over the requested period.",
             "type": "array",
@@ -15390,12 +14246,7 @@
             }
           }
         },
-        "required": [
-          "timeSeries",
-          "byType",
-          "bySession",
-          "topChats"
-        ]
+        "required": ["summary", "timeSeries", "byType", "bySession", "topChats"]
       },
       "SessionStatsSessionDto": {
         "type": "object",
@@ -15413,11 +14264,7 @@
             "example": "ready"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "status"
-        ]
+        "required": ["id", "name", "status"]
       },
       "SessionStatsMessagesDto": {
         "type": "object",
@@ -15439,12 +14286,7 @@
             "example": 3
           }
         },
-        "required": [
-          "sent",
-          "received",
-          "today",
-          "failed"
-        ]
+        "required": ["sent", "received", "today", "failed"]
       },
       "SessionStatsTopChatDto": {
         "type": "object",
@@ -15468,12 +14310,7 @@
             "example": "2026-08-07T12:00:00.000Z"
           }
         },
-        "required": [
-          "chatId",
-          "chatName",
-          "count",
-          "lastActive"
-        ]
+        "required": ["chatId", "chatName", "count", "lastActive"]
       },
       "SessionHourlyActivityDto": {
         "type": "object",
@@ -15492,11 +14329,7 @@
             "example": 34
           }
         },
-        "required": [
-          "hour",
-          "sent",
-          "received"
-        ]
+        "required": ["hour", "sent", "received"]
       },
       "SessionStatsResponseDto": {
         "type": "object",
@@ -15520,12 +14353,7 @@
             }
           }
         },
-        "required": [
-          "session",
-          "messages",
-          "topChats",
-          "hourlyActivity"
-        ]
+        "required": ["session", "messages", "topChats", "hourlyActivity"]
       },
       "StatusContactDto": {
         "type": "object",
@@ -15545,9 +14373,7 @@
             "example": "Ada"
           }
         },
-        "required": [
-          "id"
-        ]
+        "required": ["id"]
       },
       "StatusDto": {
         "type": "object",
@@ -15567,12 +14393,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "text",
-              "image",
-              "video",
-              "voice"
-            ],
+            "enum": ["text", "image", "video", "voice"],
             "description": "`voice` is an audio status posted as a voice note. Before voice posting existed, such a status read back as `text`, because anything that was not an image or a video collapsed to it.",
             "example": "image"
           },
@@ -15609,13 +14430,7 @@
             "example": "2026-08-08T12:00:00.000Z"
           }
         },
-        "required": [
-          "id",
-          "contact",
-          "type",
-          "timestamp",
-          "expiresAt"
-        ]
+        "required": ["id", "contact", "type", "timestamp", "expiresAt"]
       },
       "StatusListResponseDto": {
         "type": "object",
@@ -15628,9 +14443,7 @@
             }
           }
         },
-        "required": [
-          "statuses"
-        ]
+        "required": ["statuses"]
       },
       "SendTextStatusDto": {
         "type": "object",
@@ -15650,22 +14463,11 @@
             "type": "number",
             "description": "Font family index from the WhatsApp status font enum: 0 (default), 1, 2, 6 (bold), 7, 8, 9, or 10. whatsapp-web.js honors only 0–7 and clamps anything above to the default.",
             "example": 0,
-            "enum": [
-              0,
-              1,
-              2,
-              6,
-              7,
-              8,
-              9,
-              10
-            ]
+            "enum": [0, 1, 2, 6, 7, 8, 9, 10]
           },
           "recipients": {
             "description": "Recipient JIDs (0–256). WhatsApp Status is not posted to a group — use @c.us or @lid individuals. Required on the Baileys engine (it posts to exactly this allow-list); ignored by whatsapp-web.js, which broadcasts to the account's status-privacy audience — omit it there.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "maxItems": 256,
             "type": "array",
             "items": {
@@ -15673,9 +14475,7 @@
             }
           }
         },
-        "required": [
-          "text"
-        ]
+        "required": ["text"]
       },
       "StatusResultDto": {
         "type": "object",
@@ -15696,11 +14496,7 @@
             "example": "2026-08-08T12:00:00.000Z"
           }
         },
-        "required": [
-          "statusId",
-          "timestamp",
-          "expiresAt"
-        ]
+        "required": ["statusId", "timestamp", "expiresAt"]
       },
       "StatusMediaInput": {
         "type": "object",
@@ -15741,9 +14537,7 @@
           },
           "recipients": {
             "description": "Recipient JIDs (0–256), @c.us or @lid. Required on the Baileys engine (it posts to exactly this allow-list); ignored by whatsapp-web.js, which broadcasts to the account's status-privacy audience — omit it there.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "maxItems": 256,
             "type": "array",
             "items": {
@@ -15751,9 +14545,7 @@
             }
           }
         },
-        "required": [
-          "image"
-        ]
+        "required": ["image"]
       },
       "SendVideoStatusDto": {
         "type": "object",
@@ -15774,9 +14566,7 @@
           },
           "recipients": {
             "description": "Recipient JIDs (0–256), @c.us or @lid. Required on the Baileys engine (it posts to exactly this allow-list); ignored by whatsapp-web.js, which broadcasts to the account's status-privacy audience — omit it there.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "maxItems": 256,
             "type": "array",
             "items": {
@@ -15784,9 +14574,7 @@
             }
           }
         },
-        "required": [
-          "video"
-        ]
+        "required": ["video"]
       },
       "SendVoiceStatusDto": {
         "type": "object",
@@ -15806,9 +14594,7 @@
           },
           "recipients": {
             "description": "Recipient JIDs (0–256), @c.us or @lid. Required on the Baileys engine (it posts to exactly this allow-list); ignored by whatsapp-web.js, which broadcasts to the account's status-privacy audience — omit it there.",
-            "example": [
-              "628123456789@c.us"
-            ],
+            "example": ["628123456789@c.us"],
             "maxItems": 256,
             "type": "array",
             "items": {
@@ -15816,9 +14602,7 @@
             }
           }
         },
-        "required": [
-          "audio"
-        ]
+        "required": ["audio"]
       },
       "StatusDeletedResponseDto": {
         "type": "object",
@@ -15828,9 +14612,7 @@
             "example": "Status deleted successfully"
           }
         },
-        "required": [
-          "message"
-        ]
+        "required": ["message"]
       },
       "ConversionStatusResponseDto": {
         "type": "object",
@@ -15841,9 +14623,7 @@
             "example": true
           }
         },
-        "required": [
-          "available"
-        ]
+        "required": ["available"]
       },
       "ConvertMediaDto": {
         "type": "object",
@@ -15879,11 +14659,7 @@
             "example": 20480
           }
         },
-        "required": [
-          "base64",
-          "mimetype",
-          "bytes"
-        ]
+        "required": ["base64", "mimetype", "bytes"]
       },
       "CatalogDto": {
         "type": "object",
@@ -15913,12 +14689,7 @@
             "example": "https://wa.me/c/628123456789"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "productCount",
-          "url"
-        ]
+        "required": ["id", "name", "productCount", "url"]
       },
       "ProductDto": {
         "type": "object",
@@ -15973,15 +14744,7 @@
             "example": "SKU-001"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "price",
-          "currency",
-          "priceFormatted",
-          "url",
-          "isAvailable"
-        ]
+        "required": ["id", "name", "price", "currency", "priceFormatted", "url", "isAvailable"]
       },
       "ProductPaginationDto": {
         "type": "object",
@@ -16007,12 +14770,7 @@
             "example": 1
           }
         },
-        "required": [
-          "page",
-          "limit",
-          "total",
-          "totalPages"
-        ]
+        "required": ["page", "limit", "total", "totalPages"]
       },
       "PaginatedProductsDto": {
         "type": "object",
@@ -16028,10 +14786,7 @@
             "$ref": "#/components/schemas/ProductPaginationDto"
           }
         },
-        "required": [
-          "products",
-          "pagination"
-        ]
+        "required": ["products", "pagination"]
       },
       "SendProductDto": {
         "type": "object",
@@ -16052,10 +14807,7 @@
             "example": "Back in stock!"
           }
         },
-        "required": [
-          "chatId",
-          "productId"
-        ]
+        "required": ["chatId", "productId"]
       },
       "ProductMessageResponseDto": {
         "type": "object",
@@ -16071,10 +14823,7 @@
             "example": 1786000000
           }
         },
-        "required": [
-          "id",
-          "timestamp"
-        ]
+        "required": ["id", "timestamp"]
       },
       "PluginDto": {
         "type": "object",
@@ -16093,13 +14842,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "engine",
-              "storage",
-              "queue",
-              "auth",
-              "extension"
-            ],
+            "enum": ["engine", "storage", "queue", "auth", "extension"],
             "description": "Plugin type"
           },
           "description": {
@@ -16112,12 +14855,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "installed",
-              "enabled",
-              "disabled",
-              "error"
-            ],
+            "enum": ["installed", "enabled", "disabled", "error"],
             "description": "Plugin status"
           },
           "config": {
@@ -16201,9 +14939,7 @@
             "description": "URL of the plugin .zip to download and install (SSRF-guarded; private-network hosts remain subject to the guard). https:// is accepted as-is. Plain http:// is only accepted when the URL pins the package content — append `#sha256=<64 hex>` (fragment — never sent to the server; query params are ignored) — because the package is executable code and must be integrity-protected in transit. A pinned digest that does not match the downloaded archive fails the install."
           }
         },
-        "required": [
-          "url"
-        ]
+        "required": ["url"]
       },
       "PluginCatalogEntryDto": {
         "type": "object",
@@ -16284,14 +15020,7 @@
             "example": false
           }
         },
-        "required": [
-          "id",
-          "name",
-          "version",
-          "installed",
-          "installedVersion",
-          "updateAvailable"
-        ]
+        "required": ["id", "name", "version", "installed", "installedVersion", "updateAvailable"]
       },
       "PluginActionResponseDto": {
         "type": "object",
@@ -16307,10 +15036,7 @@
             "example": "Plugin echo configuration updated"
           }
         },
-        "required": [
-          "success",
-          "message"
-        ]
+        "required": ["success", "message"]
       },
       "PluginConfigDto": {
         "type": "object",
@@ -16320,27 +15046,21 @@
             "description": "Plugin configuration object"
           }
         },
-        "required": [
-          "config"
-        ]
+        "required": ["config"]
       },
       "PluginSessionsDto": {
         "type": "object",
         "properties": {
           "sessions": {
             "description": "Sessions to activate the plugin for; ['*'] = all numbers, [] = none",
-            "example": [
-              "*"
-            ],
+            "example": ["*"],
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": [
-          "sessions"
-        ]
+        "required": ["sessions"]
       },
       "PluginHealthResponseDto": {
         "type": "object",
@@ -16356,9 +15076,7 @@
             "example": "worker did not answer in time"
           }
         },
-        "required": [
-          "healthy"
-        ]
+        "required": ["healthy"]
       },
       "RedriveResultDto": {
         "type": "object",
@@ -16379,11 +15097,7 @@
             "example": 25
           }
         },
-        "required": [
-          "redriven",
-          "remaining",
-          "batchSize"
-        ]
+        "required": ["redriven", "remaining", "batchSize"]
       },
       "CreateInstanceDto": {
         "type": "object",
@@ -16418,9 +15132,7 @@
             }
           }
         },
-        "required": [
-          "instanceId"
-        ]
+        "required": ["instanceId"]
       },
       "IngressUrl": {
         "type": "object",
@@ -16434,10 +15146,7 @@
             "description": "Full ingress URL (BASE_URL + plugin/instance/route), or a relative path when BASE_URL is unset."
           }
         },
-        "required": [
-          "route",
-          "url"
-        ]
+        "required": ["route", "url"]
       },
       "InstanceView": {
         "type": "object",
@@ -16495,16 +15204,7 @@
             }
           }
         },
-        "required": [
-          "id",
-          "pluginId",
-          "instanceId",
-          "secret",
-          "enabled",
-          "createdAt",
-          "updatedAt",
-          "ingressUrls"
-        ]
+        "required": ["id", "pluginId", "instanceId", "secret", "enabled", "createdAt", "updatedAt", "ingressUrls"]
       },
       "UpdateInstanceDto": {
         "type": "object",
@@ -16566,10 +15266,7 @@
           },
           "direction": {
             "type": "string",
-            "enum": [
-              "incoming",
-              "outgoing"
-            ],
+            "enum": ["incoming", "outgoing"],
             "example": "incoming"
           },
           "from": {
@@ -16621,12 +15318,7 @@
             "example": "builtin-fts"
           }
         },
-        "required": [
-          "hits",
-          "total",
-          "tookMs",
-          "provider"
-        ]
+        "required": ["hits", "total", "tookMs", "provider"]
       }
     }
   },

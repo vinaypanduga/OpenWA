@@ -15,9 +15,10 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, MessageCircleMore, Send } from 'lucide-react';
 import { useStatsMessagesQuery } from '../hooks/queries';
 import type { StatsPeriod } from '../services/api';
+import { WidgetTooltip } from './WidgetTooltip';
 import './DashboardCharts.css';
 
 const PERIODS: StatsPeriod[] = ['24h', '7d', '30d'];
@@ -78,7 +79,37 @@ export function DashboardCharts() {
   const topChats = (data?.topChats ?? [])
     .slice(0, 8)
     .map(c => ({ name: c.chatName || shortChat(c.chatId), count: c.messageCount }));
-  const hasData = timeSeries.length > 0 || byType.length > 0 || topChats.length > 0;
+  const summary = data?.summary;
+  const hasData =
+    Boolean(summary && (summary.sent > 0 || summary.received > 0 || summary.interactions > 0)) ||
+    timeSeries.length > 0 ||
+    byType.length > 0 ||
+    topChats.length > 0;
+  const metricCards = summary
+    ? [
+        {
+          label: t('dashboard.charts.sent'),
+          value: summary.sent.toLocaleString(),
+          detail: t('analytics.outgoingDetail', { defaultValue: 'Outgoing messages in this period' }),
+          tooltip: t('dashboard.tooltips.periodSent', {
+            defaultValue: 'Outgoing messages recorded during the selected reporting period.',
+          }),
+          icon: Send,
+          tone: 'sent',
+        },
+        {
+          label: t('analytics.interactions', { defaultValue: 'Interactions' }),
+          value: summary.interactions.toLocaleString(),
+          detail: t('analytics.interactionsDetail', { defaultValue: 'Distinct chats with message activity' }),
+          tooltip: t('dashboard.tooltips.interactions', {
+            defaultValue:
+              'Distinct session-and-chat conversations with incoming or outgoing messages during the selected period.',
+          }),
+          icon: MessageCircleMore,
+          tone: 'interactions',
+        },
+      ]
+    : [];
 
   return (
     <section className="dashboard-charts">
@@ -109,87 +140,134 @@ export function DashboardCharts() {
       ) : !hasData ? (
         <div className="charts-empty">{t('dashboard.charts.empty')}</div>
       ) : (
-        <div className="charts-grid">
-          <div className="chart-card chart-wide">
-            <h3>{t('dashboard.charts.overTime')}</h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={timeSeries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gSent" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#25d366" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#25d366" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gReceived" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
-                <Tooltip />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="sent"
-                  name={t('dashboard.charts.sent')}
-                  stroke="#25d366"
-                  fill="url(#gSent)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="received"
-                  name={t('dashboard.charts.received')}
-                  stroke="#3b82f6"
-                  fill="url(#gReceived)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+        <>
+          <div className="analytics-metrics">
+            {metricCards.map(({ label, value, detail, tooltip, icon: Icon, tone }) => (
+              <div className={`analytics-metric ${tone}`} key={label}>
+                <div className="metric-heading">
+                  <span className="metric-title">
+                    {label}
+                    <WidgetTooltip text={tooltip} />
+                  </span>
+                  <Icon size={20} aria-hidden="true" />
+                </div>
+                <strong>{value}</strong>
+                <small>{detail}</small>
+              </div>
+            ))}
           </div>
-
-          <div className="chart-card">
-            <h3>{t('dashboard.charts.byType')}</h3>
-            {byType.length === 0 ? (
-              <div className="charts-empty small">{t('dashboard.charts.empty')}</div>
-            ) : (
+          <div className="charts-grid">
+            <div className="chart-card chart-wide">
+              <div className="chart-card-title">
+                <h3>{t('dashboard.charts.overTime')}</h3>
+                <WidgetTooltip
+                  text={t('dashboard.tooltips.messagesOverTime', {
+                    defaultValue:
+                      'Compares sent and received message volume in hourly or daily buckets for the selected period.',
+                  })}
+                />
+              </div>
               <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={byType} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
-                    {byType.map(entry => (
-                      <Cell key={entry.name} fill={colorForType(entry.name)} />
-                    ))}
-                  </Pie>
+                <AreaChart data={timeSeries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gSent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#25d366" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#25d366" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gReceived" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
                   <Tooltip />
                   <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          <div className="chart-card">
-            <h3>{t('dashboard.charts.topChats')}</h3>
-            {topChats.length === 0 ? (
-              <div className="charts-empty small">{t('dashboard.charts.empty')}</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={topChats} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={120}
-                    tick={{ fontSize: 12, fill: 'var(--text-secondary)' }}
+                  <Area
+                    type="monotone"
+                    dataKey="sent"
+                    name={t('dashboard.charts.sent')}
+                    stroke="#25d366"
+                    fill="url(#gSent)"
+                    strokeWidth={2}
                   />
-                  <Tooltip />
-                  <Bar dataKey="count" name={t('dashboard.charts.messages')} fill="#25d366" radius={[0, 4, 4, 0]} />
-                </BarChart>
+                  <Area
+                    type="monotone"
+                    dataKey="received"
+                    name={t('dashboard.charts.received')}
+                    stroke="#3b82f6"
+                    fill="url(#gReceived)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
-            )}
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-card-title">
+                <h3>{t('dashboard.charts.byType')}</h3>
+                <WidgetTooltip
+                  text={t('dashboard.tooltips.messagesByType', {
+                    defaultValue:
+                      'Breaks message activity down by content type, such as text, image, audio, or document.',
+                  })}
+                />
+              </div>
+              {byType.length === 0 ? (
+                <div className="charts-empty small">{t('dashboard.charts.empty')}</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={byType}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={2}
+                    >
+                      {byType.map(entry => (
+                        <Cell key={entry.name} fill={colorForType(entry.name)} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-card-title">
+                <h3>{t('dashboard.charts.topChats')}</h3>
+                <WidgetTooltip
+                  text={t('dashboard.tooltips.topChats', {
+                    defaultValue: 'Ranks up to eight chats by total message activity during the selected period.',
+                  })}
+                />
+              </div>
+              {topChats.length === 0 ? (
+                <div className="charts-empty small">{t('dashboard.charts.empty')}</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={topChats} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={120}
+                      tick={{ fontSize: 12, fill: 'var(--text-secondary)' }}
+                    />
+                    <Tooltip />
+                    <Bar dataKey="count" name={t('dashboard.charts.messages')} fill="#25d366" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </section>
   );

@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "analytics": "Analyses",
     "sessions": "Sessions",
     "chats": "Discussions",
     "webhooks": "Webhooks",

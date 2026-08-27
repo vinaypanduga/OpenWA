@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "Kontrol Paneli",
+    "analytics": "Analizler",
     "sessions": "Oturumlar",
     "chats": "Sohbetler",
     "webhooks": "Webhook'lar",

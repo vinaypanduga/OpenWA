@@ -55,6 +55,7 @@
   },
   "nav": {
     "dashboard": "لوحة التحكم",
+    "analytics": "التحليلات",
     "sessions": "الجلسات",
     "chats": "المحادثات",
     "webhooks": "الويب هوك",

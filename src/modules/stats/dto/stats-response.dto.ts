@@ -56,6 +56,13 @@ export class TimeSeriesPointDto {
   @ApiProperty({ example: 34 }) received!: number;
 }
 
+export class MessageAnalyticsSummaryDto {
+  @ApiProperty({ description: 'Outgoing messages recorded during the period.', example: 120 }) sent!: number;
+  @ApiProperty({ description: 'Incoming messages recorded during the period.', example: 85 }) received!: number;
+  @ApiProperty({ description: 'Distinct chats with message activity during the period.', example: 42 })
+  interactions!: number;
+}
+
 export class StatsBySessionDto {
   @ApiProperty({ example: '0a941dac-a965-45e7-b318-74ae8be134f0' }) sessionId!: string;
   @ApiProperty({ example: 'primary' }) name!: string;
@@ -74,6 +81,9 @@ export class StatsTopChatDto {
 }
 
 export class MessageStatsResponseDto {
+  @ApiProperty({ type: MessageAnalyticsSummaryDto, description: 'Headline metrics for the requested period.' })
+  summary!: MessageAnalyticsSummaryDto;
+
   @ApiProperty({ type: [TimeSeriesPointDto], description: 'One point per bucket over the requested period.' })
   timeSeries!: TimeSeriesPointDto[];
 

@@ -16,13 +16,13 @@ const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login }
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.Sessions })));
 const Chats = lazy(() => import('./pages/Chats').then(m => ({ default: m.Chats })));
-const Webhooks = lazy(() => import('./pages/Webhooks').then(m => ({ default: m.Webhooks })));
+// const Webhooks = lazy(() => import('./pages/Webhooks').then(m => ({ default: m.Webhooks })));
 const Templates = lazy(() => import('./pages/Templates').then(m => ({ default: m.Templates })));
 const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
-const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
+// const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
 const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
-const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
-const Plugins = lazy(() => import('./pages/Plugins'));
+// const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
+// const Plugins = lazy(() => import('./pages/Plugins'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -112,13 +112,13 @@ function AppContent() {
               <Route index element={<Dashboard />} />
               <Route path="sessions" element={<Sessions />} />
               <Route path="chats" element={<Chats />} />
-              <Route path="webhooks" element={<Webhooks />} />
+              {/* <Route path="webhooks" element={<Webhooks />} /> */}
               <Route path="templates" element={<Templates />} />
-              {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
+              {/* {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />} */}
               <Route path="logs" element={<Logs />} />
               <Route path="message-tester" element={<MessageTester />} />
-              {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
-              {role === 'admin' && <Route path="plugins" element={<Plugins />} />}
+              {/* {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />} */}
+              {/* {role === 'admin' && <Route path="plugins" element={<Plugins />} />} */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

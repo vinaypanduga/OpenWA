@@ -31,13 +31,13 @@
 
 .dashboard .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   margin-bottom: 2rem;
   width: 100%;
 }
 
-/* Collapse the 4-up tile grid to 2 columns on iPad Mini portrait (768px wide) and other narrow
+/* Collapse the tile grid to 2 columns on iPad Mini portrait (768px wide) and other narrow
    viewports so the tiles don't squeeze into thin slivers. Falls back to a single column on phones. */
 @media (max-width: 1024px) {
   .dashboard .stats-grid {
@@ -76,6 +76,18 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.75rem;
+}
+
+.dashboard .stat-heading,
+.dashboard .section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.dashboard .section-title h2 {
+  margin: 0;
 }
 
 .dashboard .stat-icon {

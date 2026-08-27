@@ -1343,6 +1343,7 @@ export interface MessageTimeSeriesPoint {
 }
 
 export interface MessageStats {
+  summary: { sent: number; received: number; interactions: number };
   timeSeries: MessageTimeSeriesPoint[];
   byType: Record<string, number>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;

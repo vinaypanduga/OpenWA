@@ -88,6 +88,28 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     expect(stats.timeSeries[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:00:00$/);
   });
 
+  it('returns sent, received, and distinct-chat interaction analytics for the period', async () => {
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's1', name: 'n', status: SessionStatus.READY, config: {} }));
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's2', name: 'n2', status: SessionStatus.READY, config: {} }));
+    await seedMessage({ chatId: 'alice@c.us', direction: MessageDirection.OUTGOING, status: MessageStatus.READ });
+    await seedMessage({ chatId: 'alice@c.us', direction: MessageDirection.OUTGOING, status: MessageStatus.DELIVERED });
+    await seedMessage({ chatId: 'bob@c.us', direction: MessageDirection.INCOMING, status: MessageStatus.READ });
+    await seedMessage({
+      sessionId: 's2',
+      chatId: 'alice@c.us',
+      direction: MessageDirection.INCOMING,
+      status: MessageStatus.READ,
+    });
+
+    const stats = await service.getMessageStats('24h');
+
+    expect(stats.summary).toEqual({ sent: 2, received: 2, interactions: 3 });
+  });
+
   it('getMessageStats topChats surfaces chatName via the MAX aggregate (ignoring null rows)', async () => {
     await ds
       .getRepository(Session)

@@ -1,0 +1,73 @@
+.widget-tooltip {
+  position: relative;
+  z-index: 10;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.widget-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: help;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+
+.widget-tooltip-trigger:hover,
+.widget-tooltip-trigger:focus-visible {
+  color: var(--text-primary);
+  background: var(--bg-light);
+  outline: none;
+}
+
+.widget-tooltip-trigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.widget-tooltip-content {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 50;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 3rem));
+  padding: 0.55rem 0.7rem;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  pointer-events: none;
+  visibility: hidden;
+  background: #1f2937;
+  border-radius: 7px;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(-3px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s ease;
+}
+
+.widget-tooltip:hover .widget-tooltip-content,
+.widget-tooltip:focus-within .widget-tooltip-content {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[dir='rtl'] .widget-tooltip-content {
+  right: 0;
+  left: auto;
+  text-align: right;
+}
