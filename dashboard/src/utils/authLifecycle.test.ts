@@ -60,7 +60,7 @@ test('isUserRole accepts exactly the three known roles', () => {
   }
 });
 
-// ── App-level auth flow: exactly one /auth/validate per sign-in ──────────────
+// ── App-level auth flow: password exchange on sign-in, key validation on reload ──────────────
 // Render smoke tests of the full App for the two entry paths (fresh sign-in, page reload with a
 // saved key). Harness mirrors Infrastructure.test.ts: jsdom globals, a fetch stub recording every
 // call, i18n catalogues awaited before render. App brings its own providers, so no wrapper here.
@@ -79,6 +79,7 @@ const fetchCalls: FetchCall[] = [];
 // ([] would crash Dashboard's overview render); every other request gets an empty list, which the
 // post-login pages' React Query hooks tolerate.
 let validateBody: { valid?: boolean; role?: string } = { valid: true, role: 'operator' };
+let loginBody: { apiKey?: string; role?: string } = { apiKey: 'fresh-key', role: 'operator' };
 
 function installFetchStub(): void {
   globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -89,6 +90,7 @@ function installFetchStub(): void {
 
     let body: unknown = [];
     if (method === 'POST' && path === '/api/auth/validate') body = validateBody;
+    else if (method === 'POST' && path === '/api/auth/dashboard/login') body = loginBody;
     else if (path === '/api/stats/overview')
       body = {
         sessions: { active: 0, total: 0, byStatus: {} },
@@ -103,6 +105,10 @@ function installFetchStub(): void {
 
 function validateCallCount(): number {
   return fetchCalls.filter(c => c.method === 'POST' && c.path === '/api/auth/validate').length;
+}
+
+function loginCallCount(): number {
+  return fetchCalls.filter(c => c.method === 'POST' && c.path === '/api/auth/dashboard/login').length;
 }
 
 type RTL = typeof import('@testing-library/react');
@@ -152,44 +158,46 @@ afterEach(() => {
   sessionStorage.clear();
   fetchCalls.length = 0;
   validateBody = { valid: true, role: 'operator' };
+  loginBody = { apiKey: 'fresh-key', role: 'operator' };
 });
 
-// Types a key into the login form and submits it, then waits until App has applied the role from
-// the validate response (the synchronous tail of handleLogin).
-async function signIn(apiKey: string): Promise<void> {
+// Enters dashboard credentials and waits until App has applied the exchanged key and role.
+async function signIn(): Promise<void> {
   const { screen, waitFor, fireEvent } = rtl;
-  const input = await screen.findByLabelText('API Key');
-  fireEvent.change(input, { target: { value: apiKey } });
-  fireEvent.submit(input.closest('form')!);
+  const email = await screen.findByLabelText('Email');
+  const password = await screen.findByLabelText('Password');
+  fireEvent.change(email, { target: { value: 'admin@example.com' } });
+  fireEvent.change(password, { target: { value: 'correct-password' } });
+  fireEvent.submit(email.closest('form')!);
   await waitFor(() => assert.ok(localStorage.getItem(ROLE_KEY), 'expected a role to be stored after sign-in'));
   // Give the post-login render and its effects a macrotask to fire before counting requests.
   await new Promise(resolve => setTimeout(resolve, 50));
 }
 
-test('a fresh sign-in makes exactly one /auth/validate request, feeding the role from its response', async () => {
+test('a fresh sign-in exchanges credentials once and stores the existing key durably', async () => {
   rtl.render(createElement(App));
 
-  await signIn('fresh-key');
+  await signIn();
 
-  // The login page's own validate is the one request; the startup re-validation effect must not
-  // re-fire on the null→key transition that storing the fresh key causes.
-  assert.equal(validateCallCount(), 1);
+  assert.equal(loginCallCount(), 1);
+  assert.equal(validateCallCount(), 0);
   assert.equal(localStorage.getItem(ROLE_KEY), 'operator');
-  assert.equal(sessionStorage.getItem(LOGIN_KEY), 'fresh-key');
+  assert.equal(localStorage.getItem(LOGIN_KEY), 'fresh-key');
 });
 
-test('a fresh sign-in with a role-less validate response still degrades to viewer', async () => {
-  validateBody = { valid: true };
+test('a fresh sign-in with a role-less login response still degrades to viewer', async () => {
+  loginBody = { apiKey: 'fresh-key' };
   rtl.render(createElement(App));
 
-  await signIn('fresh-key');
+  await signIn();
 
-  assert.equal(validateCallCount(), 1);
+  assert.equal(loginCallCount(), 1);
+  assert.equal(validateCallCount(), 0);
   assert.equal(localStorage.getItem(ROLE_KEY), 'viewer');
 });
 
 test('a page reload with a saved key re-validates once at startup and refreshes the cached role', async () => {
-  sessionStorage.setItem(LOGIN_KEY, 'saved-key');
+  localStorage.setItem(LOGIN_KEY, 'saved-key');
   localStorage.setItem(ROLE_KEY, 'viewer'); // stale cached role
   validateBody = { valid: true, role: 'admin' };
   rtl.render(createElement(App));

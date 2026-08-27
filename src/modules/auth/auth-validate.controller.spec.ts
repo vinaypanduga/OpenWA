@@ -1,8 +1,10 @@
 import { AuthValidateController } from './auth-validate.controller';
 import { ApiKey, ApiKeyRole } from './entities/api-key.entity';
+import { AuthService } from './auth.service';
 
 describe('AuthValidateController', () => {
-  const controller = new AuthValidateController();
+  const authenticateDashboard = jest.fn();
+  const controller = new AuthValidateController({ authenticateDashboard } as unknown as AuthService);
 
   const makeKey = (over: Partial<ApiKey> = {}): ApiKey =>
     ({ id: 'k1', role: ApiKeyRole.OPERATOR, isActive: true, allowedIps: null, ...over }) as ApiKey;
@@ -24,5 +26,14 @@ describe('AuthValidateController', () => {
 
   it('returns valid:false when no key is attached (defense-in-depth)', () => {
     expect(controller.validate(undefined)).toEqual({ valid: false });
+  });
+
+  it('exchanges dashboard credentials through AuthService without creating a key', async () => {
+    authenticateDashboard.mockResolvedValueOnce({ apiKey: 'existing-key', role: ApiKeyRole.ADMIN });
+
+    await expect(
+      controller.dashboardLogin({ email: 'admin@example.com', password: 'correct-password' }),
+    ).resolves.toEqual({ apiKey: 'existing-key', role: ApiKeyRole.ADMIN });
+    expect(authenticateDashboard).toHaveBeenCalledWith('admin@example.com', 'correct-password');
   });
 });

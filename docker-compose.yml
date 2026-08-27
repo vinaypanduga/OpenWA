@@ -273,6 +273,8 @@ services:
       # .spec.ts derives the required set from .env.example so a new knob cannot ship unreachable.
       - API_KEY_PEPPER=${API_KEY_PEPPER:-}
       - BOOTSTRAP_KEY_FILE=${BOOTSTRAP_KEY_FILE:-}
+      - DASHBOARD_LOGIN_EMAIL=${DASHBOARD_LOGIN_EMAIL:-}
+      - DASHBOARD_LOGIN_PASSWORD=${DASHBOARD_LOGIN_PASSWORD:-}
       - ENABLE_SWAGGER=${ENABLE_SWAGGER:-}
       - VALIDATION_ERROR_DETAIL=${VALIDATION_ERROR_DETAIL:-}
       - MCP_READONLY=${MCP_READONLY:-}

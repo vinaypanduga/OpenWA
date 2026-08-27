@@ -13,8 +13,9 @@ interface LoginProps {
 
 export function Login({ onLogin }: LoginProps) {
   const { t, i18n } = useTranslation();
-  const [apiKey, setApiKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const currentLang = resolveSupportedLanguage(i18n.resolvedLanguage || i18n.language);
@@ -25,30 +26,32 @@ export function Login({ onLogin }: LoginProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!apiKey.trim()) {
-      setError(t('login.apiKeyRequired'));
+    if (!email.trim() || !password) {
+      setError(t('login.credentialsRequired', { defaultValue: 'Email and password are required' }));
       return;
     }
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/validate`, {
+      const response = await fetch(`${API_BASE_URL}/auth/dashboard/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKey,
         },
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       if (response.ok) {
-        // The validate body already carries the key's role — hand it up so the app can set it
-        // directly instead of re-validating the same key a second time.
-        const data: { role?: string } = await response.json().catch(() => ({}));
-        onLogin(apiKey, data.role);
+        const data: { apiKey?: string; role?: string } = await response.json().catch(() => ({}));
+        if (!data.apiKey) {
+          setError(t('login.invalidResponse', { defaultValue: 'The server returned an invalid login response' }));
+          return;
+        }
+        onLogin(data.apiKey, data.role);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        setError(errorData.message || t('login.invalidKey'));
+        setError(errorData.message || t('login.invalidCredentials', { defaultValue: 'Invalid email or password' }));
       }
     } catch {
       setError(t('login.connectionError'));
@@ -84,38 +87,59 @@ export function Login({ onLogin }: LoginProps) {
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="input-group">
-            <label htmlFor="apiKey">{t('login.apiKey')}</label>
+            <label htmlFor="email">{t('login.email', { defaultValue: 'Email' })}</label>
             <div className="input-wrapper">
               <input
-                id="apiKey"
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder={t('login.apiKeyPlaceholder')}
+                id="email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder={t('login.emailPlaceholder', { defaultValue: 'admin@example.com' })}
+                className={error ? 'error' : ''}
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="password">{t('login.password', { defaultValue: 'Password' })}</label>
+            <div className="input-wrapper">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={t('login.passwordPlaceholder', { defaultValue: 'Enter your password' })}
                 className={error ? 'error' : ''}
               />
               <button
                 type="button"
                 className="toggle-visibility"
-                onClick={() => setShowKey(!showKey)}
-                aria-label={showKey ? t('common.hideApiKey') : t('common.showApiKey')}
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={
+                  showPassword
+                    ? t('login.hidePassword', { defaultValue: 'Hide password' })
+                    : t('login.showPassword', { defaultValue: 'Show password' })
+                }
               >
-                {showKey ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
             {error && <span className="error-message">{error}</span>}
           </div>
 
           <button type="submit" className="connect-btn" disabled={isLoading}>
-            {isLoading ? t('login.connecting') : t('login.connect')}
+            {isLoading
+              ? t('login.signingIn', { defaultValue: 'Signing in...' })
+              : t('login.signIn', { defaultValue: 'Sign in' })}
           </button>
         </form>
 
         <p className="login-help">
-          {t('login.help')}{' '}
-          <a href="https://docs.open-wa.org" target="_blank" rel="noopener noreferrer">
-            {t('login.viewDocs')}
-          </a>
+          {t('login.credentialsHelp', {
+            defaultValue: 'Use the dashboard credentials configured by your administrator.',
+          })}
         </p>
       </div>
 

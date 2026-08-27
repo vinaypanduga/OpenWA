@@ -2,7 +2,7 @@
 // Chats.test.ts's harness (same providers pattern, same recorded-fetch-stub approach, same loader
 // hooks) but adds two things Chats does not need: RoleProvider must actually grant write access
 // (useRole().canWrite gates every action button), and the WebSocket hook must be kept dormant
-// (see the sessionStorage note below) rather than stubbed.
+// (see the localStorage note below) rather than stubbed.
 //
 // This file exists to build the safety net BEFORE Sessions.tsx is decomposed into hooks/child
 // components. The case that matters most pins the exact bug class that decomposition risks: the
@@ -190,7 +190,7 @@ before(async () => {
   // RoleProvider seeds from localStorage; 'admin' makes canWrite true, or every action button
   // (New Session, Stop/Start, Unlink, Delete, Kill Stuck) is hidden and there is nothing to test.
   window.localStorage.setItem('openwa_user_role', 'admin');
-  // Deliberately NOT setting sessionStorage['openwa_api_key']: useWebSocket.connect() reads it and
+  // Deliberately NOT setting localStorage['openwa_api_key']: useWebSocket.connect() reads it and
   // bails with a console.warn when it's absent. Setting it would make socket.io actually dial
   // http://localhost/events and hit ECONNREFUSED in this environment.
   // Awaited, not just imported: catalogues are fetched now, so the import only starts the load and

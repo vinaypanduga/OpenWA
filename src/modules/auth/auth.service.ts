@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
   OnModuleInit,
   OnModuleDestroy,
@@ -9,7 +10,7 @@ import {
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, UpdateQueryBuilder, DeleteQueryBuilder, type QueryDeepPartialEntity } from 'typeorm';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { ipMatches } from '../../common/utils/ip';
 import { hashApiKey } from './api-key-hash';
 import { ApiKey, ApiKeyRole } from './entities/api-key.entity';
@@ -52,6 +53,7 @@ export function bannerKeyLine(displayKey: string, isNewKey: boolean): string {
 @Injectable()
 export class AuthService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = createLogger('AuthService');
+  private dashboardKeyRecovery: Promise<{ apiKey: string; role: ApiKeyRole }> | null = null;
 
   constructor(
     @InjectRepository(ApiKey, 'main')
@@ -111,6 +113,83 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
   /** Flush the coalesced usage counters before the DB connection closes. See ApiKeyUsageTracker. */
   async onModuleDestroy(): Promise<void> {
     await this.usageTracker.flushOnShutdown();
+  }
+
+  /**
+   * Exchange operator-configured dashboard credentials for the persisted dashboard API key.
+   * A missing raw-key file is repaired once after credentials are verified; normal login and every
+   * browser refresh reuse that key. The global throttler protects the public controller route.
+   */
+  async authenticateDashboard(email: string, password: string): Promise<{ apiKey: string; role: ApiKeyRole }> {
+    const configuredEmail = process.env.DASHBOARD_LOGIN_EMAIL?.trim().toLowerCase();
+    const configuredPassword = process.env.DASHBOARD_LOGIN_PASSWORD;
+    if (!configuredEmail || !configuredPassword) {
+      throw new ServiceUnavailableException('Dashboard email/password login is not configured');
+    }
+
+    const suppliedEmail = email.trim().toLowerCase();
+    if (
+      !this.constantTimeMatches(suppliedEmail, configuredEmail) ||
+      !this.constantTimeMatches(password, configuredPassword)
+    ) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const rawKey = await this.readLiveBootstrapKey();
+    if (rawKey) {
+      const stored = await this.apiKeyRepository.findOne({ where: { keyHash: this.hashKey(rawKey) } });
+      if (stored) return { apiKey: rawKey, role: stored.role };
+    }
+
+    return this.recoverDashboardKey();
+  }
+
+  private constantTimeMatches(value: string, expected: string): boolean {
+    const valueHash = createHash('sha256').update(value).digest();
+    const expectedHash = createHash('sha256').update(expected).digest();
+    return timingSafeEqual(valueHash, expectedHash);
+  }
+
+  /**
+   * Recover from a deployment that retained main.sqlite but lost the plaintext bootstrap-key file.
+   * The in-process promise coalesces simultaneous login attempts so only one replacement row can be
+   * inserted. If the persistent file cannot be written, roll the row back to avoid key-table growth.
+   */
+  private async recoverDashboardKey(): Promise<{ apiKey: string; role: ApiKeyRole }> {
+    if (!this.dashboardKeyRecovery) {
+      this.dashboardKeyRecovery = (async () => {
+        const { apiKey, rawKey } = await this.createApiKey({
+          name: 'Dashboard Login Key',
+          role: ApiKeyRole.ADMIN,
+        });
+        try {
+          writeBootstrapKey(rawKey);
+        } catch (error) {
+          try {
+            await this.apiKeyRepository.remove(apiKey);
+          } catch (rollbackError) {
+            this.logger.error('Could not roll back an unpersisted dashboard recovery key', String(rollbackError), {
+              action: 'dashboard_key_recovery_rollback_failed',
+            });
+          }
+          throw new ServiceUnavailableException(
+            `Dashboard key recovery could not write the bootstrap key file: ${String(error)}`,
+          );
+        }
+        this.logger.warn('Recovered the missing dashboard bootstrap key file with one replacement admin key', {
+          keyId: apiKey.id,
+          action: 'dashboard_key_recovered',
+        });
+        return { apiKey: rawKey, role: apiKey.role };
+      })();
+    }
+
+    const recovery = this.dashboardKeyRecovery;
+    try {
+      return await recovery;
+    } finally {
+      if (this.dashboardKeyRecovery === recovery) this.dashboardKeyRecovery = null;
+    }
   }
 
   /**

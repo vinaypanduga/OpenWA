@@ -19,9 +19,9 @@ services:
       - key: ENGINE_TYPE
         value: baileys
       - key: AUTO_START_SESSIONS
-        value: "true"
+        value: 'true'
       - key: BAILEYS_MARK_ONLINE_ON_CONNECT
-        value: "false"
+        value: 'false'
       - key: DATABASE_TYPE
         value: sqlite
       - key: DATABASE_NAME
@@ -29,7 +29,7 @@ services:
       - key: MAIN_DATABASE_NAME
         value: /app/data/main.sqlite
       - key: DATABASE_SYNCHRONIZE
-        value: "false"
+        value: 'false'
       - key: SESSION_DATA_PATH
         value: /app/data/sessions
       - key: BAILEYS_AUTH_DIR
@@ -38,6 +38,14 @@ services:
         value: local
       - key: STORAGE_LOCAL_PATH
         value: /app/data/media
+      # Keep the one bootstrap key on the same persistent disk as the main auth database.
+      - key: BOOTSTRAP_KEY_FILE
+        value: /app/data/.api-key
+      # Render prompts for these secret values during Blueprint creation/update.
+      - key: DASHBOARD_LOGIN_EMAIL
+        sync: false
+      - key: DASHBOARD_LOGIN_PASSWORD
+        sync: false
       - key: NODE_OPTIONS
         value: --max-old-space-size=1024
       # Enter the final HTTPS URL Render assigns, for example:

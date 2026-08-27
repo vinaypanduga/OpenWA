@@ -5,7 +5,12 @@ jest.mock('fs', () => ({ __esModule: true, ...jest.requireActual<typeof import('
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UnauthorizedException, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  NotFoundException,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { createHash, createHmac } from 'crypto';
 import * as fs from 'fs';
 import { AuthService, resolveSeedApiKey, bannerKeyLine } from './auth.service';
@@ -214,6 +219,69 @@ describe('AuthService', () => {
   function setupLiveAdmins(...ids: string[]): void {
     setupKeys(ids.map(id => createMockApiKey({ id, role: ApiKeyRole.ADMIN })));
   }
+
+  describe('authenticateDashboard', () => {
+    afterEach(() => {
+      delete process.env.DASHBOARD_LOGIN_EMAIL;
+      delete process.env.DASHBOARD_LOGIN_PASSWORD;
+      jest.restoreAllMocks();
+    });
+
+    it('returns the existing live bootstrap key without creating a new key', async () => {
+      const rawKey = 'owa_k1_existing_dashboard_key';
+      const key = createMockApiKey({ keyHash: hashKey(rawKey), role: ApiKeyRole.ADMIN });
+      process.env.DASHBOARD_LOGIN_EMAIL = 'Admin@Example.com';
+      process.env.DASHBOARD_LOGIN_PASSWORD = 'correct-password';
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(rawKey);
+      (repository.findOne as jest.Mock).mockResolvedValue(key);
+
+      await expect(service.authenticateDashboard(' admin@example.com ', 'correct-password')).resolves.toEqual({
+        apiKey: rawKey,
+        role: ApiKeyRole.ADMIN,
+      });
+      expect(repository.create).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid credentials without looking up or exposing the API key', async () => {
+      process.env.DASHBOARD_LOGIN_EMAIL = 'admin@example.com';
+      process.env.DASHBOARD_LOGIN_PASSWORD = 'correct-password';
+
+      await expect(service.authenticateDashboard('admin@example.com', 'wrong-password')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(repository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('creates and persists exactly one replacement when the bootstrap file is missing', async () => {
+      process.env.DASHBOARD_LOGIN_EMAIL = 'admin@example.com';
+      process.env.DASHBOARD_LOGIN_PASSWORD = 'correct-password';
+      const saved = createMockApiKey({ id: 'dashboard-key', role: ApiKeyRole.ADMIN });
+      jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+      jest.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined);
+      jest.spyOn(fs, 'chmodSync').mockImplementation(() => undefined);
+      (repository.create as jest.Mock).mockReturnValue(saved);
+      (repository.save as jest.Mock).mockResolvedValue(saved);
+
+      const [first, second] = await Promise.all([
+        service.authenticateDashboard('admin@example.com', 'correct-password'),
+        service.authenticateDashboard('admin@example.com', 'correct-password'),
+      ]);
+
+      expect(first.apiKey).toMatch(/^owa_k1_[a-f0-9]{64}$/);
+      expect(second).toEqual(first);
+      expect(repository.create).toHaveBeenCalledTimes(1);
+      expect(repository.save).toHaveBeenCalledTimes(1);
+      expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails explicitly when dashboard credentials are not configured', async () => {
+      await expect(service.authenticateDashboard('admin@example.com', 'any-password')).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+    });
+  });
 
   // ── createApiKey ──────────────────────────────────────────────────
 

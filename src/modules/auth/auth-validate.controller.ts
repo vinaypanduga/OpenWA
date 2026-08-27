@@ -1,12 +1,26 @@
-import { Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
-import { CurrentApiKey } from './decorators/auth.decorators';
+import { CurrentApiKey, Public } from './decorators/auth.decorators';
 import { ApiKey } from './entities/api-key.entity';
-import { ValidateApiKeyResponseDto } from './dto';
+import { DashboardLoginDto, DashboardLoginResponseDto, ValidateApiKeyResponseDto } from './dto';
+import { AuthService } from './auth.service';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthValidateController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('dashboard/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign in to the dashboard with operator-configured credentials' })
+  @ApiResponse({ status: 200, description: 'Dashboard login succeeded', type: DashboardLoginResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid email or password' })
+  @ApiResponse({ status: 503, description: 'Dashboard login is not configured or its key cannot be persisted' })
+  dashboardLogin(@Body() dto: DashboardLoginDto): Promise<DashboardLoginResponseDto> {
+    return this.authService.authenticateDashboard(dto.email, dto.password);
+  }
+
   @Post('validate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Validate an API key' })

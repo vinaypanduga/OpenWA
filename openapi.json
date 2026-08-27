@@ -287,6 +287,42 @@
         "tags": ["auth"]
       }
     },
+    "/api/auth/dashboard/login": {
+      "post": {
+        "operationId": "AuthValidateController_dashboardLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dashboard login succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardLoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password"
+          },
+          "503": {
+            "description": "Dashboard login is not configured or its key cannot be persisted"
+          }
+        },
+        "summary": "Sign in to the dashboard with operator-configured credentials",
+        "tags": ["auth"]
+      }
+    },
     "/api/auth/validate": {
       "post": {
         "operationId": "AuthValidateController_validate",
@@ -9420,6 +9456,35 @@
             "type": "string"
           }
         }
+      },
+      "DashboardLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "admin@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 6
+          }
+        },
+        "required": ["email", "password"]
+      },
+      "DashboardLoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "description": "Existing API key used by the dashboard after sign-in."
+          },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "operator", "viewer"]
+          }
+        },
+        "required": ["apiKey", "role"]
       },
       "ValidateApiKeyResponseDto": {
         "type": "object",

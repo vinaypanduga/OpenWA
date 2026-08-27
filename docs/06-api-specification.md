@@ -4594,7 +4594,7 @@ No content (empty body; explicit `@HttpCode(204)`).
 
 ### 6.4.9 API Keys
 
-API keys are managed under `/api/auth/api-keys`. All management routes (create/list/get/update/delete/revoke) require an **ADMIN** key **with no session scope**: the controller is fenced with `@RequireUnscopedKey`, so a key whose `allowedSessions` is non-empty is rejected with `403` whatever its role — otherwise a confined admin key could mint an unrestricted one. The guard evaluates the role requirement _before_ that fence, so a scoped VIEWER/OPERATOR key is refused with `Insufficient permissions. Required: admin`; only a scoped ADMIN key reaches the fence and sees `Session-scoped API keys are not permitted on this route`. Both are `403`. The plaintext key string is returned **only once**, at creation. Validation of the caller's own key lives at `POST /api/auth/validate` (a separate controller, not fenced) and accepts any valid key.
+API keys are managed under `/api/auth/api-keys`. All management routes (create/list/get/update/delete/revoke) require an **ADMIN** key **with no session scope**: the controller is fenced with `@RequireUnscopedKey`, so a key whose `allowedSessions` is non-empty is rejected with `403` whatever its role — otherwise a confined admin key could mint an unrestricted one. The guard evaluates the role requirement _before_ that fence, so a scoped VIEWER/OPERATOR key is refused with `Insufficient permissions. Required: admin`; only a scoped ADMIN key reaches the fence and sees `Session-scoped API keys are not permitted on this route`. Both are `403`. A newly-created key's plaintext is returned only in its create response. Dashboard credential exchange can return the existing bootstrap key as described below; it never creates or rotates a key. Validation of the caller's own key lives at `POST /api/auth/validate` (a separate controller, not fenced) and accepts any valid key.
 
 #### GET /api/auth/api-keys
 
@@ -4804,6 +4804,29 @@ Permanently delete an API key (hard delete). Also drops any un-flushed usage acc
 `@HttpCode(204)` — no response body.
 
 **Errors:** `401` missing/invalid key · `403` key role below ADMIN, or the key is session-scoped · `404` `"API key with id '<id>' not found"` · `409` target is the last usable admin key
+
+#### POST /api/auth/dashboard/login
+
+Sign in to the bundled dashboard with the operator-configured `DASHBOARD_LOGIN_EMAIL` and
+`DASHBOARD_LOGIN_PASSWORD`. This public, globally rate-limited route returns the existing live
+bootstrap API key and its role. If an older deployment retained the hashed key database but lost the
+raw bootstrap-key file, the first successful credential login creates and persists exactly one
+replacement admin key; subsequent logins and browser refreshes reuse it. Keep `BOOTSTRAP_KEY_FILE`
+on the same persistent volume as the main authentication database.
+
+**Auth:** public (email/password in the JSON body)
+
+```json
+{ "email": "admin@example.com", "password": "a-unique-production-password" }
+```
+
+**Response** `200`
+
+```json
+{ "apiKey": "owa_k1_0123456789abcdef...", "role": "admin" }
+```
+
+**Errors:** `400` invalid email/password shape · `401` invalid email or password · `503` dashboard login is not configured, or the replacement bootstrap key cannot be persisted
 
 #### POST /api/auth/validate
 

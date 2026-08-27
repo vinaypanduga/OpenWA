@@ -1,4 +1,14 @@
-import { IsString, IsOptional, IsEnum, IsArray, IsDateString, MinLength, MaxLength, Validate } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsDateString,
+  IsEmail,
+  MinLength,
+  MaxLength,
+  Validate,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ApiKeyRole } from '../entities/api-key.entity';
 import { IsIpOrCidrConstraint } from './is-ip-or-cidr.validator';
@@ -105,6 +115,29 @@ export class ValidateApiKeyResponseDto {
 
   @ApiPropertyOptional({ enum: ApiKeyRole, description: "The key's role; present only when valid." })
   role?: ApiKeyRole;
+}
+
+/** Credentials configured by the operator for dashboard-only sign-in. */
+export class DashboardLoginDto {
+  @ApiProperty({ example: 'admin@example.com' })
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @ApiProperty({ format: 'password', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  @MaxLength(256)
+  password!: string;
+}
+
+/** The existing bootstrap key is returned to the dashboard; login never creates a new key. */
+export class DashboardLoginResponseDto {
+  @ApiProperty({ description: 'Existing API key used by the dashboard after sign-in.' })
+  apiKey!: string;
+
+  @ApiProperty({ enum: ApiKeyRole })
+  role!: ApiKeyRole;
 }
 
 export class UpdateApiKeyDto {
