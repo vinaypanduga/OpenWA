@@ -5,6 +5,9 @@ import { buildIncomingMessageFromBaileys, extractBaileysBody } from './baileys-m
 import { BAILEYS_QUERY_BUDGET_MS, withQueryDeadline } from './baileys-query-deadline';
 import { type createLogger } from '../../common/services/logger.service';
 
+/** Keep reconnect history mapping and database projection comfortably below the service heap. */
+export const BAILEYS_HISTORY_BATCH_SIZE = 200;
+
 /**
  * History-sync machinery extracted from BaileysAdapter: the bulk `messaging-history.set`
  * capture and the post-connect name hydration. The adapter's lifecycle calls these methods
@@ -47,17 +50,33 @@ export class BaileysHistory {
 
   /**
    * Persist the bulk history Baileys pushes on connect (`messaging-history.set`) - the only
-   * pre-connection history source. Maps each message media-free and hands the batch to the dispatch-free
-   * `onHistoryMessages` callback, harvesting `pushName` into contacts on the way (history `contacts`
-   * carry no names) and seeding each chat's last-message preview.
+   * pre-connection history source. Maps messages media-free and hands bounded, sequential batches to
+   * the dispatch-free `onHistoryMessages` callback, harvesting `pushName` into contacts on the way
+   * (history `contacts` carry no names) and seeding each chat's last-message preview. Keeping the
+   * batch bounded is important on reconnect: Baileys already owns the raw history array, so building
+   * a second full mapped array and a third database projection can otherwise exceed a small
+   * container's memory limit.
    */
   async captureHistoryMessages(messages: WAMessage[]): Promise<void> {
     if (!messages.length) {
       return;
     }
     const b = await this.host.loadLib();
-    const nameUpdates: { id: string; notify: string }[] = [];
-    const mapped: IncomingMessage[] = [];
+    const onHistoryMessages = this.host.getOnHistoryMessages();
+    let nameUpdates: { id: string; notify: string }[] = [];
+    let mapped: IncomingMessage[] = [];
+
+    const flush = async (): Promise<void> => {
+      if (nameUpdates.length) {
+        this.host.upsertContacts(nameUpdates);
+        nameUpdates = [];
+      }
+      if (mapped.length) {
+        await onHistoryMessages?.(mapped);
+        mapped = [];
+      }
+    };
+
     for (const msg of messages) {
       if (msg.key?.fromMe !== true && msg.pushName) {
         const sender = msg.key?.participant ?? msg.key?.remoteJid;
@@ -68,17 +87,15 @@ export class BaileysHistory {
       // Seed the chat's last-message preview + sort time (newest wins); else history-only chats
       // would read "No messages yet".
       this.host.recordMessage(msg);
-      const incoming = this.mapHistoryMessage(b, msg);
-      if (incoming) {
+      const incoming = onHistoryMessages ? this.mapHistoryMessage(b, msg) : null;
+      if (incoming && onHistoryMessages) {
         mapped.push(incoming);
       }
+      if (nameUpdates.length >= BAILEYS_HISTORY_BATCH_SIZE || mapped.length >= BAILEYS_HISTORY_BATCH_SIZE) {
+        await flush();
+      }
     }
-    if (nameUpdates.length) {
-      this.host.upsertContacts(nameUpdates);
-    }
-    if (mapped.length) {
-      this.host.getOnHistoryMessages()?.(mapped);
-    }
+    await flush();
   }
 
   /**

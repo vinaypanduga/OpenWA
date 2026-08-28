@@ -52,6 +52,20 @@ services:
         sync: false
       - key: NODE_OPTIONS
         value: --max-old-space-size=1024
+      # Render Standard has 2 GB RAM. Bound reconnect history/cache spikes and leave the other
+      # gigabyte for Buffers, SQLite, TLS and the OS (none of which count toward V8's old-space cap).
+      - key: BAILEYS_SESSION_STORE_MAX_ENTRIES
+        value: '2000'
+      - key: BAILEYS_MESSAGE_STORE_LIMIT
+        value: '2000'
+      - key: LID_MAPPING_CACHE_MAX
+        value: '2000'
+      # Each concurrent inbound download can hold its entire decoded payload in memory. A 10 MiB
+      # ceiling with one active download avoids the default 4 x 50 MiB burst on a small instance.
+      - key: MEDIA_DOWNLOAD_MAX_BYTES
+        value: '10485760'
+      - key: INBOUND_MEDIA_CONCURRENCY
+        value: '1'
       # Enter the final HTTPS URL Render assigns, for example:
       # https://openwa-api-xxxx.onrender.com
       - key: BASE_URL

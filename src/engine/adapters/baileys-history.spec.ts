@@ -1,5 +1,6 @@
-import type { WASocket } from '@whiskeysockets/baileys';
-import { BaileysHistory, BaileysHistoryHost } from './baileys-history';
+import type { WAMessage, WASocket } from '@whiskeysockets/baileys';
+import type { IncomingMessage } from '../interfaces/whatsapp-engine.interface';
+import { BAILEYS_HISTORY_BATCH_SIZE, BaileysHistory, BaileysHistoryHost } from './baileys-history';
 
 /**
  * `groupFetchAllParticipating` yields `{}` for BOTH an unanswered query and an account with no groups —
@@ -101,5 +102,45 @@ describe('hydrateNames', () => {
     await settled;
 
     expect(resyncAppState).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('captureHistoryMessages', () => {
+  it('projects a large reconnect history in bounded sequential batches', async () => {
+    let active = 0;
+    let peakActive = 0;
+    const onHistoryMessages = jest.fn(async () => {
+      active += 1;
+      peakActive = Math.max(peakActive, active);
+      await new Promise(resolve => setImmediate(resolve));
+      active -= 1;
+    });
+    const host = {
+      logger: { warn: jest.fn(), debug: jest.fn(), info: jest.fn(), error: jest.fn() },
+      loadLib: () =>
+        Promise.resolve({
+          normalizeMessageContent: (content: unknown) => content,
+          getContentType: () => 'conversation',
+        }),
+      toNeutralJid: (jid: string) => jid,
+      normalizedSelfJid: () => 'me@s.whatsapp.net',
+      recordMessage: jest.fn(),
+      upsertContacts: jest.fn(),
+      upsertChats: jest.fn(),
+      extractEphemeralDuration: jest.fn(),
+      getOnHistoryMessages: () => onHistoryMessages,
+    } as unknown as BaileysHistoryHost;
+    const messages = Array.from({ length: BAILEYS_HISTORY_BATCH_SIZE * 2 + 1 }, (_, index) => ({
+      key: { id: `history-${index}`, remoteJid: 'peer@s.whatsapp.net', fromMe: false },
+      message: { conversation: `message ${index}` },
+      messageTimestamp: 1_700_000_000 + index,
+    })) as WAMessage[];
+
+    await new BaileysHistory(host).captureHistoryMessages(messages);
+
+    expect(onHistoryMessages).toHaveBeenCalledTimes(3);
+    const batches = onHistoryMessages.mock.calls as unknown as [IncomingMessage[]][];
+    expect(batches.map(([batch]) => batch.length)).toEqual([BAILEYS_HISTORY_BATCH_SIZE, BAILEYS_HISTORY_BATCH_SIZE, 1]);
+    expect(peakActive).toBe(1);
   });
 });

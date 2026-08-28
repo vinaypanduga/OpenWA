@@ -325,7 +325,13 @@ export class BaileysLifecycle {
       this.host.upsertContacts(history.contacts);
       this.host.upsertChats(history.chats);
       this.host.addLidMappings(history.lidPnMappings ?? []);
-      void this.host.captureHistoryMessages(history.messages ?? []);
+      void this.host.captureHistoryMessages(history.messages ?? []).catch(err => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.host.logger.error('Failed to capture Baileys history sync', message, {
+          action: 'baileys_history_capture_failed',
+          sessionId: this.host.config.sessionId,
+        });
+      });
       this.host.logger.debug('History sync received', {
         action: 'baileys_history_set',
         sessionId: this.host.config.sessionId,
