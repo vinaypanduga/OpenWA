@@ -4812,7 +4812,9 @@ Sign in to the bundled dashboard with the operator-configured `DASHBOARD_LOGIN_E
 bootstrap API key and its role. If an older deployment retained the hashed key database but lost the
 raw bootstrap-key file, the first successful credential login creates and persists exactly one
 replacement admin key; subsequent logins and browser refreshes reuse it. Keep `BOOTSTRAP_KEY_FILE`
-on the same persistent volume as the main authentication database.
+on the same persistent volume as the main authentication database. A successful login also sets an
+encrypted, `HttpOnly`, `SameSite=Strict` browser cookie that lasts for 30 days. In production the
+cookie is `Secure`, so it is sent only over HTTPS.
 
 **Auth:** public (email/password in the JSON body)
 
@@ -4827,6 +4829,32 @@ on the same persistent volume as the main authentication database.
 ```
 
 **Errors:** `400` invalid email/password shape · `401` invalid email or password · `503` dashboard login is not configured, or the replacement bootstrap key cannot be persisted
+
+#### POST /api/auth/dashboard/session
+
+Restore a dashboard login from the encrypted browser cookie created by
+`POST /api/auth/dashboard/login`. The dashboard calls this endpoint during startup when its local
+API-key cache is unavailable, allowing refreshes and browser restarts to remain signed in. Changing
+`DASHBOARD_LOGIN_PASSWORD` or `API_KEY_PEPPER` invalidates previously issued cookies.
+
+**Auth:** public route; requires the `openwa_dashboard_session` `HttpOnly` cookie
+
+**Response** `200`
+
+```json
+{ "apiKey": "owa_k1_0123456789abcdef...", "role": "admin" }
+```
+
+**Errors:** `401` cookie missing, invalid, expired, or its API key is no longer valid
+
+#### POST /api/auth/dashboard/logout
+
+Clear the persistent dashboard browser cookie. The dashboard also removes its local API-key cache
+immediately, even if the server is temporarily unreachable.
+
+**Auth:** public
+
+**Response** `204` — no response body
 
 #### POST /api/auth/validate
 

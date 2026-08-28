@@ -41,6 +41,7 @@ function AppContent() {
   // refreshes with a saved key only.
   const [savedKey] = useState(() => localStorage.getItem('openwa_api_key'));
   const [isAuthenticated, setIsAuthenticated] = useState(!!savedKey);
+  const [authRestoreComplete, setAuthRestoreComplete] = useState(false);
   const [, setApiKey] = useState(savedKey || '');
   const { setRole, role } = useRole();
 
@@ -63,15 +64,35 @@ function AppContent() {
     setIsAuthenticated(false);
     setRole(null);
     localStorage.removeItem('openwa_api_key');
+    // The cookie is HttpOnly, so only the backend can remove it. Best effort: local logout remains
+    // immediate even if Render is temporarily unreachable.
+    void fetch(`${API_BASE_URL}/auth/dashboard/logout`, { method: 'POST', credentials: 'include' }).catch(
+      () => undefined,
+    );
     // Wipe the React Query cache too: it is keyed by resource, not actor, so without a full
     // clear a logout → login in the same tab with a different key/scope shows the previous
     // actor's sessions/messages/apiKeys/audit rows.
     clearActorState(queryClient);
   }, [setRole]);
 
-  // Re-validate and refresh the role on mount if already authenticated
+  // Re-validate a stored key, or restore it from the encrypted HttpOnly 30-day cookie when browser
+  // storage was cleared. Do not render Login until this one startup check finishes.
   useEffect(() => {
-    if (!savedKey) return;
+    if (!savedKey) {
+      fetch(`${API_BASE_URL}/auth/dashboard/session`, { method: 'POST', credentials: 'include' })
+        .then(async res => {
+          if (!res.ok) return;
+          const data: { apiKey?: string; role?: string } = await res.json().catch(() => ({}));
+          if (!data.apiKey) return;
+          localStorage.setItem('openwa_api_key', data.apiKey);
+          setApiKey(data.apiKey);
+          setRole(isUserRole(data.role) ? data.role : 'viewer');
+          setIsAuthenticated(true);
+        })
+        .catch(() => undefined)
+        .finally(() => setAuthRestoreComplete(true));
+      return;
+    }
 
     fetch(`${API_BASE_URL}/auth/validate`, {
       method: 'POST',
@@ -88,7 +109,8 @@ function AppContent() {
       .catch(() => {
         // Network failure (API unreachable): keep the cached role so a transient outage at
         // page load doesn't eject the user — an explicit 401/403 above still logs out.
-      });
+      })
+      .finally(() => setAuthRestoreComplete(true));
   }, [savedKey, setRole, handleLogout]);
 
   const loadingFallback = (
@@ -96,6 +118,10 @@ function AppContent() {
       <Loader2 className="animate-spin" size={32} />
     </div>
   );
+
+  if (!authRestoreComplete) {
+    return loadingFallback;
+  }
 
   if (!isAuthenticated) {
     return (

@@ -323,6 +323,51 @@
         "tags": ["auth"]
       }
     },
+    "/api/auth/dashboard/session": {
+      "post": {
+        "operationId": "AuthValidateController_restoreDashboardLogin",
+        "parameters": [
+          {
+            "name": "cookie",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard session restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardLoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Dashboard session cookie is missing, invalid, or expired"
+          }
+        },
+        "summary": "Restore a persistent dashboard browser login",
+        "tags": ["auth"]
+      }
+    },
+    "/api/auth/dashboard/logout": {
+      "post": {
+        "operationId": "AuthValidateController_dashboardLogout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Dashboard session cleared"
+          }
+        },
+        "summary": "Clear the persistent dashboard browser login",
+        "tags": ["auth"]
+      }
+    },
     "/api/auth/validate": {
       "post": {
         "operationId": "AuthValidateController_validate",

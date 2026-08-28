@@ -36,6 +36,7 @@ export function Login({ onLogin }: LoginProps) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/dashboard/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

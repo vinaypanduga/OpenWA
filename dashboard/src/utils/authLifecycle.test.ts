@@ -80,6 +80,7 @@ const fetchCalls: FetchCall[] = [];
 // post-login pages' React Query hooks tolerate.
 let validateBody: { valid?: boolean; role?: string } = { valid: true, role: 'operator' };
 let loginBody: { apiKey?: string; role?: string } = { apiKey: 'fresh-key', role: 'operator' };
+let restoredSessionBody: { apiKey: string; role?: string } | null = null;
 
 function installFetchStub(): void {
   globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -91,7 +92,17 @@ function installFetchStub(): void {
     let body: unknown = [];
     if (method === 'POST' && path === '/api/auth/validate') body = validateBody;
     else if (method === 'POST' && path === '/api/auth/dashboard/login') body = loginBody;
-    else if (path === '/api/stats/overview')
+    else if (method === 'POST' && path === '/api/auth/dashboard/session') {
+      if (!restoredSessionBody) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: 'missing' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      body = restoredSessionBody;
+    } else if (path === '/api/stats/overview')
       body = {
         sessions: { active: 0, total: 0, byStatus: {} },
         messages: { sent: 0, received: 0, failed: 0, today: { sent: 0, received: 0 } },
@@ -159,6 +170,7 @@ afterEach(() => {
   fetchCalls.length = 0;
   validateBody = { valid: true, role: 'operator' };
   loginBody = { apiKey: 'fresh-key', role: 'operator' };
+  restoredSessionBody = null;
 });
 
 // Enters dashboard credentials and waits until App has applied the exchanged key and role.
@@ -206,4 +218,13 @@ test('a page reload with a saved key re-validates once at startup and refreshes 
   await new Promise(resolve => setTimeout(resolve, 50));
 
   assert.equal(validateCallCount(), 1);
+});
+
+test('a page reload restores login from the persistent cookie when local storage is empty', async () => {
+  restoredSessionBody = { apiKey: 'cookie-restored-key', role: 'admin' };
+  rtl.render(createElement(App));
+
+  await rtl.waitFor(() => assert.equal(localStorage.getItem(LOGIN_KEY), 'cookie-restored-key'));
+  assert.equal(localStorage.getItem(ROLE_KEY), 'admin');
+  assert.equal(validateCallCount(), 0);
 });

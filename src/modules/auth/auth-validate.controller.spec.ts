@@ -1,10 +1,19 @@
 import { AuthValidateController } from './auth-validate.controller';
 import { ApiKey, ApiKeyRole } from './entities/api-key.entity';
 import { AuthService } from './auth.service';
+import type { Response } from 'express';
 
 describe('AuthValidateController', () => {
   const authenticateDashboard = jest.fn();
-  const controller = new AuthValidateController({ authenticateDashboard } as unknown as AuthService);
+  const createDashboardSessionToken = jest.fn().mockReturnValue('encrypted-token');
+  const restoreDashboardSession = jest.fn();
+  const controller = new AuthValidateController({
+    authenticateDashboard,
+    createDashboardSessionToken,
+    restoreDashboardSession,
+  } as unknown as AuthService);
+  const responseCookie = jest.fn();
+  const response = { cookie: responseCookie, clearCookie: jest.fn() } as unknown as Response;
 
   const makeKey = (over: Partial<ApiKey> = {}): ApiKey =>
     ({ id: 'k1', role: ApiKeyRole.OPERATOR, isActive: true, allowedIps: null, ...over }) as ApiKey;
@@ -32,8 +41,23 @@ describe('AuthValidateController', () => {
     authenticateDashboard.mockResolvedValueOnce({ apiKey: 'existing-key', role: ApiKeyRole.ADMIN });
 
     await expect(
-      controller.dashboardLogin({ email: 'admin@example.com', password: 'correct-password' }),
+      controller.dashboardLogin({ email: 'admin@example.com', password: 'correct-password' }, response),
     ).resolves.toEqual({ apiKey: 'existing-key', role: ApiKeyRole.ADMIN });
     expect(authenticateDashboard).toHaveBeenCalledWith('admin@example.com', 'correct-password');
+    expect(createDashboardSessionToken).toHaveBeenCalledWith('existing-key');
+    expect(responseCookie).toHaveBeenCalledWith(
+      'openwa_dashboard_session',
+      'encrypted-token',
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
+    );
+  });
+
+  it('restores an encrypted dashboard cookie through AuthService', async () => {
+    restoreDashboardSession.mockResolvedValueOnce({ apiKey: 'existing-key', role: ApiKeyRole.ADMIN });
+
+    await expect(
+      controller.restoreDashboardLogin('theme=dark; openwa_dashboard_session=encrypted-token'),
+    ).resolves.toEqual({ apiKey: 'existing-key', role: ApiKeyRole.ADMIN });
+    expect(restoreDashboardSession).toHaveBeenCalledWith('encrypted-token');
   });
 });

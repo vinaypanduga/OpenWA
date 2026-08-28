@@ -281,6 +281,29 @@ describe('AuthService', () => {
         ServiceUnavailableException,
       );
     });
+
+    it('round-trips an encrypted dashboard session token and revalidates its key', async () => {
+      const rawKey = 'owa_k1_cookie_session_key';
+      const key = createMockApiKey({ keyHash: hashKey(rawKey), role: ApiKeyRole.ADMIN });
+      process.env.DASHBOARD_LOGIN_PASSWORD = 'correct-password';
+      (repository.findOne as jest.Mock).mockResolvedValue(key);
+
+      const token = service.createDashboardSessionToken(rawKey);
+
+      expect(token).not.toContain(rawKey);
+      await expect(service.restoreDashboardSession(token)).resolves.toEqual({
+        apiKey: rawKey,
+        role: ApiKeyRole.ADMIN,
+      });
+    });
+
+    it('rejects a tampered dashboard session token', async () => {
+      process.env.DASHBOARD_LOGIN_PASSWORD = 'correct-password';
+      const token = service.createDashboardSessionToken('owa_k1_cookie_session_key');
+
+      await expect(service.restoreDashboardSession(`${token}tampered`)).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(repository.findOne).not.toHaveBeenCalled();
+    });
   });
 
   // ── createApiKey ──────────────────────────────────────────────────

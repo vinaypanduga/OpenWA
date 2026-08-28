@@ -10,7 +10,7 @@ import {
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, UpdateQueryBuilder, DeleteQueryBuilder, type QueryDeepPartialEntity } from 'typeorm';
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { ipMatches } from '../../common/utils/ip';
 import { hashApiKey } from './api-key-hash';
 import { ApiKey, ApiKeyRole } from './entities/api-key.entity';
@@ -148,6 +148,51 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     const valueHash = createHash('sha256').update(value).digest();
     const expectedHash = createHash('sha256').update(expected).digest();
     return timingSafeEqual(valueHash, expectedHash);
+  }
+
+  /** Encrypt the raw dashboard key for a persistent HttpOnly browser cookie. */
+  createDashboardSessionToken(rawKey: string): string {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.dashboardSessionEncryptionKey(), iv);
+    const ciphertext = Buffer.concat([cipher.update(rawKey, 'utf8'), cipher.final()]);
+    return [
+      'v1',
+      iv.toString('base64url'),
+      ciphertext.toString('base64url'),
+      cipher.getAuthTag().toString('base64url'),
+    ].join('.');
+  }
+
+  /** Restore and revalidate a dashboard key from its encrypted persistent cookie. */
+  async restoreDashboardSession(token: string): Promise<{ apiKey: string; role: ApiKeyRole }> {
+    try {
+      const [version, ivPart, ciphertextPart, tagPart] = token.split('.');
+      if (version !== 'v1' || !ivPart || !ciphertextPart || !tagPart) throw new Error('Malformed token');
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        this.dashboardSessionEncryptionKey(),
+        Buffer.from(ivPart, 'base64url'),
+      );
+      decipher.setAuthTag(Buffer.from(tagPart, 'base64url'));
+      const rawKey = Buffer.concat([
+        decipher.update(Buffer.from(ciphertextPart, 'base64url')),
+        decipher.final(),
+      ]).toString('utf8');
+      const apiKey = await this.validateApiKey(rawKey);
+      return { apiKey: rawKey, role: apiKey.role };
+    } catch {
+      throw new UnauthorizedException('Dashboard login session is invalid or expired');
+    }
+  }
+
+  private dashboardSessionEncryptionKey(): Buffer {
+    const password = process.env.DASHBOARD_LOGIN_PASSWORD;
+    if (!password) throw new ServiceUnavailableException('Dashboard email/password login is not configured');
+    return createHash('sha256')
+      .update('openwa-dashboard-session\0')
+      .update(password)
+      .update(process.env.API_KEY_PEPPER ?? '')
+      .digest();
   }
 
   /**
