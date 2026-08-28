@@ -112,7 +112,22 @@ export class BaileysVersionResolver {
         signal: AbortSignal.timeout(this.timeoutMs),
       } as unknown as RequestInit;
 
-      const result = await b.fetchLatestWaWebVersion(fetchOptions);
+      // Keep an explicit race in addition to AbortSignal.timeout(). Some Baileys/fetch versions do
+      // not forward or honour the caller's signal; on restricted hosts (observed on Render) that
+      // leaves engine.initialize() stuck until the outer 60-second engine deadline, so no QR is ever
+      // produced. The hard race lets resolution advance to the repository/cache/fallback tiers.
+      let timeoutId: NodeJS.Timeout | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('fetchLatestWaWebVersion timeout')), this.timeoutMs);
+        timeoutId.unref?.();
+      });
+      const fetchPromise = b.fetchLatestWaWebVersion(fetchOptions);
+      // The timed-out request may reject later. It is intentionally abandoned, so consume that
+      // rejection rather than turning a successful fallback into an unhandled process rejection.
+      fetchPromise.catch(() => undefined);
+      const result = await Promise.race([fetchPromise, timeoutPromise]).finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
 
       if (result?.isLatest === true && this.isValidVersion(result?.version)) {
         const version = result.version;

@@ -203,6 +203,25 @@ describe('BaileysVersionResolver', () => {
         { sessionId: 'test-session' },
       );
     });
+
+    it('when fetchLatestWaWebVersion ignores its abort signal and hangs, hard-times out and advances', async () => {
+      const resolver = createResolver(25);
+      const hangingPromise = new Promise<{ version: WAVersion; isLatest: boolean }>(() => {});
+      const mockLib = {
+        fetchLatestWaWebVersion: jest.fn().mockReturnValue(hangingPromise),
+        fetchLatestBaileysVersion: jest.fn().mockResolvedValue({
+          version: [2, 3000, 1043857760],
+          isLatest: true,
+        }),
+      };
+
+      await expect(resolver.resolve(asBaileysLib(mockLib))).resolves.toEqual([2, 3000, 1043857760]);
+      expect(mockLib.fetchLatestBaileysVersion).toHaveBeenCalledTimes(1);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('fetchLatestWaWebVersion failed: fetchLatestWaWebVersion timeout'),
+        { sessionId: 'test-session' },
+      );
+    });
   });
 
   describe('Tier 3: fetchLatestBaileysVersion (upstream repository Defaults/index.ts)', () => {
