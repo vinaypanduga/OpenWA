@@ -25,6 +25,9 @@ const BAILEYS_BROWSER: [string, string, string] = [
   '120.0.0',
 ];
 
+/** Shared hosts can take longer than Baileys' 20s default to finish the WhatsApp WebSocket handshake. */
+export const BAILEYS_CONNECT_TIMEOUT_MS = 60_000;
+
 /**
  * How long logout() waits for WhatsApp to acknowledge the `remove-companion-device` IQ. Completion of
  * an engine-native unlink requires a tagged IQ result from the server (NOT a WebSocket write flush),
@@ -246,6 +249,7 @@ export class BaileysLifecycle {
       auth: state,
       version,
       browser: BAILEYS_BROWSER,
+      connectTimeoutMs: BAILEYS_CONNECT_TIMEOUT_MS,
       printQRInTerminal: false,
       // Session egress proxy (#859): the WS and media transfers share one agent; undefined = direct.
       agent: proxyAgent,

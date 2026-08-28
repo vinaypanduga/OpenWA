@@ -136,6 +136,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { BaileysAdapter, createProxyAgent } from './baileys.adapter';
+import { BAILEYS_CONNECT_TIMEOUT_MS } from './baileys-lifecycle';
 import {
   EditedMessage,
   EngineStatus,
@@ -211,6 +212,15 @@ describe('BaileysAdapter lifecycle & status', () => {
 
   it('starts DISCONNECTED', () => {
     expect(newAdapter().getStatus()).toBe(EngineStatus.DISCONNECTED);
+  });
+
+  it('allows a slow hosted WebSocket handshake before timing out QR initialization', async () => {
+    const { default: makeWASocket } = jest.requireMock<{ default: jest.Mock }>('@whiskeysockets/baileys');
+    await newAdapter().initialize(noopCallbacks());
+
+    expect(makeWASocket).toHaveBeenCalledWith(
+      expect.objectContaining({ connectTimeoutMs: BAILEYS_CONNECT_TIMEOUT_MS }),
+    );
   });
 
   it('renders the QR to a PNG data URL and moves to QR_READY on a connection.update with a qr', async () => {

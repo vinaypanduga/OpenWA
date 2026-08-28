@@ -10,7 +10,7 @@ export type WAVersion = [number, number, number];
  * WhatsApp Web protocol versions follow semantic versioning [major, minor, client_revision].
  * Refresh during major version bumps or when WhatsApp deprecates older client revisions.
  */
-export const DEFAULT_FALLBACK_WA_VERSION: WAVersion = [2, 3000, 1045340097];
+export const DEFAULT_FALLBACK_WA_VERSION: WAVersion = [2, 3000, 1046259792];
 
 /** Default timeout for remote version resolution network calls (5 seconds) */
 export const VERSION_RESOLVER_TIMEOUT_MS = 5000;
@@ -94,10 +94,9 @@ export class BaileysVersionResolver {
       }
     }
 
-    this.options.logger.warn(
-      `Invalid BAILEYS_WA_VERSION "${raw}", expected format "2.3000.xxxxxxxxx" (e.g. "2.3000.1045340097")`,
-      { sessionId: this.options.sessionId },
-    );
+    this.options.logger.warn(`Invalid BAILEYS_WA_VERSION "${raw}", expected format "2.3000.xxxxxxxxx"`, {
+      sessionId: this.options.sessionId,
+    });
     return null;
   }
 

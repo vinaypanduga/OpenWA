@@ -372,7 +372,7 @@ describe('BaileysVersionResolver', () => {
       // Assert
       expect(version).toEqual(DEFAULT_FALLBACK_WA_VERSION);
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('using fallback WhatsApp Web version: 2.3000.1045340097'),
+        expect.stringContaining('using fallback WhatsApp Web version: 2.3000.1046259792'),
         { sessionId: 'test-session' },
       );
     });

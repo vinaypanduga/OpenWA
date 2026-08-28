@@ -22,10 +22,6 @@ services:
         value: 'true'
       - key: BAILEYS_MARK_ONLINE_ON_CONNECT
         value: 'false'
-      # Skip remote protocol-version discovery during session startup on Render. This is also the
-      # resolver's built-in safe fallback and prevents a blocked lookup from delaying QR creation.
-      - key: BAILEYS_WA_VERSION
-        value: 2.3000.1045340097
       - key: DATABASE_TYPE
         value: sqlite
       - key: DATABASE_NAME
