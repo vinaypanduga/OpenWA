@@ -22,6 +22,11 @@ services:
         value: 'true'
       - key: BAILEYS_MARK_ONLINE_ON_CONNECT
         value: 'false'
+      # Explicitly clear any stale protocol pin left on an existing Render service. Omitting this
+      # key from a later Blueprint does not reliably delete a value that an earlier deploy created.
+      # Empty means: resolve the current WA Web revision dynamically, with the built-in fallback.
+      - key: BAILEYS_WA_VERSION
+        value: ''
       - key: DATABASE_TYPE
         value: sqlite
       - key: DATABASE_NAME

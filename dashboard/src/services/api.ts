@@ -753,8 +753,10 @@ async function requestBlob(endpoint: string): Promise<Blob> {
 // =============================================================================
 
 export const sessionApi = {
-  list: () => request<Session[]>('/sessions'),
-  get: (id: string) => request<Session>(`/sessions/${id}`),
+  // Session lifecycle state and QR data are live control-plane reads. Bypass the browser's HTTP
+  // cache so a Render/proxy ETag cannot answer 304 while the engine moves INITIALIZING -> QR_READY.
+  list: () => request<Session[]>('/sessions', { cache: 'no-store' }),
+  get: (id: string) => request<Session>(`/sessions/${id}`, { cache: 'no-store' }),
   create: (name: string) =>
     request<Session>('/sessions', {
       method: 'POST',
@@ -772,7 +774,7 @@ export const sessionApi = {
   stop: (id: string) => request<Session>(`/sessions/${id}/stop`, { method: 'POST' }),
   logout: (id: string) => request<Session>(`/sessions/${id}/logout`, { method: 'POST' }),
   forceKill: (id: string) => request<Session>(`/sessions/${id}/force-kill`, { method: 'POST' }),
-  getQR: (id: string) => request<{ qrCode: string; status: string }>(`/sessions/${id}/qr`),
+  getQR: (id: string) => request<{ qrCode: string; status: string }>(`/sessions/${id}/qr`, { cache: 'no-store' }),
   requestPairingCode: (id: string, phoneNumber: string) =>
     request<{ pairingCode: string; status: string }>(`/sessions/${id}/pairing-code`, {
       method: 'POST',
