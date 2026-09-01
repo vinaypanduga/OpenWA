@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { warnIfInsecureHttpUrl } from '../utils/urlSecurity';
+import { APP_BASE_PATH } from '../utils/appBase';
 
 interface SessionStatusEvent {
   sessionId: string;
@@ -140,6 +141,10 @@ interface ServerErrorFrame {
 // Use current origin for WebSocket (goes through nginx proxy in Docker)
 // Falls back to env var or localhost for development
 const SOCKET_URL = import.meta.env.VITE_WS_URL || window.location.origin;
+// Socket.IO's transport path is separate from its `/events` namespace. When the dashboard is
+// mounted below `/openwa`, send the handshake to `/openwa/socket.io`; nginx strips the public
+// prefix before forwarding it to the unchanged backend `/socket.io` endpoint.
+const SOCKET_PATH = import.meta.env.VITE_WS_PATH || `${APP_BASE_PATH}/socket.io`;
 // Warn when the WebSocket origin is an insecure http:// URL on a non-localhost host.
 warnIfInsecureHttpUrl(SOCKET_URL, 'VITE_WS_URL');
 
@@ -171,6 +176,7 @@ export function useWebSocket(events: WebSocketEvents = {}) {
 
     setSocketEpoch(epoch => epoch + 1);
     socketRef.current = io(`${SOCKET_URL}/events`, {
+      path: SOCKET_PATH,
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,

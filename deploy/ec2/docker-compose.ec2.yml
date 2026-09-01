@@ -1,0 +1,6 @@
+services:
+  openwa-api:
+    build:
+      args:
+        # Vite embeds this prefix in the dashboard bundle during `docker compose build`.
+        DASHBOARD_BASE_PATH: ${DASHBOARD_BASE_PATH:-/openwa}

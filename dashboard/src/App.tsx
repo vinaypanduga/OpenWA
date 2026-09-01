@@ -10,6 +10,7 @@ import { RoleProvider } from './components/RoleProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { API_BASE_URL } from './services/api';
 import { clearActorState, isUserRole, resolveStartupValidation } from './utils/authLifecycle';
+import { APP_BASE_PATH } from './utils/appBase';
 import './App.css';
 
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
@@ -133,7 +134,7 @@ function AppContent() {
 
   return (
     <ToastProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={APP_BASE_PATH || undefined}>
         <Suspense fallback={loadingFallback}>
           <Routes>
             <Route path="/" element={<Layout onLogout={handleLogout} userRole={role} />}>

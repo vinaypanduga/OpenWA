@@ -14,6 +14,11 @@
 # digest together.
 FROM --platform=$BUILDPLATFORM docker.io/node:22-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS builder
 
+# Public mount point for the bundled dashboard. It is a build-time value because Vite writes it
+# into asset URLs. `/` preserves the normal deployment; EC2's path-prefix override uses `/openwa`.
+ARG DASHBOARD_BASE_PATH=/
+ENV VITE_BASE_PATH=${DASHBOARD_BASE_PATH}
+
 WORKDIR /app
 
 # Install build dependencies

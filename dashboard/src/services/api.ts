@@ -2,6 +2,7 @@
 // Centralized API client with TypeScript types
 
 import { warnIfInsecureHttpUrl } from '../utils/urlSecurity';
+import { APP_BASE_PATH } from '../utils/appBase';
 
 // Resolve the API base URL. By default this is the same-origin relative path '/api',
 // correct when the dashboard and API are served from the same origin (the default
@@ -11,8 +12,10 @@ import { warnIfInsecureHttpUrl } from '../utils/urlSecurity';
 // Previously VITE_API_URL was documented but never read, so the dashboard always called
 // same-origin '/api' and a split deployment failed with "Invalid API Key" (#91).
 // Exported so direct fetches (e.g. auth/validate in Login.tsx / App.tsx) honor VITE_API_URL
-// too — otherwise split-origin deployments break. Empty VITE_API_URL → '/api'.
-const API_ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
+// too — otherwise split-origin deployments break. With no explicit origin, use the dashboard's
+// build-time base path: a `/openwa` build calls `/openwa/api`, while the normal root build keeps
+// calling `/api` exactly as before.
+const API_ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '') || APP_BASE_PATH;
 export const API_BASE_URL = `${API_ORIGIN}/api`;
 // Warn (not refuse — would break dev + TLS-terminating-proxy) when the API origin is an
 // insecure http:// URL pointing at a non-localhost host (API keys sent in cleartext).
@@ -663,7 +666,7 @@ async function handleErrorResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     localStorage.removeItem('openwa_api_key');
     if (typeof window !== 'undefined') {
-      window.location.assign('/');
+      window.location.assign(`${APP_BASE_PATH}/`);
       return new Promise<T>(() => {});
     }
   }

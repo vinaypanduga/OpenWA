@@ -16,8 +16,16 @@ const { version: pkgVersion } = JSON.parse(
   version: string;
 };
 
+// The dashboard normally lives at `/`, but reverse proxies may mount the complete gateway under
+// a path such as `/openwa`. Vite needs this at BUILD time so every hashed asset URL carries the
+// prefix. Keep one leading and one trailing slash; Vite's import.meta.env.BASE_URL then becomes the
+// runtime source of truth for the router, API client and Socket.IO path.
+const rawBasePath = (process.env.VITE_BASE_PATH || '/').trim();
+const dashboardBasePath = rawBasePath === '/' ? '/' : `/${rawBasePath.replace(/^\/+|\/+$/g, '')}/`;
+
 // https://vite.dev/config/
 export default defineConfig({
+  base: dashboardBasePath,
   plugins: [react()],
   appType: 'spa', // Enable SPA fallback for client-side routing
   define: {
