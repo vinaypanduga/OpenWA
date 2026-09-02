@@ -1,0 +1,73 @@
+# EC2-focused Baileys image. The normal Dockerfile remains the full dual-engine image; this variant
+# deliberately omits Chromium, FFmpeg and PostgreSQL client tooling because ENGINE_TYPE is pinned to
+# Baileys on the small single-instance host.
+FROM node:22-slim AS builder
+
+ARG DASHBOARD_BASE_PATH=/openwa
+ENV VITE_BASE_PATH=${DASHBOARD_BASE_PATH}
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+COPY scripts/postinstall.js ./scripts/
+RUN npm ci --include=dev
+
+COPY . .
+RUN npm run build \
+    && npm run dashboard:ci -- --include=dev \
+    && npm run dashboard:build \
+    && rm -f dist/*.tsbuildinfo
+
+FROM node:22-slim AS production
+
+ENV NODE_ENV=production
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV HOME=/app/data
+ENV XDG_CONFIG_HOME=/tmp/.config
+ENV XDG_CACHE_HOME=/tmp/.cache
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      dumb-init \
+      gosu \
+      patch \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r openwa \
+    && useradd -r -g openwa openwa
+
+WORKDIR /app
+COPY package*.json ./
+COPY scripts/postinstall.js scripts/patch-wwebjs-201832.js scripts/wwebjs-201832.patch scripts/patch-wwebjs-newsletter-preview.js scripts/patch-wwebjs-status.js scripts/patch-wwebjs-ready-sync.js scripts/patch-wwebjs-participant-arity.js scripts/patch-wwebjs-block.js scripts/patch-baileys-appstate.js scripts/patch-baileys-newsletter-create.js ./scripts/
+
+RUN npm ci --omit=dev --ignore-scripts \
+    && node scripts/patch-wwebjs-201832.js \
+    && node scripts/patch-wwebjs-newsletter-preview.js \
+    && node scripts/patch-wwebjs-status.js \
+    && node scripts/patch-wwebjs-ready-sync.js \
+    && node scripts/patch-wwebjs-participant-arity.js \
+    && node scripts/patch-wwebjs-block.js \
+    && node scripts/patch-baileys-appstate.js \
+    && node scripts/patch-baileys-newsletter-create.js \
+    && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/dashboard/dist ./dashboard/dist
+COPY scripts/backup.sh scripts/restore.sh scripts/lib-env.sh ./scripts/
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN mkdir -p ./data/sessions ./data/media ./data/plugins \
+    && chown -R openwa:openwa ./data \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 2785
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f "http://localhost:${PORT:-2785}/api/health/ready" || exit 1
+
+ENTRYPOINT ["dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "dist/main"]
