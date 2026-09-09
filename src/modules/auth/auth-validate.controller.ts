@@ -25,13 +25,13 @@ export class AuthValidateController {
     @Body() dto: DashboardLoginDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<DashboardLoginResponseDto> {
-    const result = await this.authService.authenticateDashboard(dto.email, dto.password);
+    const result = await this.authService.loginDashboard(dto.email, dto.password);
     response.cookie(
       AuthValidateController.DASHBOARD_COOKIE,
       this.authService.createDashboardSessionToken(result.apiKey),
       {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.BASE_URL?.startsWith('https://') ?? process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         path: '/',
         maxAge: AuthValidateController.DASHBOARD_COOKIE_MAX_AGE_MS,
@@ -57,10 +57,26 @@ export class AuthValidateController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Clear the persistent dashboard browser login' })
   @ApiResponse({ status: 204, description: 'Dashboard session cleared' })
-  dashboardLogout(@Res({ passthrough: true }) response: Response): void {
+  async dashboardLogout(
+    @Res({ passthrough: true }) response: Response,
+    @Headers('x-api-key') token?: string,
+    @Headers('cookie') cookieHeader?: string,
+  ): Promise<void> {
+    if (token) await this.authService.logoutDashboard(token);
+    else {
+      const cookie = this.readCookie(cookieHeader, AuthValidateController.DASHBOARD_COOKIE);
+      if (cookie) {
+        try {
+          const restored = await this.authService.restoreDashboardSession(cookie);
+          await this.authService.logoutDashboard(restored.apiKey);
+        } catch {
+          // An already-expired/evicted cookie may still be cleared by logging out.
+        }
+      }
+    }
     response.clearCookie(AuthValidateController.DASHBOARD_COOKIE, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.BASE_URL?.startsWith('https://') ?? process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
     });

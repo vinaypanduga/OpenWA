@@ -274,6 +274,7 @@ export function useWebSocket(events: WebSocketEvents = {}) {
       if (!msg || typeof msg.type !== 'string') return;
 
       if (msg.type === 'error') {
+        if (msg.code === 'UNAUTHORIZED') window.dispatchEvent(new Event('openwa-session-ended'));
         events.onServerError?.({ code: String(msg.code ?? ''), message: String(msg.message ?? '') });
         return;
       }

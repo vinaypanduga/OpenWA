@@ -131,9 +131,9 @@ export class DashboardLoginDto {
   password!: string;
 }
 
-/** The existing bootstrap key is returned to the dashboard; login never creates a new key. */
+/** Revocable browser token; automation API keys are issued separately. */
 export class DashboardLoginResponseDto {
-  @ApiProperty({ description: 'Existing API key used by the dashboard after sign-in.' })
+  @ApiProperty({ description: 'Revocable dashboard session token used after sign-in.' })
   apiKey!: string;
 
   @ApiProperty({ enum: ApiKeyRole })

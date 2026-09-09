@@ -1,0 +1,250 @@
+.scheduled-messages-page {
+  width: 100%;
+  padding: 2rem;
+}
+.scheduled-messages-loading,
+.scheduled-messages-empty,
+.scheduled-inline-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scheduled-messages-loading {
+  min-height: 400px;
+}
+.scheduled-session-select {
+  min-width: 220px;
+}
+.scheduled-messages-empty {
+  min-height: 420px;
+  flex-direction: column;
+  color: var(--text-muted);
+  text-align: center;
+}
+.scheduled-messages-empty h3 {
+  margin: 1rem 0 0.35rem;
+  color: var(--text-primary);
+}
+.scheduled-messages-empty p {
+  margin: 0;
+}
+.scheduled-messages-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.2fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.scheduled-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-white);
+  box-shadow: var(--shadow-sm);
+}
+.scheduled-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.scheduled-panel-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+.scheduled-panel-header p {
+  margin: 0.3rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.scheduled-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+.scheduled-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.scheduled-form .form-group > span {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.scheduled-form input:not([type='checkbox']),
+.scheduled-form select,
+.scheduled-form textarea {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-white);
+  color: var(--text-primary);
+  font: inherit;
+}
+.scheduled-form textarea {
+  resize: vertical;
+}
+.scheduled-two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.scheduled-hint {
+  margin: -0.3rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.scheduled-recurrence {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-light);
+}
+.scheduled-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(42px, 1fr));
+  gap: 0.4rem;
+}
+.scheduled-weekdays button {
+  min-height: 38px;
+  padding: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-white);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.scheduled-weekdays button.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.scheduled-weekdays button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.scheduled-save {
+  justify-content: center;
+}
+.scheduled-empty-list {
+  padding: 2rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.85rem;
+}
+.scheduled-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+}
+.scheduled-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.scheduled-card > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.scheduled-card-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.scheduled-card h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+.scheduled-card p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.scheduled-card-message {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 7px;
+  background: var(--bg-light);
+}
+.scheduled-card-message span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.scheduled-card-message p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.scheduled-card small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+.scheduled-status {
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.scheduled-status.pending {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.scheduled-status.processing {
+  background: #fff7ed;
+  color: #c2410c;
+}
+.scheduled-status.completed {
+  background: #ecfdf5;
+  color: #047857;
+}
+.scheduled-status.failed {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.scheduled-status.cancelled {
+  background: var(--bg-light);
+  color: var(--text-muted);
+}
+.scheduled-card .danger {
+  color: var(--danger, #dc2626);
+}
+@media (max-width: 950px) {
+  .scheduled-messages-page {
+    padding: 1rem;
+  }
+  .scheduled-messages-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .scheduled-two-columns {
+    grid-template-columns: 1fr;
+  }
+  .scheduled-weekdays {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

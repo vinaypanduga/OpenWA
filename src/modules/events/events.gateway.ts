@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth/auth.service';
+import { dashboardTokenHash } from '../auth/dashboard-session.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { resolveCorsPolicy } from '../../config/bootstrap-security';
@@ -219,6 +220,22 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     for (const client of sockets) {
       client.emit('message', this.createError('UNAUTHORIZED', message));
       client.disconnect(true);
+    }
+  }
+
+  evictDashboardSession(tokenHash: string): void {
+    for (const sockets of this.socketsByKeyId.values()) {
+      for (const client of Array.from(sockets)) {
+        const raw = (client.data as { rawApiKey?: string }).rawApiKey;
+        if (raw && dashboardTokenHash(raw) === tokenHash) {
+          client.emit(
+            'message',
+            this.createError('UNAUTHORIZED', 'Your dashboard session ended. Please sign in again.'),
+          );
+          this.untrackSocket(client);
+          client.disconnect(true);
+        }
+      }
     }
   }
 

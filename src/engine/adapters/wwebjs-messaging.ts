@@ -23,6 +23,7 @@ import { buildVCard } from './vcard';
 import { EngineNotSupportedError } from '../../common/errors/engine-not-supported.error';
 import { RecipientUnreachableError } from '../../common/errors/recipient-unreachable.error';
 import { type WwebjsEngineHost } from './wwebjs-host';
+import { assertMediaKind } from '../../common/media/assert-media-kind';
 
 /**
  * Map a whatsapp-web.js MessageAck integer to the neutral DeliveryStatus.
@@ -376,11 +377,11 @@ export class WwebjsMessaging {
   }
 
   async sendImageMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
-    return this.sendMediaMessage(chatId, media);
+    return this.sendMediaMessage(chatId, media, undefined, 'image');
   }
 
   async sendVideoMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
-    return this.sendMediaMessage(chatId, media);
+    return this.sendMediaMessage(chatId, media, undefined, 'video');
   }
 
   async sendAudioMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
@@ -409,12 +410,14 @@ export class WwebjsMessaging {
     chatId: string,
     media: MediaInput,
     extraOptions?: { sendAudioAsVoice?: boolean; sendMediaAsDocument?: boolean },
+    expectedKind?: 'image' | 'video',
   ): Promise<MessageResult> {
     this.host.ensureReady();
     this.host.ensureNotChannelRecipient(chatId);
 
     // Build the media once (a remote URL is fetched here); sendResolved may retry the send itself.
     const messageMedia = await toMessageMedia(media);
+    if (expectedKind) assertMediaKind(messageMedia.mimetype, expectedKind);
     // A nameless document reaches WA Web as `new File([blob], undefined)` and is labelled literally
     // "undefined". Only documents render a filename, so default just this path — as Baileys does.
     if (extraOptions?.sendMediaAsDocument && !messageMedia.filename) {

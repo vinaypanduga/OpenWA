@@ -5,6 +5,29 @@ const DEFAULT_MEDIA_MAX_BYTES = 50 * 1024 * 1024;
 /** Default timeout for a server-side media download: 30s (overridable via MEDIA_DOWNLOAD_TIMEOUT_MS). */
 const DEFAULT_MEDIA_TIMEOUT_MS = 30_000;
 
+/**
+ * Turn the common Google Drive sharing-page URL into the file-content endpoint. A sharing URL
+ * returns an HTML viewer with HTTP 200, which is not sendable media. This is deliberately limited
+ * to Google's exact host and `/file/d/<id>` shape; it is not a general redirect bypass.
+ */
+export function normalizeRemoteMediaUrl(rawUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return rawUrl;
+  }
+
+  if (parsed.hostname.toLowerCase() !== 'drive.google.com') return rawUrl;
+  const match = parsed.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]+)(?:\/|$)/);
+  if (!match) return rawUrl;
+
+  const direct = new URL('https://drive.usercontent.google.com/download');
+  direct.searchParams.set('id', match[1]);
+  direct.searchParams.set('export', 'download');
+  return direct.toString();
+}
+
 function positiveIntFromEnv(name: string, fallback: number): number {
   const parsed = Number.parseInt(process.env[name] ?? '', 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -27,7 +50,8 @@ export async function loadRemoteMediaBuffer(url: string): Promise<{ data: Buffer
   // Always guarded (media SSRF is independent of the webhook opt-out); withSafeFetch validates the
   // host, pins the connection to the vetted IP, and refuses redirects. The streaming cap runs inside
   // the callback so the connection stays open for the body read and is torn down right after.
-  return withSafeFetch(url, { signal: AbortSignal.timeout(timeoutMs) }, async response => {
+  const mediaUrl = normalizeRemoteMediaUrl(url);
+  return withSafeFetch(mediaUrl, { signal: AbortSignal.timeout(timeoutMs) }, async response => {
     if (!response.ok) {
       throw new Error(`Media fetch failed with status ${response.status}`);
     }

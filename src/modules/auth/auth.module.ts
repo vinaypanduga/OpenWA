@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { ApiKey } from './entities/api-key.entity';
 import { AuthService } from './auth.service';
+import { DashboardSession } from './entities/dashboard-session.entity';
+import { DashboardSessionService } from './dashboard-session.service';
 import { ApiKeyUsageTracker } from './api-key-usage-tracker.service';
 import { AuthController } from './auth.controller';
 import { AuthValidateController } from './auth-validate.controller';
@@ -11,10 +13,11 @@ import { ProxyAwareThrottlerGuard } from '../../common/security/proxy-aware-thro
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([ApiKey], 'main')],
+  imports: [TypeOrmModule.forFeature([ApiKey, DashboardSession], 'main')],
   controllers: [AuthController, AuthValidateController],
   providers: [
     AuthService,
+    DashboardSessionService,
     ApiKeyUsageTracker,
     {
       provide: APP_GUARD,

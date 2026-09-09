@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique, Index } from 'typeorm';
 import { DateTransformer } from '../../../common/transformers/date.transformer';
 import { jsonColumnType, dateColumnType } from '../../../common/utils/column-types';
 
@@ -37,6 +37,7 @@ export interface BatchProgress {
 }
 
 @Entity('message_batches')
+@Index('IDX_batches_retention', ['status', 'updatedAt'])
 // Uniqueness is scoped to the session, not global: one session can't deny a batch id to another.
 // Migration 1781800000000 carries the same constraint on existing databases.
 @Unique('UQ_message_batches_session_id_batch_id', ['sessionId', 'batchId'])
@@ -65,6 +66,8 @@ export class MessageBatch {
   options!: {
     delayBetweenMessages: number;
     randomizeDelay: boolean;
+    minDelayBetweenMessages?: number;
+    maxDelayBetweenMessages?: number;
     stopOnError: boolean;
   };
 

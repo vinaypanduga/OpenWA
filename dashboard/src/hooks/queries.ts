@@ -3,6 +3,8 @@ import {
   sessionApi,
   webhookApi,
   templateApi,
+  customGroupApi,
+  scheduledMessageApi,
   apiKeyApi,
   auditApi,
   infraApi,
@@ -12,6 +14,8 @@ import {
   type Webhook,
   type WebhookFilters,
   type TemplatePayload,
+  type CustomGroupPayload,
+  type ScheduledMessagePayload,
   type StatsPeriod,
   type CreateInstanceInput,
   type UpdateInstanceInput,
@@ -26,6 +30,8 @@ export const queryKeys = {
   sessionChats: (sessionId: string) => ['sessions', sessionId, 'chats'] as const,
   webhooks: ['webhooks'] as const,
   templates: (sessionId: string) => ['sessions', sessionId, 'templates'] as const,
+  customGroups: (sessionId: string) => ['sessions', sessionId, 'custom-groups'] as const,
+  scheduledMessages: (sessionId: string) => ['sessions', sessionId, 'scheduled-messages'] as const,
   apiKeys: ['apiKeys'] as const,
   logs: (params: { severity?: string; page: number; limit: number }) => ['logs', params] as const,
   infraStatus: ['infra', 'status'] as const,
@@ -169,6 +175,73 @@ export function useDeleteTemplateMutation() {
     onSuccess: (_template, params) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.templates(params.sessionId) });
     },
+  });
+}
+
+export function useCustomGroupsQuery(sessionId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.customGroups(sessionId),
+    queryFn: () => customGroupApi.list(sessionId),
+    enabled: enabled && !!sessionId,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateCustomGroupMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { sessionId: string; data: CustomGroupPayload }) =>
+      customGroupApi.create(params.sessionId, params.data),
+    onSuccess: (_group, params) =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.customGroups(params.sessionId) }),
+  });
+}
+
+export function useUpdateCustomGroupMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { sessionId: string; id: string; data: Partial<CustomGroupPayload> }) =>
+      customGroupApi.update(params.sessionId, params.id, params.data),
+    onSuccess: (_group, params) =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.customGroups(params.sessionId) }),
+  });
+}
+
+export function useDeleteCustomGroupMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { sessionId: string; id: string }) => customGroupApi.delete(params.sessionId, params.id),
+    onSuccess: (_group, params) =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.customGroups(params.sessionId) }),
+  });
+}
+
+export function useScheduledMessagesQuery(sessionId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.scheduledMessages(sessionId),
+    queryFn: () => scheduledMessageApi.list(sessionId),
+    enabled: enabled && !!sessionId,
+    staleTime: 10_000,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useCreateScheduledMessageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { sessionId: string; data: ScheduledMessagePayload }) =>
+      scheduledMessageApi.create(params.sessionId, params.data),
+    onSuccess: (_schedule, params) =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scheduledMessages(params.sessionId) }),
+  });
+}
+
+export function useCancelScheduledMessageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { sessionId: string; id: string }) => scheduledMessageApi.cancel(params.sessionId, params.id),
+    onSuccess: (_schedule, params) =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scheduledMessages(params.sessionId) }),
   });
 }
 

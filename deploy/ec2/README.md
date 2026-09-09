@@ -99,6 +99,19 @@ docker compose -f docker-compose.yml -f deploy/ec2/docker-compose.ec2.yml up -d
 
 ## Upgrade
 
+The small-instance override caps the API at 0.75 CPU and 1200 MiB RAM and rotates logs
+(three files of 10 MiB each). The EC2 environment profile allows two bulk campaigns at once;
+due schedules remain queued while both slots are busy. Media downloads and in-memory caches
+are also limited. Keep compiling releases off this 2 GiB host to avoid build-time pressure.
+
+`MESSAGE_HISTORY_RETENTION_DAYS=3` removes outgoing non-pending message history and terminal
+campaign/batch records older than three days. Pending/processing schedules, recurring schedules
+awaiting their next run, incoming messages, custom group definitions, and session credentials
+are retained. Cleanup selects only IDs and deletes at most 100 rows per table per minute.
+Archived media has a separate three-day TTL. Back up the database before enabling retention;
+deleted history cannot be recovered without a backup. SQLite reuses freed pages: file size
+may not shrink immediately, and no expensive live VACUUM is run.
+
 ```bash
 git pull --ff-only
 docker compose -f docker-compose.yml -f deploy/ec2/docker-compose.ec2.yml build openwa-api

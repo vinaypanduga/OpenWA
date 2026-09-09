@@ -104,6 +104,20 @@ export class BulkMessageService implements OnApplicationBootstrap {
   private readonly processingBatches = new Map<string, boolean>(); // Track active batches for cancellation
   private inFlightBatches = 0; // count of batches currently in processBatch (memory bound, see cap above)
 
+  hasBatchCapacity(): boolean {
+    const limit = resolveMaxConcurrentBatches();
+    return limit === 0 || this.inFlightBatches < limit;
+  }
+
+  async getBatchSummary(sessionId: string, batchId: string): Promise<MessageBatch> {
+    const batch = await this.batchRepository.findOne({
+      select: { id: true, status: true, completedAt: true },
+      where: { sessionId, batchId },
+    });
+    if (!batch) throw new NotFoundException(`Batch '${batchId}' not found`);
+    return batch;
+  }
+
   constructor(
     @InjectRepository(MessageBatch, 'data')
     private readonly batchRepository: Repository<MessageBatch>,
@@ -234,8 +248,18 @@ export class BulkMessageService implements OnApplicationBootstrap {
     const options = {
       delayBetweenMessages: dto.options?.delayBetweenMessages ?? 3000,
       randomizeDelay: dto.options?.randomizeDelay ?? true,
+      minDelayBetweenMessages: dto.options?.minDelayBetweenMessages,
+      maxDelayBetweenMessages: dto.options?.maxDelayBetweenMessages,
       stopOnError: dto.options?.stopOnError ?? false,
     };
+
+    if (
+      options.minDelayBetweenMessages !== undefined &&
+      options.maxDelayBetweenMessages !== undefined &&
+      options.maxDelayBetweenMessages < options.minDelayBetweenMessages
+    ) {
+      throw new BadRequestException('maxDelayBetweenMessages must be greater than or equal to minDelayBetweenMessages');
+    }
 
     const progress: BatchProgress = {
       total: messages.length,
@@ -809,7 +833,18 @@ export class BulkMessageService implements OnApplicationBootstrap {
     }
   }
 
-  private calculateDelay(options: { delayBetweenMessages: number; randomizeDelay: boolean }): number {
+  private calculateDelay(options: {
+    delayBetweenMessages: number;
+    randomizeDelay: boolean;
+    minDelayBetweenMessages?: number;
+    maxDelayBetweenMessages?: number;
+  }): number {
+    if (options.minDelayBetweenMessages !== undefined && options.maxDelayBetweenMessages !== undefined) {
+      return (
+        options.minDelayBetweenMessages +
+        Math.random() * (options.maxDelayBetweenMessages - options.minDelayBetweenMessages)
+      );
+    }
     let delay = options.delayBetweenMessages;
     if (options.randomizeDelay) {
       delay += Math.random() * 2000; // Add 0-2 seconds random

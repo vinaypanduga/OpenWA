@@ -6,6 +6,7 @@ const asConfig = (): { get: jest.Mock } => ({ get: jest.fn((_key: string, defaul
 import { Socket } from 'socket.io';
 import { EventsGateway, isSessionSubscriptionAllowed } from './events.gateway';
 import { AuthService } from '../auth/auth.service';
+import { dashboardTokenHash } from '../auth/dashboard-session.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { SUBSCRIBABLE_EVENTS, buildRoomName } from './dto/ws-messages.dto';
@@ -288,6 +289,21 @@ describe('EventsGateway connection auth + subscribe re-validation', () => {
   // Revocation teardown: a revoked key's already-subscribed sockets are evicted immediately,
   // with a clean close (an UNAUTHORIZED reason) rather than lingering until natural disconnect.
   describe('evictApiKey (revoke/disable socket teardown)', () => {
+    it('evicts only the selected dashboard session sharing the same parent API key', async () => {
+      authService.validateApiKey.mockResolvedValue({ id: 'k1', name: 'k', allowedSessions: null });
+      const first = makeSocket({ apiKey: 'owa_ds_first' });
+      const second = makeSocket({ apiKey: 'owa_ds_second' });
+      second.id = 'sock-2';
+      await gateway.handleConnection(first as unknown as Socket);
+      await gateway.handleConnection(second as unknown as Socket);
+      gateway.evictDashboardSession(dashboardTokenHash('owa_ds_first'));
+      expect(first.disconnect).toHaveBeenCalledWith(true);
+      expect(second.disconnect).not.toHaveBeenCalled();
+      expect(first.emit).toHaveBeenCalledWith(
+        'message',
+        expect.objectContaining({ type: 'error', code: 'UNAUTHORIZED' }),
+      );
+    });
     it('disconnects every active socket authenticated with the revoked key', async () => {
       authService.validateApiKey.mockResolvedValue({ id: 'k1', name: 'k', allowedSessions: null });
       const sock = makeSocket({ apiKey: 'good' });

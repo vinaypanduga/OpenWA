@@ -161,6 +161,62 @@ export interface TemplatePayload {
   footer?: string | null;
 }
 
+export interface CustomGroup {
+  id: string;
+  sessionId: string;
+  name: string;
+  groupIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomGroupPayload {
+  name: string;
+  groupIds: string[];
+}
+
+export type ScheduledMessageStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type ScheduledMessageType = 'text' | 'image' | 'video' | 'audio' | 'document';
+export type ScheduledMessageScheduleType = 'once' | 'weekly';
+export interface ScheduledMessage {
+  id: string;
+  sessionId: string;
+  customGroupId: string;
+  name: string;
+  messageType: ScheduledMessageType;
+  content: Record<string, unknown>;
+  scheduledAt: string;
+  scheduleType: ScheduledMessageScheduleType;
+  recurrenceDays?: number[] | null;
+  recurrenceTime?: string | null;
+  timezone?: string | null;
+  runCount: number;
+  lastRunAt?: string | null;
+  minDelaySeconds: number;
+  maxDelaySeconds: number;
+  status: ScheduledMessageStatus;
+  batchId?: string | null;
+  error?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduledMessagePayload {
+  name: string;
+  customGroupId: string;
+  messageType: ScheduledMessageType;
+  content: Record<string, unknown>;
+  scheduledAt?: string;
+  scheduleType?: ScheduledMessageScheduleType;
+  recurrenceDays?: number[];
+  recurrenceTime?: string;
+  timezone?: string;
+  minDelaySeconds: number;
+  maxDelaySeconds: number;
+}
+
 export interface ApiKey {
   id: string;
   name: string;
@@ -883,6 +939,33 @@ export const templateApi = {
     }),
   delete: (sessionId: string, id: string) =>
     request<void>(`/sessions/${sessionId}/templates/${id}`, { method: 'DELETE' }),
+};
+
+export const customGroupApi = {
+  list: (sessionId: string) => request<CustomGroup[]>(`/sessions/${sessionId}/custom-groups`),
+  create: (sessionId: string, data: CustomGroupPayload) =>
+    request<CustomGroup>(`/sessions/${sessionId}/custom-groups`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (sessionId: string, id: string, data: Partial<CustomGroupPayload>) =>
+    request<CustomGroup>(`/sessions/${sessionId}/custom-groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (sessionId: string, id: string) =>
+    request<void>(`/sessions/${sessionId}/custom-groups/${id}`, { method: 'DELETE' }),
+};
+
+export const scheduledMessageApi = {
+  list: (sessionId: string) => request<ScheduledMessage[]>(`/sessions/${sessionId}/scheduled-messages`),
+  create: (sessionId: string, data: ScheduledMessagePayload) =>
+    request<ScheduledMessage>(`/sessions/${sessionId}/scheduled-messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  cancel: (sessionId: string, id: string) =>
+    request<ScheduledMessage>(`/sessions/${sessionId}/scheduled-messages/${id}`, { method: 'DELETE' }),
 };
 
 // =============================================================================

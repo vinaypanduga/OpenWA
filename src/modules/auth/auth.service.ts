@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
   OnModuleInit,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,6 +20,7 @@ import { createLogger } from '../../common/services/logger.service';
 import { readBootstrapKey, removeBootstrapKey, writeBootstrapKey } from './bootstrap-key-file';
 import { ApiKeyUsageTracker } from './api-key-usage-tracker.service';
 import { EventsGateway, type ApiKeyEvictionReason } from '../events/events.gateway';
+import { DashboardSessionService, DASHBOARD_SESSION_PREFIX, dashboardTokenHash } from './dashboard-session.service';
 
 /**
  * Resolves the API key to seed on first boot (when no keys exist yet).
@@ -60,6 +62,7 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     private readonly apiKeyRepository: Repository<ApiKey>,
     private readonly usageTracker: ApiKeyUsageTracker,
     private readonly moduleRef: ModuleRef,
+    @Optional() private readonly dashboardSessions?: DashboardSessionService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -150,6 +153,29 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     return timingSafeEqual(valueHash, expectedHash);
   }
 
+  async loginDashboard(email: string, password: string): Promise<{ apiKey: string; role: ApiKeyRole }> {
+    const verified = await this.authenticateDashboard(email, password);
+    const key = await this.validateApiKey(verified.apiKey);
+    if (!this.dashboardSessions) throw new ServiceUnavailableException('Dashboard sessions unavailable');
+    const issued = await this.dashboardSessions.issue(key.id);
+    for (const hash of issued.evicted) this.evictDashboardSockets(hash);
+    return { apiKey: issued.token, role: key.role };
+  }
+
+  async logoutDashboard(token?: string): Promise<void> {
+    if (!token?.startsWith(DASHBOARD_SESSION_PREFIX)) return;
+    await this.dashboardSessions?.revoke(token);
+    this.evictDashboardSockets(dashboardTokenHash(token));
+  }
+
+  private evictDashboardSockets(hash: string): void {
+    try {
+      this.moduleRef.get(EventsGateway, { strict: false })?.evictDashboardSession(hash);
+    } catch {
+      // HTTP authorization still rejects the revoked token if the optional gateway is absent.
+    }
+  }
+
   /** Encrypt the raw dashboard key for a persistent HttpOnly browser cookie. */
   createDashboardSessionToken(rawKey: string): string {
     const iv = randomBytes(12);
@@ -178,6 +204,9 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
         decipher.update(Buffer.from(ciphertextPart, 'base64url')),
         decipher.final(),
       ]).toString('utf8');
+      if (this.dashboardSessions && !rawKey.startsWith(DASHBOARD_SESSION_PREFIX)) {
+        throw new UnauthorizedException('Please sign in again');
+      }
       const apiKey = await this.validateApiKey(rawKey);
       return { apiKey: rawKey, role: apiKey.role };
     } catch {
@@ -553,8 +582,16 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     // authenticates over REST but fails on the WebSocket handshake (the CONNECT payload carries the
     // literal string) — the dashboard then runs commands fine while never receiving events, and the
     // session looks permanently disconnected. Whitespace is never part of a key.
-    const keyHash = this.hashKey(rawKey?.trim());
-    const apiKey = await this.apiKeyRepository.findOne({ where: { keyHash } });
+    const token = rawKey?.trim();
+    let apiKey: ApiKey | null;
+    if (token?.startsWith(DASHBOARD_SESSION_PREFIX)) {
+      if (!this.dashboardSessions) throw new UnauthorizedException('Dashboard sessions unavailable');
+      const id = await this.dashboardSessions.resolve(token);
+      apiKey = await this.apiKeyRepository.findOne({ where: { id } });
+    } else {
+      const keyHash = this.hashKey(token);
+      apiKey = await this.apiKeyRepository.findOne({ where: { keyHash } });
+    }
 
     if (!apiKey) {
       throw new UnauthorizedException('Invalid API key');

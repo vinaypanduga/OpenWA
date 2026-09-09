@@ -1,5 +1,5 @@
 import { fetch as undiciFetch } from 'undici';
-import { loadRemoteMediaBuffer } from './load-remote-media';
+import { loadRemoteMediaBuffer, normalizeRemoteMediaUrl } from './load-remote-media';
 import { SsrfBlockedError } from '../security/ssrf-guard';
 
 // Media download goes through undici's fetch (via the SSRF-pinning helper); mock it, not global fetch.
@@ -54,5 +54,22 @@ describe('loadRemoteMediaBuffer', () => {
     process.env.MEDIA_DOWNLOAD_MAX_BYTES = '2';
     (undiciFetch as jest.Mock).mockResolvedValue(fakeResponse([1, 2, 3], { 'content-type': 'image/png' }));
     await expect(loadRemoteMediaBuffer('http://8.8.8.8/x.png')).rejects.toThrow(/exceeds/i);
+  });
+});
+
+describe('normalizeRemoteMediaUrl', () => {
+  it('converts a Google Drive sharing page to its public file-content endpoint', () => {
+    expect(normalizeRemoteMediaUrl('https://drive.google.com/file/d/abc_DEF-123/view?usp=sharing')).toBe(
+      'https://drive.usercontent.google.com/download?id=abc_DEF-123&export=download',
+    );
+  });
+
+  it('does not rewrite other Google Drive pages or lookalike hosts', () => {
+    expect(normalizeRemoteMediaUrl('https://drive.google.com/drive/folders/abc')).toBe(
+      'https://drive.google.com/drive/folders/abc',
+    );
+    expect(normalizeRemoteMediaUrl('https://drive.google.com.example/file/d/abc/view')).toBe(
+      'https://drive.google.com.example/file/d/abc/view',
+    );
   });
 });

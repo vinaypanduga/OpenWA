@@ -13,6 +13,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery, useSessionGroupsQuery } from '../hooks/queries';
 import { parseBulkRecipients, BULK_MAX_RECIPIENTS } from '../utils/bulkRecipients';
+import { buildMessageTesterMediaPayload } from '../utils/messageTesterMedia';
 import { PageHeader } from '../components/PageHeader';
 import './MessageTester.css';
 
@@ -330,13 +331,9 @@ export function MessageTester() {
         case 'video':
         case 'audio':
         case 'document': {
-          // sendMedia unifies URL and base64 (local file) sends; base64 wins when a file is picked. The
-          // backend accepts url XOR base64 and requires a mimetype for base64 (always provided here).
-          const payload: SendMediaPayload = mediaFile
-            ? { base64: mediaFile.base64, mimetype: mediaFile.mimetype }
-            : { url: mediaUrl };
-          if ((messageType === 'image' || messageType === 'video') && content) payload.caption = content;
-          if (messageType === 'document' && content) payload.filename = content;
+          // Text accompanying an image/video is a caption on the same WhatsApp media message. Keep
+          // that assembly in one tested helper so it cannot accidentally become a separate send.
+          const payload = buildMessageTesterMediaPayload(messageType, mediaFile, mediaUrl, content);
           result = await messageApi.sendMedia(session, chatId, messageType, payload);
           break;
         }
@@ -576,7 +573,13 @@ export function MessageTester() {
                     mediaReadSeq.current += 1;
                     if (mediaFile) setMediaFile(null);
                   }}
-                  placeholder="https://example.com/file.jpg"
+                  placeholder={
+                    messageType === 'image'
+                      ? 'https://example.com/image.jpg'
+                      : messageType === 'video'
+                        ? 'https://example.com/video.mp4'
+                        : 'https://example.com/file'
+                  }
                   disabled={!!mediaFile}
                 />
               </div>
@@ -607,20 +610,29 @@ export function MessageTester() {
               {messageType !== 'audio' && messageType !== 'sticker' && (
                 <div className="form-group">
                   <label htmlFor="mt-14">
-                    {messageType === 'document' ? t('messageTester.filename') : t('messageTester.caption')} (
-                    {t('common.optional')})
+                    {messageType === 'document'
+                      ? t('messageTester.filename')
+                      : `${t('messageTester.messageContent')} / ${t('messageTester.caption')}`}{' '}
+                    ({t('common.optional')})
                   </label>
-                  <input
-                    id="mt-14"
-                    type="text"
-                    value={content}
-                    onChange={e => setContent(e.target.value)}
-                    placeholder={
-                      messageType === 'document'
-                        ? t('messageTester.filenamePlaceholder')
-                        : t('messageTester.captionPlaceholder')
-                    }
-                  />
+                  {messageType === 'document' ? (
+                    <input
+                      id="mt-14"
+                      type="text"
+                      value={content}
+                      onChange={e => setContent(e.target.value)}
+                      placeholder={t('messageTester.filenamePlaceholder')}
+                    />
+                  ) : (
+                    <textarea
+                      id="mt-14"
+                      value={content}
+                      onChange={e => setContent(e.target.value)}
+                      placeholder={t('messageTester.captionPlaceholder')}
+                      maxLength={1024}
+                      rows={3}
+                    />
+                  )}
                 </div>
               )}
             </>

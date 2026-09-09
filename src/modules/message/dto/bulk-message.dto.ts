@@ -145,6 +145,20 @@ class BulkMessageOptionsDto {
   @IsBoolean()
   randomizeDelay?: boolean;
 
+  @ApiPropertyOptional({ description: 'Minimum random delay between messages in ms.', minimum: 1000, maximum: 3600000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1000)
+  @Max(3600000)
+  minDelayBetweenMessages?: number;
+
+  @ApiPropertyOptional({ description: 'Maximum random delay between messages in ms.', minimum: 1000, maximum: 3600000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1000)
+  @Max(3600000)
+  maxDelayBetweenMessages?: number;
+
   @ApiPropertyOptional({ description: 'Stop batch on first error', default: false })
   @ToStrictBoolean()
   @IsOptional()

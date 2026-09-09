@@ -5,10 +5,12 @@ import type { Response } from 'express';
 
 describe('AuthValidateController', () => {
   const authenticateDashboard = jest.fn();
+  const logoutDashboard = jest.fn().mockResolvedValue(undefined);
   const createDashboardSessionToken = jest.fn().mockReturnValue('encrypted-token');
   const restoreDashboardSession = jest.fn();
   const controller = new AuthValidateController({
-    authenticateDashboard,
+    loginDashboard: authenticateDashboard,
+    logoutDashboard,
     createDashboardSessionToken,
     restoreDashboardSession,
   } as unknown as AuthService);
@@ -17,6 +19,12 @@ describe('AuthValidateController', () => {
 
   const makeKey = (over: Partial<ApiKey> = {}): ApiKey =>
     ({ id: 'k1', role: ApiKeyRole.OPERATOR, isActive: true, allowedIps: null, ...over }) as ApiKey;
+
+  it('revokes the browser token and clears its cookie on logout', async () => {
+    await controller.dashboardLogout(response, 'owa_ds_example');
+    expect(logoutDashboard).toHaveBeenCalledWith('owa_ds_example');
+    expect(response.clearCookie).toHaveBeenCalledWith('openwa_dashboard_session', expect.any(Object));
+  });
 
   it('reports the guard-validated key as valid, echoing its role', () => {
     expect(controller.validate(makeKey({ role: ApiKeyRole.ADMIN }))).toEqual({

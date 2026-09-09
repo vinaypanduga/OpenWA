@@ -21,6 +21,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Languages,
+  UsersRound,
+  CalendarClock,
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { type UserRole } from '../hooks/useRole';
@@ -40,6 +42,14 @@ const allNavItems = [
   { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false },
   // { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
   { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
+  { to: '/custom-groups', icon: UsersRound, key: 'customGroups' as const, adminOnly: false, label: 'Custom Groups' },
+  {
+    to: '/scheduled-messages',
+    icon: CalendarClock,
+    key: 'scheduledMessages' as const,
+    adminOnly: false,
+    label: 'Scheduled Messages',
+  },
   { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true },
   { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: false },
   // Backend /infra/* is ADMIN-only; hide the nav item from non-admins (UX + defense-in-depth).
@@ -186,8 +196,8 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
         )}
 
         <nav className="sidebar-nav">
-          {navItems.map(({ to, icon: Icon, key }) => {
-            const label = t(`nav.${key}`);
+          {navItems.map(({ to, icon: Icon, key, label: customLabel }) => {
+            const label = customLabel ?? t(`nav.${key}`);
             return (
               <NavLink
                 key={to}

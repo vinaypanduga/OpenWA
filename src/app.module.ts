@@ -13,6 +13,8 @@ import { createBootDataSource } from './database/pg-boot-migrations';
 import { SessionModule } from './modules/session/session.module';
 import { MessageModule } from './modules/message/message.module';
 import { TemplateModule } from './modules/template/template.module';
+import { CustomGroupModule } from './modules/custom-group/custom-group.module';
+import { ScheduledMessageModule } from './modules/scheduled-message/scheduled-message.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -169,6 +171,8 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
             __dirname + '/modules/webhook/**/*.entity{.ts,.js}',
             __dirname + '/modules/message/**/*.entity{.ts,.js}',
             __dirname + '/modules/template/**/*.entity{.ts,.js}',
+            __dirname + '/modules/custom-group/**/*.entity{.ts,.js}',
+            __dirname + '/modules/scheduled-message/**/*.entity{.ts,.js}',
             __dirname + '/engine/**/*.entity{.ts,.js}',
             __dirname + '/modules/integration/**/*.entity{.ts,.js}',
             __dirname + '/modules/status-store/**/*.entity{.ts,.js}',
@@ -294,6 +298,8 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
     SessionModule,
     MessageModule,
     TemplateModule,
+    CustomGroupModule,
+    ScheduledMessageModule,
     WebhookModule,
     HealthModule,
     SettingsModule,

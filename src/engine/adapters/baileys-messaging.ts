@@ -25,6 +25,7 @@ import { MessageNotFoundError } from '../../common/errors/message-not-found.erro
 import { type createLogger } from '../../common/services/logger.service';
 import { EngineTransportError } from '../../common/errors/engine-transport.error';
 import { BAILEYS_QUERY_BUDGET_MS, withQueryDeadline } from './baileys-query-deadline';
+import { assertMediaKind } from '../../common/media/assert-media-kind';
 
 /**
  * Messaging-domain operations extracted from BaileysAdapter. The adapter keeps the public
@@ -295,6 +296,7 @@ export class BaileysMessaging {
   async sendImageMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.host.ensureReady();
     const { data, mimetype } = await resolveMediaBuffer(media);
+    assertMediaKind(mimetype, 'image');
     return this.sendContent(
       chatId,
       {
@@ -310,6 +312,7 @@ export class BaileysMessaging {
   async sendVideoMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.host.ensureReady();
     const { data, mimetype } = await resolveMediaBuffer(media);
+    assertMediaKind(mimetype, 'video');
     return this.sendContent(
       chatId,
       {

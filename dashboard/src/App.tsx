@@ -19,8 +19,10 @@ const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.S
 const Chats = lazy(() => import('./pages/Chats').then(m => ({ default: m.Chats })));
 // const Webhooks = lazy(() => import('./pages/Webhooks').then(m => ({ default: m.Webhooks })));
 const Templates = lazy(() => import('./pages/Templates').then(m => ({ default: m.Templates })));
+const CustomGroups = lazy(() => import('./pages/CustomGroups').then(m => ({ default: m.CustomGroups })));
+const ScheduledMessages = lazy(() => import('./pages/ScheduledMessages').then(m => ({ default: m.ScheduledMessages })));
 const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
-// const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
+const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
 const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
 // const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
 // const Plugins = lazy(() => import('./pages/Plugins'));
@@ -40,7 +42,12 @@ function AppContent() {
   // handleLogin stores a fresh key would re-fire the startup re-validation effect below and
   // double the /auth/validate request on every sign-in — the effect is for genuine page
   // refreshes with a saved key only.
-  const [savedKey] = useState(() => localStorage.getItem('openwa_api_key'));
+  const [savedKey] = useState(() => {
+    const key = localStorage.getItem('openwa_api_key');
+    if (key?.startsWith('owa_ds_')) return key;
+    localStorage.removeItem('openwa_api_key');
+    return null;
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(!!savedKey);
   const [authRestoreComplete, setAuthRestoreComplete] = useState(false);
   const [, setApiKey] = useState(savedKey || '');
@@ -61,20 +68,57 @@ function AppContent() {
   };
 
   const handleLogout = useCallback(() => {
+    const token = localStorage.getItem('openwa_api_key');
     setApiKey('');
     setIsAuthenticated(false);
     setRole(null);
     localStorage.removeItem('openwa_api_key');
     // The cookie is HttpOnly, so only the backend can remove it. Best effort: local logout remains
     // immediate even if Render is temporarily unreachable.
-    void fetch(`${API_BASE_URL}/auth/dashboard/logout`, { method: 'POST', credentials: 'include' }).catch(
-      () => undefined,
-    );
+    void fetch(`${API_BASE_URL}/auth/dashboard/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: token ? { 'X-API-Key': token } : {},
+    }).catch(() => undefined);
     // Wipe the React Query cache too: it is keyed by resource, not actor, so without a full
     // clear a logout → login in the same tab with a different key/scope shows the previous
     // actor's sessions/messages/apiKeys/audit rows.
     clearActorState(queryClient);
   }, [setRole]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let checking = false;
+    const check = async () => {
+      if (checking) return;
+      const key = localStorage.getItem('openwa_api_key');
+      if (!key) {
+        handleLogout();
+        return;
+      }
+      checking = true;
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/validate`, {
+          method: 'POST',
+          headers: { 'X-API-Key': key },
+        });
+        if (response.status === 401 && localStorage.getItem('openwa_api_key') === key) handleLogout();
+      } catch {
+        /* Retry after temporary connectivity failures. */
+      } finally {
+        checking = false;
+      }
+    };
+    const timer = window.setInterval(() => void check(), 15_000);
+    const onFocus = () => void check();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('openwa-session-ended', handleLogout);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('openwa-session-ended', handleLogout);
+    };
+  }, [isAuthenticated, handleLogout]);
 
   // Re-validate a stored key, or restore it from the encrypted HttpOnly 30-day cookie when browser
   // storage was cleared. Do not render Login until this one startup check finishes.
@@ -143,7 +187,9 @@ function AppContent() {
               <Route path="chats" element={<Chats />} />
               {/* <Route path="webhooks" element={<Webhooks />} /> */}
               <Route path="templates" element={<Templates />} />
-              {/* {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />} */}
+              <Route path="custom-groups" element={<CustomGroups />} />
+              <Route path="scheduled-messages" element={<ScheduledMessages />} />
+              {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
               <Route path="logs" element={<Logs />} />
               <Route path="message-tester" element={<MessageTester />} />
               {/* {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />} */}

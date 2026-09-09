@@ -1,5 +1,23 @@
 services:
   openwa-api:
+    cpus: 0.75
+    mem_limit: 1200m
+    pids_limit: 512
+    environment:
+      MESSAGE_HISTORY_RETENTION_DAYS: ${MESSAGE_HISTORY_RETENTION_DAYS:-3}
+      BULK_MAX_CONCURRENT_BATCHES: ${BULK_MAX_CONCURRENT_BATCHES:-2}
+      INBOUND_MEDIA_CONCURRENCY: ${INBOUND_MEDIA_CONCURRENCY:-1}
+      BAILEYS_SESSION_STORE_MAX_ENTRIES: ${BAILEYS_SESSION_STORE_MAX_ENTRIES:-1000}
+      BAILEYS_MESSAGE_STORE_LIMIT: ${BAILEYS_MESSAGE_STORE_LIMIT:-1000}
+      MESSAGE_LIST_INLINE_MEDIA_BUDGET_BYTES: ${MESSAGE_LIST_INLINE_MEDIA_BUDGET_BYTES:-1048576}
+      CHAT_HISTORY_MEDIA_BUDGET_BYTES: ${CHAT_HISTORY_MEDIA_BUDGET_BYTES:-5242880}
+      CHAT_MEDIA_ARCHIVE_TTL_DAYS: ${CHAT_MEDIA_ARCHIVE_TTL_DAYS:-3}
+      STATS_CACHE_TTL_MS: ${STATS_CACHE_TTL_MS:-60000}
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     build:
       args:
         # Vite embeds this prefix in the dashboard bundle during `docker compose build`.
