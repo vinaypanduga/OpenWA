@@ -7070,6 +7070,21 @@
               "example": "120363000000000000@g.us",
               "type": "string"
             }
+          },
+          {
+            "name": "groupIds",
+            "required": false,
+            "in": "query",
+            "description": "Limit every returned metric to multiple WhatsApp group chats. Repeat the query parameter for each group.",
+            "schema": {
+              "minItems": 1,
+              "maxItems": 200,
+              "example": ["120363000000000000@g.us", "120363000000000001@g.us"],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         ],
         "responses": {
@@ -10693,9 +10708,37 @@
             "type": "string",
             "format": "date-time",
             "example": "2026-08-13T09:00:00Z"
+          },
+          "deliveryCount": {
+            "type": "number",
+            "description": "Unique recipients that have received this outgoing message.",
+            "example": 12
+          },
+          "readCount": {
+            "type": "number",
+            "description": "Unique recipients that have read this outgoing message.",
+            "example": 9
+          },
+          "reactionCount": {
+            "type": "number",
+            "description": "Current number of users with an active emoji reaction.",
+            "example": 3
           }
         },
-        "required": ["id", "sessionId", "chatId", "from", "to", "type", "direction", "status", "createdAt"]
+        "required": [
+          "id",
+          "sessionId",
+          "chatId",
+          "from",
+          "to",
+          "type",
+          "direction",
+          "deliveryCount",
+          "readCount",
+          "reactionCount",
+          "status",
+          "createdAt"
+        ]
       },
       "MessageListResponseDto": {
         "type": "object",
@@ -14262,9 +14305,37 @@
             "type": "number",
             "description": "Distinct session-and-chat pairs with message activity during the period.",
             "example": 42
+          },
+          "deliveredRecipients": {
+            "type": "number",
+            "description": "Unique recipient deliveries summed across outgoing messages.",
+            "example": 340
+          },
+          "readRecipients": {
+            "type": "number",
+            "description": "Unique recipient reads summed across outgoing messages.",
+            "example": 275
+          },
+          "reactedMessages": {
+            "type": "number",
+            "description": "Outgoing messages with at least one active emoji reaction.",
+            "example": 18
+          },
+          "emojiReactions": {
+            "type": "number",
+            "description": "Active emoji reactions across outgoing messages.",
+            "example": 27
           }
         },
-        "required": ["sent", "received", "interactions"]
+        "required": [
+          "sent",
+          "received",
+          "interactions",
+          "deliveredRecipients",
+          "readRecipients",
+          "reactedMessages",
+          "emojiReactions"
+        ]
       },
       "TimeSeriesPointDto": {
         "type": "object",
@@ -14337,9 +14408,28 @@
             "type": "string",
             "description": "Most recent message timestamp.",
             "example": "2026-08-07 12:34:56"
+          },
+          "deliveredRecipients": {
+            "type": "number",
+            "description": "Recipient deliveries across outgoing messages in this chat.",
+            "example": 48
+          },
+          "readRecipients": {
+            "type": "number",
+            "description": "Recipient reads across outgoing messages in this chat.",
+            "example": 37
           }
         },
-        "required": ["chatId", "chatName", "sent", "received", "messageCount", "lastActive"]
+        "required": [
+          "chatId",
+          "chatName",
+          "sent",
+          "received",
+          "messageCount",
+          "deliveredRecipients",
+          "readRecipients",
+          "lastActive"
+        ]
       },
       "StatsGroupBreakdownDto": {
         "type": "object",
@@ -14364,9 +14454,19 @@
           "total": {
             "type": "number",
             "example": 106
+          },
+          "deliveredRecipients": {
+            "type": "number",
+            "description": "Member deliveries across outgoing messages in this group.",
+            "example": 225
+          },
+          "readRecipients": {
+            "type": "number",
+            "description": "Member reads across outgoing messages in this group.",
+            "example": 190
           }
         },
-        "required": ["groupId", "groupName", "sent", "received", "total"]
+        "required": ["groupId", "groupName", "sent", "received", "total", "deliveredRecipients", "readRecipients"]
       },
       "MessageStatsResponseDto": {
         "type": "object",

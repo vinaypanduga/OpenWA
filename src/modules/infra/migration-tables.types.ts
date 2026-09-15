@@ -50,6 +50,12 @@ export interface MessageRow {
   direction: string;
   timestamp: number | string | null;
   metadata: string | Record<string, unknown> | null;
+  /** Recipient-level delivery/read state (optional for archives made before receipt tracking). */
+  deliveredTo?: string | string[] | null;
+  readBy?: string | string[] | null;
+  deliveryCount?: number;
+  readCount?: number;
+  reactionCount?: number;
   status: string;
   createdAt: string;
   /**

@@ -21,6 +21,7 @@ import type { StatusUpdate } from '../status-store/entities/status-update.entity
 import {
   IWhatsAppEngine,
   DeliveryStatus,
+  MessageReceiptUpdate,
   IncomingMessage,
   ReactionEvent,
   EditedMessage,
@@ -510,6 +511,14 @@ export class MessageProjector {
         .catch(onAckError);
     }
 
+    // Direct chats have exactly one recipient and Baileys reports their progress through the
+    // overall ack stream rather than message-receipt.update. Resolve the row before deciding:
+    // group acks must never count the group JID itself as one member. The same set-based write also
+    // safely deduplicates whatsapp-web.js, which supplies a richer receipt snapshot separately.
+    if (status === 'delivered' || status === 'read') {
+      this.enqueueMessageReceipt(id, engine, { messageId, deliveredTo: [], readBy: [] }, status);
+    }
+
     // One ack payload, emitted identically over the socket and the webhook so a client coded
     // against either channel sees the same shape. `id` mirrors the field every other message.*
     // event carries (and the idempotency-key resolver reads). `ack` is a deprecated legacy field
@@ -540,6 +549,82 @@ export class MessageProjector {
       { messageId, status, ack: deliveryStatusToAck(status) },
       { sessionId: id, source: 'Engine' },
     );
+  }
+
+  /** Persist recipient-level receipt deltas/snapshots as unique sets on the outgoing message row. */
+  handleMessageReceipt(id: string, engine: IWhatsAppEngine, receipt: MessageReceiptUpdate): void {
+    if (!this.engines.isLive(id, engine)) return;
+    this.enqueueMessageReceipt(id, engine, receipt);
+  }
+
+  private enqueueMessageReceipt(
+    sessionId: string,
+    engine: IWhatsAppEngine,
+    receipt: MessageReceiptUpdate,
+    inferDirectStatus?: 'delivered' | 'read',
+    retry = true,
+  ): void {
+    const mutationKey = `${sessionId}:${receipt.messageId}`;
+    this.messageMutations.enqueue(mutationKey, async () => {
+      if (!this.engines.isLive(sessionId, engine)) return;
+      const message = await this.messageRepository.findOne({
+        where: { sessionId, waMessageId: receipt.messageId },
+        // Recipient identities are hidden from ordinary message reads; this internal merge is the
+        // only path that needs the sets themselves rather than their public integer counts.
+        select: {
+          id: true,
+          chatId: true,
+          direction: true,
+          deliveredTo: true,
+          readBy: true,
+          deliveryCount: true,
+          readCount: true,
+        },
+      });
+      if (!message) {
+        // A receipt can beat persistSentState's waMessageId write. Match the ordinary ack path's
+        // one-shot reconciliation so a fast group receipt is not permanently lost.
+        if (retry) {
+          const timer = setTimeout(
+            () => this.enqueueMessageReceipt(sessionId, engine, receipt, inferDirectStatus, false),
+            ACK_RECONCILE_DELAY_MS,
+          );
+          timer.unref?.();
+        }
+        return;
+      }
+      if (message.direction !== MessageDirection.OUTGOING) return;
+
+      const deliveredTo = new Set(Array.isArray(message.deliveredTo) ? message.deliveredTo : []);
+      const readBy = new Set(Array.isArray(message.readBy) ? message.readBy : []);
+      for (const participant of receipt.deliveredTo) {
+        if (participant) deliveredTo.add(participant);
+      }
+      for (const participant of receipt.readBy) {
+        if (!participant) continue;
+        readBy.add(participant);
+        deliveredTo.add(participant); // reading proves prior delivery
+      }
+      if (inferDirectStatus && !message.chatId.endsWith('@g.us')) {
+        deliveredTo.add(message.chatId);
+        if (inferDirectStatus === 'read') readBy.add(message.chatId);
+      }
+
+      const nextDeliveredTo = [...deliveredTo];
+      const nextReadBy = [...readBy];
+      if (nextDeliveredTo.length === (message.deliveryCount ?? 0) && nextReadBy.length === (message.readCount ?? 0)) {
+        return;
+      }
+      await this.messageRepository.update(
+        { id: message.id },
+        {
+          deliveredTo: nextDeliveredTo,
+          readBy: nextReadBy,
+          deliveryCount: nextDeliveredTo.length,
+          readCount: nextReadBy.length,
+        },
+      );
+    });
   }
 
   /** Engine callback body, lifted out of initializeEngine so the wiring table stays readable. */

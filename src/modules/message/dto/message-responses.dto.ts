@@ -98,6 +98,15 @@ export class MessageListItemDto {
   })
   metadata?: { [key: string]: unknown } | null;
 
+  @ApiProperty({ description: 'Unique recipients that have received this outgoing message.', example: 12 })
+  deliveryCount!: number;
+
+  @ApiProperty({ description: 'Unique recipients that have read this outgoing message.', example: 9 })
+  readCount!: number;
+
+  @ApiProperty({ description: 'Current number of users with an active emoji reaction.', example: 3 })
+  reactionCount!: number;
+
   @ApiPropertyOptional({
     type: String,
     nullable: true,

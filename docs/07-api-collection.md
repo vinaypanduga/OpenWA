@@ -1313,7 +1313,7 @@ curl "$BASE/api/stats/overview" \
 
 #### GET /api/stats/messages
 
-Message stats over a period (`24h` | `7d` | `30d`, default `24h`). Add an optional `groupId` ending in `@g.us` to filter every metric to one WhatsApp group. The response's `groupBreakdown` still lists all active groups. The dashboard labels `summary.interactions` as **Active chats**: one or 100 messages in the same chat through the same WhatsApp session count as one, not as a message or participant count. Each `topChats` row also reports sent, received, total-message, and last-active values for searchable contact activity. ADMIN key required.
+Message stats over a period (`24h` | `7d` | `30d`, default `24h`). Add an optional legacy `groupId` for one WhatsApp group, or repeat `groupIds` to aggregate multiple groups. The response's `groupBreakdown` still lists all active groups. The dashboard's multi-select also expands saved custom-group presets into these group IDs. The dashboard labels `summary.interactions` as **Active chats**: one or 100 messages in the same chat through the same WhatsApp session count as one, not as a message or participant count. `summary.reactedMessages` counts outgoing messages with active emoji reactions and `summary.emojiReactions` counts the active user reactions on them. Each `topChats` row also reports sent, received, total-message, delivered/read recipient, and last-active values for searchable contact activity. Recipient counts deduplicate each member per outgoing message; the same member can count again on another message. ADMIN key required.
 
 ```bash
 curl "$BASE/api/stats/messages?period=7d" \
@@ -1324,6 +1324,13 @@ Group-level example:
 
 ```bash
 curl "$BASE/api/stats/messages?period=7d&groupId=120363000000000000@g.us" \
+  -H "X-API-Key: $API_KEY"
+```
+
+Multi-group example:
+
+```bash
+curl "$BASE/api/stats/messages?period=7d&groupIds=120363000000000000@g.us&groupIds=120363000000000001@g.us" \
   -H "X-API-Key: $API_KEY"
 ```
 

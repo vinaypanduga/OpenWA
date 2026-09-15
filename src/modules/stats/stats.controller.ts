@@ -37,7 +37,8 @@ export class StatsController {
     type: MessageStatsResponseDto,
   })
   async getMessageStats(@Query() query: StatsQueryDto) {
-    return this.statsService.getMessageStats(query.period || '24h', query.groupId);
+    const groupIds = [...(query.groupIds ?? []), ...(query.groupId ? [query.groupId] : [])];
+    return this.statsService.getMessageStats(query.period || '24h', groupIds.length ? groupIds : undefined);
   }
 
   @Get('sessions/:sessionId')

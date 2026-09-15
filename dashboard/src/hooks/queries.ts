@@ -40,7 +40,8 @@ export const queryKeys = {
   engines: ['engines'] as const,
   currentEngine: ['engines', 'current'] as const,
   statsOverview: ['stats', 'overview'] as const,
-  statsMessages: (period: string, groupId = '') => ['stats', 'messages', period, groupId] as const,
+  statsMessages: (period: string, groupIds: readonly string[] = []) =>
+    ['stats', 'messages', period, [...groupIds].sort()] as const,
 };
 
 // ── Session Queries ───────────────────────────────────────────────────
@@ -196,6 +197,18 @@ export function useCustomGroupsQuery(sessionId: string, enabled = true) {
     queryFn: () => customGroupApi.list(sessionId),
     enabled: enabled && !!sessionId,
     staleTime: 30_000,
+  });
+}
+
+/** Load saved custom-group presets for every dashboard session. */
+export function useSessionCustomGroupListsQueries(sessionIds: string[]) {
+  return useQueries({
+    queries: sessionIds.map(sessionId => ({
+      queryKey: queryKeys.customGroups(sessionId),
+      queryFn: () => customGroupApi.list(sessionId),
+      staleTime: 30_000,
+      retry: false,
+    })),
   });
 }
 
@@ -424,10 +437,11 @@ export function useStatsOverviewQuery() {
   });
 }
 
-export function useStatsMessagesQuery(period: StatsPeriod, groupId = '') {
+export function useStatsMessagesQuery(period: StatsPeriod, groupIds: readonly string[] = []) {
+  const normalizedGroupIds = [...new Set(groupIds)].sort();
   return useQuery({
-    queryKey: queryKeys.statsMessages(period, groupId),
-    queryFn: () => statsApi.getMessages(period, groupId || undefined),
+    queryKey: queryKeys.statsMessages(period, normalizedGroupIds),
+    queryFn: () => statsApi.getMessages(period, normalizedGroupIds),
     staleTime: 30_000,
     retry: false,
   });

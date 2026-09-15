@@ -1,5 +1,5 @@
 import type * as BaileysLib from '@whiskeysockets/baileys';
-import type { WACallEvent, WAMessage, WAMessageKey, WASocket } from '@whiskeysockets/baileys';
+import type { MessageUserReceiptUpdate, WACallEvent, WAMessage, WAMessageKey, WASocket } from '@whiskeysockets/baileys';
 import {
   EditedMessage,
   EngineEventCallbacks,
@@ -108,6 +108,8 @@ export interface BaileysEventsHost {
   getOnMessageReaction(): EngineEventCallbacks['onMessageReaction'];
   /** The currently-registered onMessageAck callback, if any (assigned at initialize()). */
   getOnMessageAck(): EngineEventCallbacks['onMessageAck'];
+  /** The currently-registered member receipt callback, if any (assigned at initialize()). */
+  getOnMessageReceipt(): EngineEventCallbacks['onMessageReceipt'];
   /** The currently-registered onGroupEvent callback, if any (assigned at initialize()). */
   getOnGroupEvent(): EngineEventCallbacks['onGroupEvent'];
   /** The currently-registered onCall callback, if any (assigned at initialize()). */
@@ -328,6 +330,26 @@ export class BaileysEvents {
       if (status && u.key?.id) {
         this.host.getOnMessageAck()?.(u.key.id, status);
       }
+    }
+  }
+
+  /** Map Baileys' participant receipt stream into the engine-neutral unique-member update. */
+  handleMessageReceipts(updates: MessageUserReceiptUpdate[]): void {
+    for (const update of updates) {
+      const messageId = update.key?.id;
+      const rawParticipant = update.receipt?.userJid;
+      if (!messageId || !rawParticipant) continue;
+
+      const participant = this.host.toNeutralJid(rawParticipant);
+      const wasRead = update.receipt.readTimestamp != null || update.receipt.playedTimestamp != null;
+      const wasDelivered = update.receipt.receiptTimestamp != null || wasRead;
+      if (!wasDelivered) continue;
+
+      this.host.getOnMessageReceipt()?.({
+        messageId,
+        deliveredTo: [participant],
+        readBy: wasRead ? [participant] : [],
+      });
     }
   }
 

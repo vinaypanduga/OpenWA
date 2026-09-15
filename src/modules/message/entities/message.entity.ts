@@ -88,6 +88,25 @@ export class Message {
   @Column({ type: jsonColumnType(), nullable: true })
   metadata!: Record<string, unknown>;
 
+  /** Unique recipient JIDs that have received this outgoing message. */
+  @Column({ type: jsonColumnType(), nullable: true, select: false })
+  deliveredTo!: string[] | null;
+
+  /** Unique recipient JIDs that have read this outgoing message. A reader is also deliveredTo. */
+  @Column({ type: jsonColumnType(), nullable: true, select: false })
+  readBy!: string[] | null;
+
+  /** Denormalized lengths of deliveredTo/readBy for portable SQLite/Postgres analytics SUMs. */
+  @Column({ type: 'integer', default: 0 })
+  deliveryCount!: number;
+
+  @Column({ type: 'integer', default: 0 })
+  readCount!: number;
+
+  /** Current number of distinct users with an active emoji reaction on this message. */
+  @Column({ type: 'integer', default: 0 })
+  reactionCount!: number;
+
   /**
    * Storage key of this message's archived media, or null when nothing was archived — which is the
    * case for every row written while `CHAT_MEDIA_ARCHIVE_ENABLED` is off (the default), for non-media

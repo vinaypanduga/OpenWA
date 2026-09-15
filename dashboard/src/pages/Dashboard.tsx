@@ -138,9 +138,7 @@ export function Dashboard() {
       </div>
 
       <Suspense fallback={null}>
-        <DashboardCharts
-          sessionIds={sessions.filter(session => session.status === 'ready').map(session => session.id)}
-        />
+        <DashboardCharts sessions={sessions} />
       </Suspense>
 
       <section className="sessions-section">

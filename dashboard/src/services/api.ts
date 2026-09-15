@@ -325,6 +325,9 @@ export interface ChatMessage {
   type: MessageType;
   direction: 'incoming' | 'outgoing';
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+  deliveryCount?: number;
+  readCount?: number;
+  reactionCount?: number;
   timestamp?: number;
   createdAt: string;
   metadata?: {
@@ -1431,7 +1434,15 @@ export interface MessageTimeSeriesPoint {
 }
 
 export interface MessageStats {
-  summary: { sent: number; received: number; interactions: number };
+  summary: {
+    sent: number;
+    received: number;
+    interactions: number;
+    deliveredRecipients: number;
+    readRecipients: number;
+    reactedMessages: number;
+    emojiReactions: number;
+  };
   timeSeries: MessageTimeSeriesPoint[];
   byType: Record<string, number>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;
@@ -1441,6 +1452,8 @@ export interface MessageStats {
     sent: number;
     received: number;
     messageCount: number;
+    deliveredRecipients: number;
+    readRecipients: number;
     lastActive: string;
   }>;
   groupBreakdown: Array<{
@@ -1449,13 +1462,16 @@ export interface MessageStats {
     sent: number;
     received: number;
     total: number;
+    deliveredRecipients: number;
+    readRecipients: number;
   }>;
 }
 
 export const statsApi = {
   getOverview: () => request<OverviewStats>('/stats/overview'),
-  getMessages: (period: StatsPeriod, groupId?: string) =>
-    request<MessageStats>(
-      `/stats/messages?period=${period}${groupId ? `&groupId=${encodeURIComponent(groupId)}` : ''}`,
-    ),
+  getMessages: (period: StatsPeriod, groupIds: readonly string[] = []) => {
+    const params = new URLSearchParams({ period });
+    for (const groupId of [...new Set(groupIds)].sort()) params.append('groupIds', groupId);
+    return request<MessageStats>(`/stats/messages?${params.toString()}`);
+  },
 };

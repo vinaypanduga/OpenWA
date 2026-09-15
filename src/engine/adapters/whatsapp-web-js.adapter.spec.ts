@@ -4786,7 +4786,7 @@ describe('WhatsAppWebJsAdapter send-result contract', () => {
 });
 
 describe('WhatsAppWebJsAdapter message_ack (unreadable id)', () => {
-  const wireAckHandler = (): { onMessageAck: jest.Mock; client: EventEmitter } => {
+  const wireAckHandler = (): { onMessageAck: jest.Mock; onMessageReceipt: jest.Mock; client: EventEmitter } => {
     const adapter = new WhatsAppWebJsAdapter({
       sessionId: 'sess-ack-test',
       sessionDataPath: './data/sessions',
@@ -4799,9 +4799,10 @@ describe('WhatsAppWebJsAdapter message_ack (unreadable id)', () => {
     });
     (adapter as unknown as { client: unknown }).client = client;
     const onMessageAck = jest.fn();
-    (adapter as unknown as { callbacks: unknown }).callbacks = { onMessageAck };
+    const onMessageReceipt = jest.fn();
+    (adapter as unknown as { callbacks: unknown }).callbacks = { onMessageAck, onMessageReceipt };
     (adapter as unknown as { setupEventHandlers: () => void }).setupEventHandlers();
-    return { onMessageAck, client };
+    return { onMessageAck, onMessageReceipt, client };
   };
 
   it('forwards the ack on a healthy build', () => {
@@ -4831,6 +4832,32 @@ describe('WhatsAppWebJsAdapter message_ack (unreadable id)', () => {
     client.emit('message_ack', { id: { someFutureName: 'x' } }, 3);
 
     expect(onMessageAck).not.toHaveBeenCalled();
+  });
+
+  it('loads and normalizes per-member delivered/read lists for an acknowledged message', async () => {
+    const { onMessageReceipt, client } = wireAckHandler();
+    client.emit(
+      'message_ack',
+      {
+        id: { _serialized: 'GROUP_MSG' },
+        getInfo: jest.fn().mockResolvedValue({
+          delivery: [{ id: { _serialized: 'member-a@c.us' }, t: 1 }],
+          read: [{ id: { user: 'member-b', server: 'c.us' }, t: 2 }],
+          played: [],
+          deliveryRemaining: 0,
+          readRemaining: 0,
+          playedRemaining: 0,
+        }),
+      },
+      3,
+    );
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(onMessageReceipt).toHaveBeenCalledWith({
+      messageId: 'GROUP_MSG',
+      deliveredTo: ['member-a@c.us', 'member-b@c.us'],
+      readBy: ['member-b@c.us'],
+    });
   });
 });
 

@@ -13,9 +13,25 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { BarChart3, MessageCircleMore, MessageSquare, Send } from 'lucide-react';
-import { useSessionGroupListsQueries, useStatsMessagesQuery } from '../hooks/queries';
-import type { StatsPeriod } from '../services/api';
+import {
+  BarChart3,
+  Check,
+  CheckCheck,
+  ChevronDown,
+  Eye,
+  Layers3,
+  MessageCircleMore,
+  MessageSquare,
+  Minus,
+  Send,
+  SmilePlus,
+} from 'lucide-react';
+import {
+  useSessionCustomGroupListsQueries,
+  useSessionGroupListsQueries,
+  useStatsMessagesQuery,
+} from '../hooks/queries';
+import type { Session, StatsPeriod } from '../services/api';
 import { WidgetTooltip } from './WidgetTooltip';
 import './DashboardCharts.css';
 
@@ -77,17 +93,20 @@ function formatLastActive(value: string): string {
 }
 
 interface DashboardChartsProps {
-  sessionIds?: string[];
+  sessions?: Array<Pick<Session, 'id' | 'name' | 'status'>>;
 }
 
-export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
+export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<StatsPeriod>('24h');
-  const [groupId, setGroupId] = useState('');
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [groupSearch, setGroupSearch] = useState('');
   const [chatSearch, setChatSearch] = useState('');
-  const { data, isLoading, isError, error } = useStatsMessagesQuery(period, groupId);
-  const groupListQueries = useSessionGroupListsQueries(sessionIds);
+  const { data, isLoading, isError, error } = useStatsMessagesQuery(period, selectedGroupIds);
+  const allSessionIds = sessions.map(session => session.id);
+  const readySessionIds = sessions.filter(session => session.status === 'ready').map(session => session.id);
+  const groupListQueries = useSessionGroupListsQueries(readySessionIds);
+  const customGroupQueries = useSessionCustomGroupListsQueries(allSessionIds);
 
   // Non-admin keys 403 on /stats/messages → hide the section entirely. Any OTHER error (e.g. a
   // server 500) is a real fault: surface a small notice below instead of silently vanishing, which
@@ -96,6 +115,15 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
   if (isError && forbidden) return null;
 
   const groupBreakdown = data?.groupBreakdown ?? [];
+  const sessionNameById = new Map(sessions.map(session => [session.id, session.name]));
+  const customGroups = customGroupQueries.flatMap((query, index) =>
+    (query.data ?? []).map(group => ({
+      ...group,
+      sessionName: sessionNameById.get(allSessionIds[index]) || allSessionIds[index],
+      groupIds: [...new Set(group.groupIds)],
+    })),
+  );
+  const customGroupsLoading = customGroupQueries.some(query => query.isLoading);
   const liveGroupNameById = new Map<string, string>();
   for (const query of groupListQueries) {
     for (const group of query.data ?? []) {
@@ -144,8 +172,36 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
         `${chat.name ?? ''} ${chat.address} ${chat.chatId}`.toLowerCase().includes(normalizedChatSearch),
       )
     : chatActivity;
-  const selectedGroup = groupBreakdown.find(group => group.groupId === groupId);
-  const selectedGroupLabel = groupId ? displayGroupName(groupId, selectedGroup?.groupName) : '';
+  const selectedGroupIdSet = new Set(selectedGroupIds);
+  const selectedGroupLabels = selectedGroupIds.map(id => {
+    const group = groupBreakdown.find(candidate => candidate.groupId === id);
+    return displayGroupName(id, group?.groupName);
+  });
+  const matchingCustomGroup = customGroups.find(
+    group =>
+      group.groupIds.length === selectedGroupIds.length && group.groupIds.every(id => selectedGroupIdSet.has(id)),
+  );
+  const selectedGroupLabel = matchingCustomGroup
+    ? `${matchingCustomGroup.name} (${selectedGroupIds.length} groups)`
+    : selectedGroupIds.length === 1
+      ? selectedGroupLabels[0]
+      : t('dashboard.charts.groupsSelected', {
+          count: selectedGroupIds.length,
+          defaultValue: '{{count}} groups selected',
+        });
+  const toggleGroups = (groupIds: readonly string[]) => {
+    const ids = [...new Set(groupIds)];
+    if (!ids.length) return;
+    setSelectedGroupIds(current => {
+      const next = new Set(current);
+      const remove = ids.every(id => next.has(id));
+      for (const id of ids) {
+        if (remove) next.delete(id);
+        else next.add(id);
+      }
+      return [...next].sort();
+    });
+  };
   const normalizedGroupSearch = groupSearch.trim().toLowerCase();
   const visibleGroups = normalizedGroupSearch
     ? groupBreakdown.filter(group =>
@@ -218,18 +274,94 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
           <h2>{t('dashboard.charts.title')}</h2>
         </div>
         <div className="analytics-filters">
-          <label className="group-filter">
+          <div className="group-filter">
             <span>{t('dashboard.charts.groupFilter', { defaultValue: 'Group filter' })}</span>
-            <select value={groupId} onChange={event => setGroupId(event.target.value)}>
-              <option value="">{t('dashboard.charts.allConversations', { defaultValue: 'All conversations' })}</option>
-              {groupId && !selectedGroup && <option value={groupId}>{displayGroupName(groupId)}</option>}
-              {groupBreakdown.map(group => (
-                <option key={group.groupId} value={group.groupId}>
-                  {displayGroupName(group.groupId, group.groupName)}
-                </option>
-              ))}
-            </select>
-          </label>
+            <details className="group-filter-picker">
+              <summary>
+                <span>
+                  {selectedGroupIds.length
+                    ? selectedGroupLabel
+                    : t('dashboard.charts.allConversations', { defaultValue: 'All conversations' })}
+                </span>
+                <ChevronDown size={16} aria-hidden="true" />
+              </summary>
+              <div className="group-filter-menu">
+                <button
+                  type="button"
+                  className={!selectedGroupIds.length ? 'selected' : ''}
+                  onClick={() => setSelectedGroupIds([])}
+                >
+                  <span className="group-filter-check">{!selectedGroupIds.length && <Check size={14} />}</span>
+                  <span>{t('dashboard.charts.allConversations', { defaultValue: 'All conversations' })}</span>
+                </button>
+
+                <div className="group-filter-section-title">
+                  <Layers3 size={14} aria-hidden="true" />
+                  {t('dashboard.charts.customGroups', { defaultValue: 'Custom groups' })}
+                </div>
+                {customGroupsLoading ? (
+                  <small>{t('common.loading')}</small>
+                ) : customGroups.length ? (
+                  customGroups.map(group => {
+                    const selectedCount = group.groupIds.filter(id => selectedGroupIdSet.has(id)).length;
+                    const fullySelected = group.groupIds.length > 0 && selectedCount === group.groupIds.length;
+                    const partiallySelected = selectedCount > 0 && !fullySelected;
+                    return (
+                      <button
+                        type="button"
+                        key={`${group.sessionId}:${group.id}`}
+                        className={fullySelected ? 'selected' : ''}
+                        role="checkbox"
+                        aria-checked={partiallySelected ? 'mixed' : fullySelected}
+                        onClick={() => toggleGroups(group.groupIds)}
+                      >
+                        <span className="group-filter-check">
+                          {fullySelected ? <Check size={14} /> : partiallySelected ? <Minus size={14} /> : null}
+                        </span>
+                        <span className="group-filter-option-text">
+                          <strong>{group.name}</strong>
+                          <small>
+                            {group.groupIds.length} groups · {group.sessionName}
+                          </small>
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <small>{t('dashboard.charts.noCustomGroups', { defaultValue: 'No custom groups saved' })}</small>
+                )}
+
+                <div className="group-filter-section-title">
+                  {t('dashboard.charts.individualGroups', { defaultValue: 'Individual groups' })}
+                </div>
+                {groupBreakdown.length ? (
+                  groupBreakdown.map(group => {
+                    const selected = selectedGroupIdSet.has(group.groupId);
+                    return (
+                      <button
+                        type="button"
+                        key={group.groupId}
+                        className={selected ? 'selected' : ''}
+                        role="checkbox"
+                        aria-checked={selected}
+                        onClick={() => toggleGroups([group.groupId])}
+                      >
+                        <span className="group-filter-check">{selected && <Check size={14} />}</span>
+                        <span className="group-filter-option-text">
+                          <strong>{displayGroupName(group.groupId, group.groupName)}</strong>
+                          <small>{group.total.toLocaleString()} messages</small>
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <small>
+                    {t('dashboard.charts.noActiveGroups', { defaultValue: 'No active groups in this period' })}
+                  </small>
+                )}
+              </div>
+            </details>
+          </div>
           <div className="period-toggle" role="group" aria-label={t('dashboard.charts.title')}>
             {PERIODS.map(p => (
               <button
@@ -246,7 +378,7 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
         </div>
       </div>
 
-      {groupId && (
+      {selectedGroupIds.length > 0 && (
         <div className="analytics-scope-note">
           Showing every metric below for <strong>{selectedGroupLabel}</strong>.
         </div>
@@ -274,6 +406,94 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
                 <small>{detail}</small>
               </div>
             ))}
+          </div>
+          <div className="sent-message-insights">
+            <div className="sent-message-interactions">
+              <div className="sent-message-interactions-heading">
+                <div>
+                  <span className="metric-title">
+                    {t('analytics.sentMessageInteractions', { defaultValue: 'Sent message interactions' })}
+                    <WidgetTooltip
+                      text={t('dashboard.tooltips.sentMessageInteractions', {
+                        defaultValue:
+                          'Recipient acknowledgements for messages your account sent. Each member is counted once per message; the same member may count again for another message.',
+                      })}
+                    />
+                  </span>
+                  <small>
+                    {t('analytics.sentMessageInteractionsDetail', {
+                      defaultValue: 'Delivery and reading activity on outgoing messages',
+                    })}
+                  </small>
+                </div>
+                <CheckCheck size={22} aria-hidden="true" />
+              </div>
+              <div className="sent-message-interactions-values">
+                <div>
+                  <span>{t('dashboard.charts.sent', { defaultValue: 'Sent messages' })}</span>
+                  <strong>{summary?.sent.toLocaleString() ?? '0'}</strong>
+                </div>
+                <div>
+                  <span>{t('analytics.deliveredTo', { defaultValue: 'Delivered to' })}</span>
+                  <strong>{summary?.deliveredRecipients.toLocaleString() ?? '0'}</strong>
+                </div>
+                <div>
+                  <span>{t('analytics.readBy', { defaultValue: 'Read by' })}</span>
+                  <strong>{summary?.readRecipients.toLocaleString() ?? '0'}</strong>
+                </div>
+                <div>
+                  <span>{t('analytics.readRate', { defaultValue: 'Read rate' })}</span>
+                  <strong>
+                    {summary && summary.deliveredRecipients > 0
+                      ? `${((summary.readRecipients / summary.deliveredRecipients) * 100).toFixed(1)}%`
+                      : '0%'}
+                  </strong>
+                </div>
+              </div>
+              <p>
+                <Eye size={14} aria-hidden="true" />
+                {t('analytics.readRateExplanation', {
+                  defaultValue: 'Read rate is recipients who read ÷ recipients who received the sent messages.',
+                })}
+              </p>
+            </div>
+            <div className="sent-message-reactions">
+              <div className="sent-message-reactions-heading">
+                <span className="metric-title">
+                  {t('analytics.messageReactions', { defaultValue: 'Message reactions' })}
+                  <WidgetTooltip
+                    text={t('dashboard.tooltips.messageReactions', {
+                      defaultValue:
+                        'Counts active emoji reactions made by users on messages your account sent. A message is counted once even when several users react.',
+                    })}
+                  />
+                </span>
+                <SmilePlus size={22} aria-hidden="true" />
+              </div>
+              <div className="sent-message-reactions-values">
+                <div>
+                  <span>{t('analytics.reactedMessages', { defaultValue: 'Reacted messages' })}</span>
+                  <strong>{summary?.reactedMessages.toLocaleString() ?? '0'}</strong>
+                </div>
+                <div>
+                  <span>{t('analytics.emojiReactions', { defaultValue: 'Emoji reactions' })}</span>
+                  <strong>{summary?.emojiReactions.toLocaleString() ?? '0'}</strong>
+                </div>
+                <div>
+                  <span>{t('analytics.reactionRate', { defaultValue: 'Reaction rate' })}</span>
+                  <strong>
+                    {summary && summary.sent > 0
+                      ? `${((summary.reactedMessages / summary.sent) * 100).toFixed(1)}%`
+                      : '0%'}
+                  </strong>
+                </div>
+              </div>
+              <small>
+                {t('analytics.reactionRateExplanation', {
+                  defaultValue: 'Reaction rate is reacted outgoing messages ÷ sent messages.',
+                })}
+              </small>
+            </div>
           </div>
           <div className="active-chats-explanation">
             <strong>{t('analytics.activeChats', { defaultValue: 'Active chats' })}:</strong>{' '}
@@ -391,6 +611,10 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
                 {t('dashboard.charts.activityExplanation', {
                   defaultValue:
                     'is this chat’s percentage of all messages in the period, together with its latest message time.',
+                })}{' '}
+                {t('dashboard.charts.receiptCountExplanation', {
+                  defaultValue:
+                    'Delivered and Read count unique recipients for each outgoing message; the same member can count again on another message.',
                 })}
               </p>
               {chatActivity.length === 0 ? (
@@ -406,6 +630,8 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
                     <span>{t('dashboard.charts.fromThem', { defaultValue: 'From them' })}</span>
                     <span>{t('dashboard.charts.replies', { defaultValue: 'Replies' })}</span>
                     <span>{t('dashboard.charts.total', { defaultValue: 'Total' })}</span>
+                    <span>{t('dashboard.charts.delivered', { defaultValue: 'Delivered' })}</span>
+                    <span>{t('dashboard.charts.read', { defaultValue: 'Read' })}</span>
                     <span>{t('dashboard.charts.activity', { defaultValue: 'Activity' })}</span>
                   </div>
                   {visibleChatActivity.map(chat => (
@@ -417,6 +643,8 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
                       <span>{chat.received.toLocaleString()}</span>
                       <span>{chat.sent.toLocaleString()}</span>
                       <span>{chat.messageCount.toLocaleString()}</span>
+                      <span>{chat.deliveredRecipients.toLocaleString()}</span>
+                      <span>{chat.readRecipients.toLocaleString()}</span>
                       <span className="chat-activity-value">
                         <strong>{chat.activityShare.toFixed(1)}%</strong>
                         <small>{formatLastActive(chat.lastActive)}</small>
@@ -447,7 +675,9 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
             </div>
             <p className="group-breakdown-note">
               <strong>Message share</strong> = this group’s total messages ÷ messages across all groups in the selected
-              period. Direct messages are not included in this percentage.
+              period. Direct messages are not included in this percentage. <strong>Delivered</strong> and{' '}
+              <strong>Read</strong> count unique members per outgoing message, so one member can count again for another
+              message.
             </p>
             {groupBreakdown.length === 0 ? (
               <div className="charts-empty small">No group activity in this period.</div>
@@ -460,15 +690,17 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
                   <span>Sent</span>
                   <span>Received</span>
                   <span>Total</span>
+                  <span>Delivered</span>
+                  <span>Read</span>
                   <span>Message share</span>
                 </div>
                 {visibleGroups.map(group => (
                   <button
                     type="button"
                     key={group.groupId}
-                    className={`group-breakdown-row ${group.groupId === groupId ? 'selected' : ''}`}
-                    onClick={() => setGroupId(group.groupId)}
-                    aria-pressed={group.groupId === groupId}
+                    className={`group-breakdown-row ${selectedGroupIdSet.has(group.groupId) ? 'selected' : ''}`}
+                    onClick={() => toggleGroups([group.groupId])}
+                    aria-pressed={selectedGroupIdSet.has(group.groupId)}
                   >
                     <span className="group-breakdown-name" title={group.groupId}>
                       <strong>{displayGroupName(group.groupId, group.groupName)}</strong>
@@ -476,6 +708,8 @@ export function DashboardCharts({ sessionIds = [] }: DashboardChartsProps) {
                     <span>{group.sent.toLocaleString()}</span>
                     <span>{group.received.toLocaleString()}</span>
                     <span>{group.total.toLocaleString()}</span>
+                    <span>{group.deliveredRecipients.toLocaleString()}</span>
+                    <span>{group.readRecipients.toLocaleString()}</span>
                     <span>
                       {allGroupMessages > 0 ? `${((group.total / allGroupMessages) * 100).toFixed(1)}%` : '0%'}
                     </span>

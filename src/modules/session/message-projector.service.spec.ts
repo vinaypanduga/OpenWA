@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { MessageProjector } from './message-projector.service';
 import { EngineRegistry } from '../../engine/engine-registry.service';
 import type { Repository } from 'typeorm';
-import { Message, MessageDirection } from '../message/entities/message.entity';
+import { Message, MessageDirection, MessageStatus } from '../message/entities/message.entity';
 import { Session } from './entities/session.entity';
 import { EventsGateway } from '../events/events.gateway';
 import { WebhookService } from '../webhook/webhook.service';
@@ -48,6 +48,7 @@ describe('MessageProjector', () => {
   let eventsGateway: {
     emitMessage: jest.Mock;
     emitMessageSent: jest.Mock;
+    emitMessageAck: jest.Mock;
     emitMessageRevoked: jest.Mock;
     emitMessageReaction: jest.Mock;
   };
@@ -66,6 +67,7 @@ describe('MessageProjector', () => {
     eventsGateway = {
       emitMessage: jest.fn(),
       emitMessageSent: jest.fn(),
+      emitMessageAck: jest.fn(),
       emitMessageRevoked: jest.fn(),
       emitMessageReaction: jest.fn(),
     };
@@ -127,6 +129,83 @@ describe('MessageProjector', () => {
       await settle();
 
       expect(other).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('handleMessageReceipt', () => {
+    it('merges recipient receipts as unique sets and treats a read as delivered', async () => {
+      messageRepository.findOne.mockResolvedValue({
+        id: 'row-1',
+        chatId: 'group@g.us',
+        direction: MessageDirection.OUTGOING,
+        deliveredTo: ['member-a@c.us'],
+        readBy: null,
+        deliveryCount: 1,
+        readCount: 0,
+      });
+
+      projector.handleMessageReceipt('s1', engine, {
+        messageId: 'WA1',
+        deliveredTo: ['member-a@c.us', 'member-b@c.us'],
+        readBy: ['member-b@c.us'],
+      });
+      await settle();
+      await settle();
+
+      expect(messageRepository.update).toHaveBeenCalledWith(
+        { id: 'row-1' },
+        {
+          deliveredTo: ['member-a@c.us', 'member-b@c.us'],
+          readBy: ['member-b@c.us'],
+          deliveryCount: 2,
+          readCount: 1,
+        },
+      );
+    });
+
+    it('counts the one recipient in a direct chat from its read acknowledgement', async () => {
+      messageRepository.findOne.mockResolvedValue({
+        id: 'row-direct',
+        chatId: '628111@c.us',
+        direction: MessageDirection.OUTGOING,
+        deliveredTo: null,
+        readBy: null,
+        deliveryCount: 0,
+        readCount: 0,
+      });
+
+      projector.handleMessageAck('s1', engine, 'WA-DIRECT', 'read');
+      await settle();
+      await settle();
+
+      expect(messageRepository.update).toHaveBeenCalledWith(
+        { id: 'row-direct' },
+        {
+          deliveredTo: ['628111@c.us'],
+          readBy: ['628111@c.us'],
+          deliveryCount: 1,
+          readCount: 1,
+        },
+      );
+      expect(eventsGateway.emitMessageAck).toHaveBeenCalledWith(
+        's1',
+        expect.objectContaining({ messageId: 'WA-DIRECT', status: 'read' }),
+      );
+      expect(messageRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 's1', waMessageId: 'WA-DIRECT' }),
+        { status: MessageStatus.READ },
+      );
+    });
+
+    it('ignores member receipts emitted by a superseded engine', async () => {
+      projector.handleMessageReceipt('s1', {} as IWhatsAppEngine, {
+        messageId: 'WA1',
+        deliveredTo: ['member@c.us'],
+        readBy: [],
+      });
+      await settle();
+
+      expect(messageRepository.findOne).not.toHaveBeenCalled();
     });
   });
 
@@ -204,7 +283,27 @@ describe('MessageProjector', () => {
       expect(payload.reactions).toEqual({ '627@c.us': '❤️', '628@c.us': '👍' });
       expect(messageRepository.update).toHaveBeenCalledWith(
         { sessionId: 's1', waMessageId: 'WA1' },
-        { metadata: { reactions: { '627@c.us': '❤️', '628@c.us': '👍' } } },
+        { metadata: { reactions: { '627@c.us': '❤️', '628@c.us': '👍' } }, reactionCount: 2 },
+      );
+    });
+
+    it('decrements the active reaction count when a user removes their emoji', async () => {
+      messageRepository.findOne.mockResolvedValue({
+        metadata: { reactions: { '627@c.us': '❤️', '628@c.us': '👍' } },
+      });
+
+      projector.applyReactionQueued('s1', {
+        messageId: 'WA1',
+        chatId: 'c1@c.us',
+        senderId: '628@c.us',
+        reaction: '',
+      });
+      await settle();
+      await settle();
+
+      expect(messageRepository.update).toHaveBeenCalledWith(
+        { sessionId: 's1', waMessageId: 'WA1' },
+        { metadata: { reactions: { '627@c.us': '❤️' } }, reactionCount: 1 },
       );
     });
   });

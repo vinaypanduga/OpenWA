@@ -83,6 +83,7 @@ export interface BaileysLifecycleHost {
   addLidMappings: BaileysSessionStore['addLidMappings'];
   handleMessagesUpsert: BaileysEvents['handleMessagesUpsert'];
   handleMessagesUpdate: BaileysEvents['handleMessagesUpdate'];
+  handleMessageReceipts: BaileysEvents['handleMessageReceipts'];
   logContactEvent: BaileysEvents['logContactEvent'];
   handleGroupParticipantsUpdate: BaileysEvents['handleGroupParticipantsUpdate'];
   handleGroupsUpdate: BaileysEvents['handleGroupsUpdate'];
@@ -228,6 +229,7 @@ export class BaileysLifecycle {
         previous.ev.removeAllListeners('creds.update');
         previous.ev.removeAllListeners('messages.upsert');
         previous.ev.removeAllListeners('messages.update');
+        previous.ev.removeAllListeners('message-receipt.update');
         previous.ev.removeAllListeners('contacts.upsert');
         previous.ev.removeAllListeners('contacts.update');
         previous.ev.removeAllListeners('chats.upsert');
@@ -298,6 +300,7 @@ export class BaileysLifecycle {
     sock.ev.on('connection.update', update => this.handleConnectionUpdate(update));
     sock.ev.on('messages.upsert', event => this.host.handleMessagesUpsert(event));
     sock.ev.on('messages.update', updates => this.host.handleMessagesUpdate(updates));
+    sock.ev.on('message-receipt.update', updates => this.host.handleMessageReceipts(updates));
     sock.ev.on('contacts.upsert', contacts => {
       this.host.logContactEvent('contacts.upsert', contacts);
       this.host.upsertContacts(contacts);

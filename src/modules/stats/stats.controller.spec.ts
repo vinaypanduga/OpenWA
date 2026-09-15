@@ -31,12 +31,26 @@ describe('StatsController access control', () => {
 
     await controller.getMessageStats({ period: '7d', groupId: 'alpha@g.us' });
 
-    expect(getMessageStats).toHaveBeenCalledWith('7d', 'alpha@g.us');
+    expect(getMessageStats).toHaveBeenCalledWith('7d', ['alpha@g.us']);
+  });
+
+  it('combines the legacy single-group filter with multiple group filters', async () => {
+    const getMessageStats = jest.fn().mockResolvedValue({});
+    const controller = new StatsController({ getMessageStats } as never);
+
+    await controller.getMessageStats({
+      period: '30d',
+      groupId: 'alpha@g.us',
+      groupIds: ['beta@g.us', 'gamma@g.us'],
+    });
+
+    expect(getMessageStats).toHaveBeenCalledWith('30d', ['beta@g.us', 'gamma@g.us', 'alpha@g.us']);
   });
 });
 
 describe('StatsQueryDto group filter', () => {
   const errorsFor = (groupId: string) => validate(Object.assign(new StatsQueryDto(), { groupId }));
+  const arrayErrorsFor = (groupIds: string[]) => validate(Object.assign(new StatsQueryDto(), { groupIds }));
 
   it('accepts a WhatsApp group JID', async () => {
     await expect(errorsFor('120363000000000000@g.us')).resolves.toHaveLength(0);
@@ -44,5 +58,14 @@ describe('StatsQueryDto group filter', () => {
 
   it.each(['@g.us', 'person@c.us', 'group name@g.us'])('rejects invalid group id %s', async groupId => {
     await expect(errorsFor(groupId)).resolves.not.toHaveLength(0);
+  });
+
+  it('accepts multiple WhatsApp group JIDs', async () => {
+    await expect(arrayErrorsFor(['alpha@g.us', 'beta@g.us'])).resolves.toHaveLength(0);
+  });
+
+  it('rejects an empty or invalid multi-group selection', async () => {
+    await expect(arrayErrorsFor([])).resolves.not.toHaveLength(0);
+    await expect(arrayErrorsFor(['alpha@g.us', 'person@c.us'])).resolves.not.toHaveLength(0);
   });
 });

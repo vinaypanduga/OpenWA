@@ -513,6 +513,20 @@ export type CallLinkType = 'audio' | 'video';
 export type DeliveryStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 /**
+ * Member-level delivery information for one outgoing message. Adapters may emit a complete
+ * snapshot or a one-member delta; consumers must merge the arrays as sets.
+ *
+ * `readBy` members are implicitly delivered too. This separate callback is needed for groups:
+ * the ordinary message acknowledgement only describes the message's overall state and does not
+ * say how many individual participants received or opened it.
+ */
+export interface MessageReceiptUpdate {
+  messageId: string;
+  deliveredTo: string[];
+  readBy: string[];
+}
+
+/**
  * Structured payload for a remotely-revoked ("deleted for everyone") message.
  * The engine layer never emits a localized display string; `body` is intentionally
  * empty and the dashboard renders the localized "message deleted" text.
@@ -718,6 +732,8 @@ export interface EngineEventCallbacks {
    * delivery signal to the neutral `DeliveryStatus`, so consumers never see engine-specific codes.
    */
   onMessageAck?: (messageId: string, status: DeliveryStatus) => void;
+  /** Fired when recipient-level delivery/read information is available for an outgoing message. */
+  onMessageReceipt?: (receipt: MessageReceiptUpdate) => void;
   onMessageRevoked?: (message: RevokedMessage) => void;
   onMessageReaction?: (event: ReactionEvent) => void;
   onMessageEdited?: (message: EditedMessage) => void;

@@ -492,6 +492,12 @@ export interface MessageRecord {
   /** Unix timestamp in seconds. */
   timestamp?: number | null;
   metadata?: Record<string, unknown> | null;
+  /** Unique recipients that have received this outgoing message. */
+  deliveryCount: number;
+  /** Unique recipients that have read this outgoing message. */
+  readCount: number;
+  /** Current number of users with an active emoji reaction. */
+  reactionCount: number;
   status: DeliveryStatus;
   createdAt: string;
 }

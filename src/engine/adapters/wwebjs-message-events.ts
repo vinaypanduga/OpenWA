@@ -10,6 +10,15 @@ import { buildEditedMessage, buildIncomingMessageBase, mapContactFields } from '
 import { extractWwebjsCall, wwebjsAckToDeliveryStatus } from './wwebjs-messaging';
 import { type WwebjsEngineHost } from './wwebjs-host';
 
+function serializedReceiptContact(id: unknown): string | null {
+  if (typeof id === 'string') return id;
+  if (!id || typeof id !== 'object') return null;
+  const value = id as { _serialized?: unknown; $1?: unknown; user?: unknown; server?: unknown };
+  if (typeof value._serialized === 'string') return value._serialized;
+  if (typeof value.$1 === 'string') return value.$1;
+  return typeof value.user === 'string' && typeof value.server === 'string' ? `${value.user}@${value.server}` : null;
+}
+
 /**
  * Message-domain client events (message, message_create, ack, revoke, reaction, edit) extracted
  * from the adapter's event wiring: pure mapping from wwebjs payloads to neutral events fired
@@ -137,7 +146,33 @@ export function registerWwebjsMessageEvents(client: Client, host: WwebjsEngineHo
     }
     // Map the whatsapp-web.js MessageAck integer to the neutral DeliveryStatus here, at the
     // adapter boundary, so no downstream consumer ever sees engine-specific ack codes.
-    host.getCallbacks().onMessageAck?.(ackId, wwebjsAckToDeliveryStatus(ack));
+    const status = wwebjsAckToDeliveryStatus(ack);
+    host.getCallbacks().onMessageAck?.(ackId, status);
+
+    // message_ack is only an overall state. getInfo() supplies the per-member lists needed to say
+    // how many group participants received/read this particular outgoing message. It may be absent
+    // for a message WhatsApp Web has already evicted, so receipt analytics are intentionally
+    // best-effort and never interfere with the ordinary acknowledgement path above.
+    if ((status === 'delivered' || status === 'read') && typeof msg.getInfo === 'function') {
+      void msg
+        .getInfo()
+        .then(info => {
+          if (!info) return;
+          const deliveredTo = [...(info.delivery ?? []), ...(info.read ?? []), ...(info.played ?? [])]
+            .map(entry => serializedReceiptContact(entry.id))
+            .filter((id): id is string => id !== null);
+          const readBy = [...(info.read ?? []), ...(info.played ?? [])]
+            .map(entry => serializedReceiptContact(entry.id))
+            .filter((id): id is string => id !== null);
+          host.getCallbacks().onMessageReceipt?.({ messageId: ackId, deliveredTo, readBy });
+        })
+        .catch(error =>
+          host.logger.debug('Could not load member receipts for acknowledged message', {
+            messageId: ackId,
+            error: String(error),
+          }),
+        );
+    }
   });
 
   client.on('message_revoke_everyone', (after, before) => {

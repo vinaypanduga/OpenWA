@@ -120,8 +120,8 @@ export const TABLE_IMPORTERS: AnyTableImporter[] = [
   defineTableImporter({
     key: 'messages',
     label: 'message',
-    sql: `INSERT INTO messages (id, "sessionId", "waMessageId", "chatId", "chatName", author, "from", "to", body, type, direction, "timestamp", metadata, status, "createdAt", "mediaPath", "mediaMimetype")
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+    sql: `INSERT INTO messages (id, "sessionId", "waMessageId", "chatId", "chatName", author, "from", "to", body, type, direction, "timestamp", metadata, status, "createdAt", "mediaPath", "mediaMimetype", "deliveredTo", "readBy", "deliveryCount", "readCount", "reactionCount")
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
     id: (msg: MessageRow) => msg.id,
     map: (msg: MessageRow) => [
       msg.id,
@@ -146,6 +146,15 @@ export const TABLE_IMPORTERS: AnyTableImporter[] = [
       // without their pointers would turn every archived file into an orphan the sweep then reaps.
       msg.mediaPath ?? null,
       msg.mediaMimetype ?? null,
+      msg.deliveredTo == null
+        ? null
+        : typeof msg.deliveredTo === 'string'
+          ? msg.deliveredTo
+          : JSON.stringify(msg.deliveredTo),
+      msg.readBy == null ? null : typeof msg.readBy === 'string' ? msg.readBy : JSON.stringify(msg.readBy),
+      msg.deliveryCount ?? 0,
+      msg.readCount ?? 0,
+      msg.reactionCount ?? 0,
     ],
   }),
 

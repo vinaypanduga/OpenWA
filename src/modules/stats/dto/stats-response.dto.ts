@@ -61,6 +61,18 @@ export class MessageAnalyticsSummaryDto {
   @ApiProperty({ description: 'Incoming messages recorded during the period.', example: 85 }) received!: number;
   @ApiProperty({ description: 'Distinct session-and-chat pairs with message activity during the period.', example: 42 })
   interactions!: number;
+
+  @ApiProperty({ description: 'Unique recipient deliveries summed across outgoing messages.', example: 340 })
+  deliveredRecipients!: number;
+
+  @ApiProperty({ description: 'Unique recipient reads summed across outgoing messages.', example: 275 })
+  readRecipients!: number;
+
+  @ApiProperty({ description: 'Outgoing messages with at least one active emoji reaction.', example: 18 })
+  reactedMessages!: number;
+
+  @ApiProperty({ description: 'Active emoji reactions across outgoing messages.', example: 27 })
+  emojiReactions!: number;
 }
 
 export class StatsBySessionDto {
@@ -83,6 +95,12 @@ export class StatsTopChatDto {
 
   @ApiProperty({ example: 42 }) messageCount!: number;
 
+  @ApiProperty({ description: 'Recipient deliveries across outgoing messages in this chat.', example: 48 })
+  deliveredRecipients!: number;
+
+  @ApiProperty({ description: 'Recipient reads across outgoing messages in this chat.', example: 37 })
+  readRecipients!: number;
+
   @ApiProperty({ description: 'Most recent message timestamp.', example: '2026-08-07 12:34:56' })
   lastActive!: string;
 }
@@ -96,6 +114,10 @@ export class StatsGroupBreakdownDto {
   @ApiProperty({ example: 65 }) sent!: number;
   @ApiProperty({ example: 41 }) received!: number;
   @ApiProperty({ example: 106 }) total!: number;
+  @ApiProperty({ description: 'Member deliveries across outgoing messages in this group.', example: 225 })
+  deliveredRecipients!: number;
+  @ApiProperty({ description: 'Member reads across outgoing messages in this group.', example: 190 })
+  readRecipients!: number;
 }
 
 export class MessageStatsResponseDto {

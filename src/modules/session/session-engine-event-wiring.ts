@@ -174,6 +174,7 @@ export class SessionEngineEventWiring {
       },
       onMessageCreate: (message): void => host.messages.handleOwnSendEcho(id, engine, message),
       onMessageAck: (messageId, status): void => host.messages.handleMessageAck(id, engine, messageId, status),
+      onMessageReceipt: receipt => host.messages.handleMessageReceipt(id, engine, receipt),
       onMessageRevoked: (message): void => host.messages.handleMessageRevoked(id, engine, message),
       onMessageReaction: (event): void => {
         if (!host.isLiveEngine(id, engine)) return;

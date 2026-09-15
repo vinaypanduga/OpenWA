@@ -1899,6 +1899,24 @@ describe('BaileysAdapter inbound fan-out', () => {
     expect(onMessageAck).toHaveBeenCalledWith('OUT1', 'delivered');
   });
 
+  it('emits unique-member delivery/read data from message-receipt.update', async () => {
+    const onMessageReceipt = jest.fn();
+    const adapter = newAdapter();
+    await adapter.initialize({ onMessageReceipt });
+    fakeSock.fire('message-receipt.update', [
+      {
+        key: { id: 'GROUP_OUT_1', remoteJid: '120@g.us', fromMe: true },
+        receipt: { userJid: '628111@s.whatsapp.net', receiptTimestamp: 10, readTimestamp: 11 },
+      },
+    ]);
+
+    expect(onMessageReceipt).toHaveBeenCalledWith({
+      messageId: 'GROUP_OUT_1',
+      deliveredTo: ['628111@c.us'],
+      readBy: ['628111@c.us'],
+    });
+  });
+
   it('inbound image: downloads media and exposes base64 + caption as body', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const baileys = jest.requireMock('@whiskeysockets/baileys') as {

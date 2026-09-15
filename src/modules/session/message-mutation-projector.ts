@@ -69,13 +69,17 @@ export class MessageMutationProjector {
           reactions[event.senderId] = event.reaction;
         }
         metadata.reactions = reactions;
-        // Scoped update of ONLY the metadata column. A full-row save(msg) would re-persist the `status`
+        // Scoped update of ONLY the reaction-derived columns. A full-row save(msg) would re-persist the `status`
         // read at findOne time, clobbering a concurrent ack UPDATE (SENT→DELIVERED/READ) that committed in
         // the window between this findOne and the write — the mutation chain serializes reaction-vs-reaction
-        // but NOT reaction-vs-ack, so scoping the write to metadata is what keeps delivery state monotonic
-        // (#220). Other metadata fields are carried through untouched (they were read into `metadata`).
+        // but NOT reaction-vs-ack, so limiting the write to metadata plus its derived count is what
+        // keeps delivery state monotonic (#220). Other metadata fields are carried through untouched.
         await this.messageRepository.update({ sessionId: id, waMessageId: event.messageId }, {
           metadata,
+          // One key per sender. Replacing an emoji keeps the count stable; removing it decrements.
+          // Keeping this integer beside the JSON makes filtered analytics portable across SQLite
+          // and PostgreSQL without scanning/parsing every message in application memory.
+          reactionCount: Object.keys(reactions).length,
         } as QueryDeepPartialEntity<Message>);
       }
 
