@@ -59,7 +59,7 @@ export class TimeSeriesPointDto {
 export class MessageAnalyticsSummaryDto {
   @ApiProperty({ description: 'Outgoing messages recorded during the period.', example: 120 }) sent!: number;
   @ApiProperty({ description: 'Incoming messages recorded during the period.', example: 85 }) received!: number;
-  @ApiProperty({ description: 'Distinct chats with message activity during the period.', example: 42 })
+  @ApiProperty({ description: 'Distinct session-and-chat pairs with message activity during the period.', example: 42 })
   interactions!: number;
 }
 
@@ -77,7 +77,25 @@ export class StatsTopChatDto {
   @ApiProperty({ type: String, nullable: true, description: 'Null when no name is known for the chat.' })
   chatName!: string | null;
 
+  @ApiProperty({ description: 'Messages sent by the account to this chat.', example: 18 }) sent!: number;
+
+  @ApiProperty({ description: 'Messages received from this chat.', example: 24 }) received!: number;
+
   @ApiProperty({ example: 42 }) messageCount!: number;
+
+  @ApiProperty({ description: 'Most recent message timestamp.', example: '2026-08-07 12:34:56' })
+  lastActive!: string;
+}
+
+export class StatsGroupBreakdownDto {
+  @ApiProperty({ example: '120363000000000000@g.us' }) groupId!: string;
+
+  @ApiProperty({ type: String, nullable: true, description: 'An available stored name for the group.' })
+  groupName!: string | null;
+
+  @ApiProperty({ example: 65 }) sent!: number;
+  @ApiProperty({ example: 41 }) received!: number;
+  @ApiProperty({ example: 106 }) total!: number;
 }
 
 export class MessageStatsResponseDto {
@@ -99,6 +117,12 @@ export class MessageStatsResponseDto {
 
   @ApiProperty({ type: [StatsTopChatDto] })
   topChats!: StatsTopChatDto[];
+
+  @ApiProperty({
+    type: [StatsGroupBreakdownDto],
+    description: 'Per-group message totals for the requested period, unaffected by the optional groupId filter.',
+  })
+  groupBreakdown!: StatsGroupBreakdownDto[];
 }
 
 export class SessionStatsSessionDto {

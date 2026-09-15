@@ -1435,10 +1435,27 @@ export interface MessageStats {
   timeSeries: MessageTimeSeriesPoint[];
   byType: Record<string, number>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;
-  topChats: Array<{ chatId: string; chatName?: string | null; messageCount: number }>;
+  topChats: Array<{
+    chatId: string;
+    chatName?: string | null;
+    sent: number;
+    received: number;
+    messageCount: number;
+    lastActive: string;
+  }>;
+  groupBreakdown: Array<{
+    groupId: string;
+    groupName?: string | null;
+    sent: number;
+    received: number;
+    total: number;
+  }>;
 }
 
 export const statsApi = {
   getOverview: () => request<OverviewStats>('/stats/overview'),
-  getMessages: (period: StatsPeriod) => request<MessageStats>(`/stats/messages?period=${period}`),
+  getMessages: (period: StatsPeriod, groupId?: string) =>
+    request<MessageStats>(
+      `/stats/messages?period=${period}${groupId ? `&groupId=${encodeURIComponent(groupId)}` : ''}`,
+    ),
 };

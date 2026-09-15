@@ -14,6 +14,7 @@ import {
   useUpdateCustomGroupMutation,
 } from '../hooks/queries';
 import type { CustomGroup } from '../services/api';
+import { matchGroupsByNames, parsePastedGroupNames } from '../utils/groupNameSearch';
 import './CustomGroups.css';
 
 type GroupOption = { id: string; name: string };
@@ -29,6 +30,7 @@ export function CustomGroups() {
   const [editing, setEditing] = useState<CustomGroup | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomGroup | null>(null);
   const [filter, setFilter] = useState('');
+  const [pastedGroupNames, setPastedGroupNames] = useState('');
 
   useEffect(() => {
     if (!sessionId && sessions.length) setSessionId(sessions[0].id);
@@ -44,27 +46,42 @@ export function CustomGroups() {
   const updateMutation = useUpdateCustomGroupMutation();
   const deleteMutation = useDeleteCustomGroupMutation();
 
+  const pastedNames = useMemo(() => parsePastedGroupNames(pastedGroupNames), [pastedGroupNames]);
+  const pastedMatches = useMemo(() => matchGroupsByNames(groups, pastedNames), [groups, pastedNames]);
   const filteredGroups = useMemo(() => {
     const query = filter.trim().toLowerCase();
-    return query ? groups.filter(group => group.name.toLowerCase().includes(query)) : groups;
-  }, [filter, groups]);
+    const bulkMatchIds = new Set(pastedMatches.matchedGroups.map(group => group.id));
+    return groups.filter(
+      group =>
+        (!query || group.name.toLowerCase().includes(query)) &&
+        (pastedNames.length === 0 || bulkMatchIds.has(group.id)),
+    );
+  }, [filter, groups, pastedMatches.matchedGroups, pastedNames.length]);
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const resetForm = () => {
     setName('');
     setSelectedIds([]);
     setEditing(null);
+    setFilter('');
+    setPastedGroupNames('');
   };
 
   const startEdit = (collection: CustomGroup) => {
     setEditing(collection);
     setName(collection.name);
     setSelectedIds(collection.groupIds);
+    setFilter('');
+    setPastedGroupNames('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const toggleGroup = (id: string) => {
     setSelectedIds(current => (current.includes(id) ? current.filter(value => value !== id) : [...current, id]));
+  };
+
+  const selectPastedMatches = () => {
+    setSelectedIds(current => [...new Set([...current, ...pastedMatches.matchedGroups.map(group => group.id)])]);
   };
 
   const save = async () => {
@@ -177,6 +194,53 @@ export function CustomGroups() {
                   placeholder="Filter groups"
                   aria-label="Filter groups"
                 />
+              </div>
+              <div className="custom-groups-bulk-search">
+                <label htmlFor="custom-groups-pasted-names">Paste group names from Excel</label>
+                <textarea
+                  id="custom-groups-pasted-names"
+                  value={pastedGroupNames}
+                  onChange={event => setPastedGroupNames(event.target.value)}
+                  placeholder={'Class A Parents\nClass B Parents\nClass C Parents'}
+                  rows={5}
+                />
+                <p>Paste one or more Excel cells. Each row or tab is searched as a separate group name.</p>
+                {pastedNames.length > 0 && (
+                  <div className="custom-groups-match-summary" aria-live="polite">
+                    <span>
+                      {pastedMatches.matchedGroups.length} group
+                      {pastedMatches.matchedGroups.length === 1 ? '' : 's'} found for{' '}
+                      {pastedMatches.matchedNames.length} of {pastedNames.length} name
+                      {pastedNames.length === 1 ? '' : 's'}
+                    </span>
+                    <div className="custom-groups-match-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={selectPastedMatches}
+                        disabled={!canWrite || pastedMatches.matchedGroups.length === 0}
+                      >
+                        Select all matches
+                      </button>
+                      <button type="button" className="btn-secondary" onClick={() => setPastedGroupNames('')}>
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {pastedMatches.unmatchedNames.length > 0 && (
+                  <details className="custom-groups-unmatched">
+                    <summary>
+                      {pastedMatches.unmatchedNames.length} name
+                      {pastedMatches.unmatchedNames.length === 1 ? '' : 's'} not found
+                    </summary>
+                    <div>
+                      {pastedMatches.unmatchedNames.map(groupName => (
+                        <span key={groupName}>{groupName}</span>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
               <div className="custom-groups-options">
                 {loadingGroups ? (

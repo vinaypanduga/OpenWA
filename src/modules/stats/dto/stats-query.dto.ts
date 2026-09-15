@@ -1,4 +1,4 @@
-import { IsOptional, IsIn } from 'class-validator';
+import { IsOptional, IsIn, IsString, Matches, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class StatsQueryDto {
@@ -13,4 +13,16 @@ export class StatsQueryDto {
   @IsOptional()
   @IsIn(['24h', '7d', '30d'])
   period?: '24h' | '7d' | '30d' = '24h';
+
+  @ApiPropertyOptional({
+    description: 'Limit every returned metric to one WhatsApp group chat.',
+    example: '120363000000000000@g.us',
+    maxLength: 255,
+    pattern: '^[^@\\s]+@g\\.us$',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @Matches(/^[^@\s]+@g\.us$/)
+  groupId?: string;
 }

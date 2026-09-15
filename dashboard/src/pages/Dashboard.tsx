@@ -65,7 +65,7 @@ export function Dashboard() {
     },
     // The "Webhooks Configured" widget is intentionally hidden from the dashboard.
     {
-      label: t('dashboard.stats.totalM  essages'),
+      label: t('dashboard.stats.totalMessages'),
       value: totalMessages,
       icon: Activity,
       tooltip: t('dashboard.tooltips.totalMessages', {
@@ -138,7 +138,9 @@ export function Dashboard() {
       </div>
 
       <Suspense fallback={null}>
-        <DashboardCharts />
+        <DashboardCharts
+          sessionIds={sessions.filter(session => session.status === 'ready').map(session => session.id)}
+        />
       </Suspense>
 
       <section className="sessions-section">

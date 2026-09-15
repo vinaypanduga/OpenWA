@@ -25,6 +25,61 @@
   margin: 0;
 }
 
+.dashboard-charts .analytics-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-charts .group-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dashboard-charts .group-filter span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-charts .group-filter select {
+  width: min(260px, 72vw);
+  min-height: 38px;
+  padding: 0.4rem 2rem 0.4rem 0.7rem;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.dashboard-charts .analytics-scope-note {
+  margin: -0.25rem 0 1rem;
+  padding: 0.7rem 0.9rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, #3b82f6 8%, var(--bg-white));
+  border: 1px solid color-mix(in srgb, #3b82f6 25%, var(--border));
+  border-radius: 9px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.dashboard-charts .active-chats-explanation {
+  margin: -0.25rem 0 1rem;
+  padding: 0.7rem 0.9rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, #f59e0b 8%, var(--bg-white));
+  border: 1px solid color-mix(in srgb, #f59e0b 25%, var(--border));
+  border-radius: 9px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
 /* Segmented pill period selector (matches the plugin/install tab control). */
 .dashboard-charts .period-toggle {
   display: inline-flex;
@@ -63,7 +118,7 @@
 
 .dashboard-charts .analytics-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -93,8 +148,16 @@
   --metric-color: #25d366;
 }
 
-.dashboard-charts .analytics-metric.interactions {
+.dashboard-charts .analytics-metric.received {
   --metric-color: #3b82f6;
+}
+
+.dashboard-charts .analytics-metric.total {
+  --metric-color: #8b5cf6;
+}
+
+.dashboard-charts .analytics-metric.interactions {
+  --metric-color: #f59e0b;
 }
 
 .dashboard-charts .metric-heading {
@@ -159,6 +222,113 @@
   margin: 0;
 }
 
+.dashboard-charts .chat-activity-card {
+  overflow: hidden;
+}
+
+.dashboard-charts .chat-activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.dashboard-charts .chat-activity-header .chart-card-title {
+  margin-bottom: 0;
+}
+
+.dashboard-charts .chat-activity-header input {
+  width: min(220px, 48%);
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.dashboard-charts .chat-activity-note {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.dashboard-charts .chat-activity-table {
+  max-height: 270px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.dashboard-charts .chat-activity-row {
+  display: grid;
+  grid-template-columns: minmax(155px, 1.6fr) repeat(3, minmax(54px, 0.55fr)) minmax(84px, 0.75fr);
+  align-items: center;
+  min-width: 520px;
+  min-height: 50px;
+  padding: 0.55rem 0.65rem;
+  color: var(--text-secondary);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+
+.dashboard-charts .chat-activity-row:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-charts .chat-activity-row > :first-child {
+  text-align: left;
+}
+
+.dashboard-charts .chat-activity-columns {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 36px;
+  color: var(--text-muted);
+  background: var(--bg-light);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.dashboard-charts .chat-activity-name,
+.dashboard-charts .chat-activity-value {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.dashboard-charts .chat-activity-value {
+  align-items: flex-end;
+}
+
+.dashboard-charts .chat-activity-name strong,
+.dashboard-charts .chat-activity-name small,
+.dashboard-charts .chat-activity-value small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-charts .chat-activity-name strong,
+.dashboard-charts .chat-activity-value strong {
+  color: var(--text-primary);
+}
+
+.dashboard-charts .chat-activity-name small,
+.dashboard-charts .chat-activity-value small {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
 .dashboard-charts .charts-empty {
   background: var(--bg-white);
   border: 1px dashed var(--border);
@@ -174,6 +344,120 @@
   padding: 2rem 1rem;
 }
 
+.dashboard-charts .group-breakdown-card {
+  min-width: 0;
+  margin-top: 1rem;
+  padding: 1.25rem;
+  overflow-x: auto;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.dashboard-charts .group-breakdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-charts .group-breakdown-header .chart-card-title {
+  margin-bottom: 0;
+}
+
+.dashboard-charts .group-breakdown-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.dashboard-charts .group-breakdown-header input {
+  width: min(260px, 45vw);
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.dashboard-charts .group-breakdown-note {
+  margin: 0.55rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-charts .group-breakdown-table {
+  min-width: 680px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.dashboard-charts .group-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(72px, 0.6fr));
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  padding: 0.65rem 0.85rem;
+  color: var(--text-secondary);
+  text-align: right;
+  background: var(--bg-white);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.dashboard-charts button.group-breakdown-row {
+  cursor: pointer;
+}
+
+.dashboard-charts button.group-breakdown-row:hover,
+.dashboard-charts .group-breakdown-row.selected {
+  background: var(--bg-light);
+}
+
+.dashboard-charts .group-breakdown-row:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-charts .group-breakdown-row > :first-child {
+  text-align: left;
+}
+
+.dashboard-charts .group-breakdown-columns {
+  min-height: 38px;
+  color: var(--text-muted);
+  background: var(--bg-light);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.dashboard-charts .group-breakdown-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.dashboard-charts .group-breakdown-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-charts .group-breakdown-name strong {
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+}
+
 @media (max-width: 768px) {
   .dashboard-charts .analytics-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -182,6 +466,38 @@
   .dashboard-charts .charts-grid {
     grid-template-columns: 1fr;
   }
+
+  .dashboard-charts .analytics-filters {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .dashboard-charts .group-filter {
+    flex: 1 1 220px;
+  }
+
+  .dashboard-charts .group-filter select {
+    width: 100%;
+  }
+
+  .dashboard-charts .group-breakdown-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-charts .group-breakdown-header input {
+    width: 100%;
+  }
+
+  .dashboard-charts .chat-activity-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-charts .chat-activity-header input {
+    width: 100%;
+  }
+
   .dashboard-charts .chart-wide {
     grid-column: auto;
   }

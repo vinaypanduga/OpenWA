@@ -2,6 +2,8 @@ import { Reflector } from '@nestjs/core';
 import { StatsController } from './stats.controller';
 import { REQUIRED_ROLE_KEY } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
+import { StatsQueryDto } from './dto/stats-query.dto';
+import { validate } from 'class-validator';
 
 // the global stats routes aggregate across EVERY session and carry no scope param, so the
 // ApiKeyGuard's allowedSessions fence doesn't apply. They must require ADMIN so a VIEWER / a
@@ -21,5 +23,26 @@ describe('StatsController access control', () => {
   it('per-session stats is not globally ADMIN-gated (scope-enforced by its :sessionId param)', () => {
     const role = reflector.get<ApiKeyRole | undefined>(REQUIRED_ROLE_KEY, proto.getSessionStats);
     expect(role).toBeUndefined();
+  });
+
+  it('forwards the optional group filter to the statistics service', async () => {
+    const getMessageStats = jest.fn().mockResolvedValue({});
+    const controller = new StatsController({ getMessageStats } as never);
+
+    await controller.getMessageStats({ period: '7d', groupId: 'alpha@g.us' });
+
+    expect(getMessageStats).toHaveBeenCalledWith('7d', 'alpha@g.us');
+  });
+});
+
+describe('StatsQueryDto group filter', () => {
+  const errorsFor = (groupId: string) => validate(Object.assign(new StatsQueryDto(), { groupId }));
+
+  it('accepts a WhatsApp group JID', async () => {
+    await expect(errorsFor('120363000000000000@g.us')).resolves.toHaveLength(0);
+  });
+
+  it.each(['@g.us', 'person@c.us', 'group name@g.us'])('rejects invalid group id %s', async groupId => {
+    await expect(errorsFor(groupId)).resolves.not.toHaveLength(0);
   });
 });

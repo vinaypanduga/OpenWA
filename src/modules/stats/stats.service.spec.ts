@@ -110,6 +110,74 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     expect(stats.summary).toEqual({ sent: 2, received: 2, interactions: 3 });
   });
 
+  it('filters every message metric to one group while retaining the all-group breakdown', async () => {
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's1', name: 'primary', status: SessionStatus.READY, config: {} }));
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's2', name: 'secondary', status: SessionStatus.READY, config: {} }));
+
+    await seedMessage({
+      chatId: 'alpha@g.us',
+      chatName: 'Alpha Team',
+      body: 'hello',
+      direction: MessageDirection.OUTGOING,
+    });
+    await seedMessage({
+      chatId: 'alpha@g.us',
+      chatName: 'Alpha Team',
+      type: 'image',
+      body: '',
+      metadata: { media: { mimetype: 'image/png' } },
+      direction: MessageDirection.INCOMING,
+    });
+    await seedMessage({
+      sessionId: 's2',
+      chatId: 'alpha@g.us',
+      chatName: 'Alpha Team',
+      body: 'second session',
+      direction: MessageDirection.OUTGOING,
+    });
+    await seedMessage({
+      chatId: 'beta@g.us',
+      chatName: 'Beta Team',
+      body: 'another group',
+      direction: MessageDirection.OUTGOING,
+    });
+    await seedMessage({
+      chatId: 'person@c.us',
+      chatName: 'Direct contact',
+      body: 'private',
+      direction: MessageDirection.INCOMING,
+    });
+
+    const stats = await service.getMessageStats('24h', 'alpha@g.us');
+
+    expect(stats.summary).toEqual({ sent: 2, received: 1, interactions: 2 });
+    expect(stats.timeSeries.reduce((total, point) => total + point.sent + point.received, 0)).toBe(3);
+    expect(stats.byType).toEqual({ text: 2, image: 1 });
+    expect(stats.bySession).toEqual(
+      expect.arrayContaining([
+        { sessionId: 's1', name: 'primary', sent: 1, received: 1 },
+        { sessionId: 's2', name: 'secondary', sent: 1, received: 0 },
+      ]),
+    );
+    expect(stats.topChats).toHaveLength(1);
+    expect(stats.topChats[0]).toMatchObject({
+      chatId: 'alpha@g.us',
+      chatName: 'Alpha Team',
+      sent: 2,
+      received: 1,
+      messageCount: 3,
+    });
+    expect(stats.topChats[0].lastActive).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(stats.groupBreakdown).toEqual([
+      { groupId: 'alpha@g.us', groupName: 'Alpha Team', sent: 2, received: 1, total: 3 },
+      { groupId: 'beta@g.us', groupName: 'Beta Team', sent: 1, received: 0, total: 1 },
+    ]);
+  });
+
   it('getMessageStats topChats surfaces chatName via the MAX aggregate (ignoring null rows)', async () => {
     await ds
       .getRepository(Session)

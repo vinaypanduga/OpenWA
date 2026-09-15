@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   sessionApi,
   webhookApi,
@@ -40,7 +40,7 @@ export const queryKeys = {
   engines: ['engines'] as const,
   currentEngine: ['engines', 'current'] as const,
   statsOverview: ['stats', 'overview'] as const,
-  statsMessages: (period: string) => ['stats', 'messages', period] as const,
+  statsMessages: (period: string, groupId = '') => ['stats', 'messages', period, groupId] as const,
 };
 
 // ── Session Queries ───────────────────────────────────────────────────
@@ -67,6 +67,18 @@ export function useSessionGroupsQuery(sessionId: string, enabled: boolean) {
     queryFn: () => sessionApi.getGroups(sessionId),
     enabled: enabled && !!sessionId,
     staleTime: 60_000,
+  });
+}
+
+/** Load authoritative WhatsApp group subjects for every ready dashboard session. */
+export function useSessionGroupListsQueries(sessionIds: string[]) {
+  return useQueries({
+    queries: sessionIds.map(sessionId => ({
+      queryKey: queryKeys.sessionGroups(sessionId),
+      queryFn: () => sessionApi.getGroups(sessionId),
+      staleTime: 60_000,
+      retry: false,
+    })),
   });
 }
 
@@ -412,10 +424,10 @@ export function useStatsOverviewQuery() {
   });
 }
 
-export function useStatsMessagesQuery(period: StatsPeriod) {
+export function useStatsMessagesQuery(period: StatsPeriod, groupId = '') {
   return useQuery({
-    queryKey: queryKeys.statsMessages(period),
-    queryFn: () => statsApi.getMessages(period),
+    queryKey: queryKeys.statsMessages(period, groupId),
+    queryFn: () => statsApi.getMessages(period, groupId || undefined),
     staleTime: 30_000,
     retry: false,
   });

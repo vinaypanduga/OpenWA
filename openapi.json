@@ -7058,6 +7058,18 @@
               "type": "string",
               "enum": ["24h", "7d", "30d"]
             }
+          },
+          {
+            "name": "groupId",
+            "required": false,
+            "in": "query",
+            "description": "Limit every returned metric to one WhatsApp group chat.",
+            "schema": {
+              "maxLength": 255,
+              "pattern": "^[^@\\s]+@g\\.us$",
+              "example": "120363000000000000@g.us",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -14248,7 +14260,7 @@
           },
           "interactions": {
             "type": "number",
-            "description": "Distinct chats with message activity during the period.",
+            "description": "Distinct session-and-chat pairs with message activity during the period.",
             "example": 42
           }
         },
@@ -14307,12 +14319,54 @@
             "nullable": true,
             "description": "Null when no name is known for the chat."
           },
+          "sent": {
+            "type": "number",
+            "description": "Messages sent by the account to this chat.",
+            "example": 18
+          },
+          "received": {
+            "type": "number",
+            "description": "Messages received from this chat.",
+            "example": 24
+          },
           "messageCount": {
             "type": "number",
             "example": 42
+          },
+          "lastActive": {
+            "type": "string",
+            "description": "Most recent message timestamp.",
+            "example": "2026-08-07 12:34:56"
           }
         },
-        "required": ["chatId", "chatName", "messageCount"]
+        "required": ["chatId", "chatName", "sent", "received", "messageCount", "lastActive"]
+      },
+      "StatsGroupBreakdownDto": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "example": "120363000000000000@g.us"
+          },
+          "groupName": {
+            "type": "string",
+            "nullable": true,
+            "description": "An available stored name for the group."
+          },
+          "sent": {
+            "type": "number",
+            "example": 65
+          },
+          "received": {
+            "type": "number",
+            "example": 41
+          },
+          "total": {
+            "type": "number",
+            "example": 106
+          }
+        },
+        "required": ["groupId", "groupName", "sent", "received", "total"]
       },
       "MessageStatsResponseDto": {
         "type": "object",
@@ -14354,9 +14408,16 @@
             "items": {
               "$ref": "#/components/schemas/StatsTopChatDto"
             }
+          },
+          "groupBreakdown": {
+            "description": "Per-group message totals for the requested period, unaffected by the optional groupId filter.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatsGroupBreakdownDto"
+            }
           }
         },
-        "required": ["summary", "timeSeries", "byType", "bySession", "topChats"]
+        "required": ["summary", "timeSeries", "byType", "bySession", "topChats", "groupBreakdown"]
       },
       "SessionStatsSessionDto": {
         "type": "object",

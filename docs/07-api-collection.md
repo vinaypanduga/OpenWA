@@ -1313,10 +1313,17 @@ curl "$BASE/api/stats/overview" \
 
 #### GET /api/stats/messages
 
-Message stats over a period (`24h` | `7d` | `30d`, default `24h`). ADMIN key required.
+Message stats over a period (`24h` | `7d` | `30d`, default `24h`). Add an optional `groupId` ending in `@g.us` to filter every metric to one WhatsApp group. The response's `groupBreakdown` still lists all active groups. The dashboard labels `summary.interactions` as **Active chats**: one or 100 messages in the same chat through the same WhatsApp session count as one, not as a message or participant count. Each `topChats` row also reports sent, received, total-message, and last-active values for searchable contact activity. ADMIN key required.
 
 ```bash
 curl "$BASE/api/stats/messages?period=7d" \
+  -H "X-API-Key: $API_KEY"
+```
+
+Group-level example:
+
+```bash
+curl "$BASE/api/stats/messages?period=7d&groupId=120363000000000000@g.us" \
   -H "X-API-Key: $API_KEY"
 ```
 

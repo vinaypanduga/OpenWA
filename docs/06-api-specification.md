@@ -5014,33 +5014,53 @@ Notes: raw handler return (no envelope). `sessions.byStatus` is keyed by the sto
 
 #### GET /api/stats/messages
 
-Get message statistics over a period: time series, counts by type, by session, and top chats.
+Get message statistics over a period: headline totals, time series, counts by type and session, top chats, and a WhatsApp group breakdown. Every metric can optionally be narrowed to one group.
 
 **Auth:** API key (ADMIN) that is not restricted to specific sessions — a cross-session aggregate, so a session-scoped key is rejected with `403` (`@RequireUnscopedKey`).
 
 **Query parameters**
 
-| Name     | Type                     | Required | Default | Description                                                                                                                    |
-| -------- | ------------------------ | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `period` | `'24h' \| '7d' \| '30d'` | No       | `24h`   | Window for the report. `@IsIn(['24h','7d','30d'])` — any other value → `400`. Bucket interval is `hour` for `24h`, else `day`. |
+| Name      | Type                     | Required | Default | Description                                                                                                                    |
+| --------- | ------------------------ | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `period`  | `'24h' \| '7d' \| '30d'` | No       | `24h`   | Window for the report. `@IsIn(['24h','7d','30d'])` — any other value → `400`. Bucket interval is `hour` for `24h`, else `day`. |
+| `groupId` | string                   | No       | —       | WhatsApp group JID to filter by, for example `120363000000000000@g.us`. Must end in `@g.us` and be at most 255 characters.     |
 
 **Response** `200`
 
 ```json
 {
+  "summary": { "sent": 32, "received": 22, "interactions": 2 },
   "timeSeries": [
     { "timestamp": "2026-06-25 10:00:00", "sent": 12, "received": 8 },
     { "timestamp": "2026-06-25 11:00:00", "sent": 20, "received": 14 }
   ],
   "byType": { "chat": 180, "image": 24, "unknown": 3 },
   "bySession": [{ "sessionId": "9f1c…", "name": "support-line", "sent": 200, "received": 140 }],
-  "topChats": [{ "chatId": "6281234567890@c.us", "messageCount": 320 }]
+  "topChats": [
+    {
+      "chatId": "6281234567890@c.us",
+      "chatName": "Ari",
+      "sent": 21,
+      "received": 33,
+      "messageCount": 54,
+      "lastActive": "2026-06-25 11:42:07"
+    }
+  ],
+  "groupBreakdown": [
+    {
+      "groupId": "120363000000000000@g.us",
+      "groupName": "Support Team",
+      "sent": 32,
+      "received": 22,
+      "total": 54
+    }
+  ]
 }
 ```
 
-Notes: raw handler return. `timeSeries.timestamp` is a DB-formatted bucket string — hourly `YYYY-MM-DD HH:00:00` for `24h`, daily `YYYY-MM-DD` for `7d`/`30d` — sorted ascending. `byType` keys are message-type strings (a null type becomes `unknown`). `bySession.name` is `Unknown` when the session is not found. `topChats` is the top 10 by `messageCount` DESC. All counts are numbers.
+Notes: raw handler return. The dashboard labels `summary.interactions` as **Active chats**: each unique session-and-chat pair with at least one incoming or outgoing message is counted once. One message or 100 messages in the same chat through the same WhatsApp session still count as one active chat; it is not a message or participant count. When `groupId` is supplied, `summary`, `timeSeries`, `byType`, `bySession`, and `topChats` contain only that group. `groupBreakdown` deliberately remains unfiltered so clients can display or switch among every active group in the period; direct chats are excluded from that array. Its message share is the group's `total` divided by the sum of `total` across this group-only array. `timeSeries.timestamp` is a DB-formatted bucket string — hourly `YYYY-MM-DD HH:00:00` for `24h`, daily `YYYY-MM-DD` for `7d`/`30d` — sorted ascending. `byType` keys are message-type strings (a null type becomes `unknown`). `bySession.name` is `Unknown` when the session is not found. `topChats` contains up to 1,000 chats by `messageCount` DESC so the dashboard can search names and phone numbers; `received` is what the chat sent to the account, `sent` is the account's replies, and `lastActive` is the most recent message. All counts are numbers.
 
-**Errors:** `400` — `period` not in the enum, or any non-whitelisted query field (strict `whitelist` + `forbidNonWhitelisted`) · `401` — missing/invalid API key · `403` — role below `ADMIN`, or the key is session-restricted.
+**Errors:** `400` — `period` not in the enum, `groupId` is not a valid group JID, or any non-whitelisted query field (strict `whitelist` + `forbidNonWhitelisted`) · `401` — missing/invalid API key · `403` — role below `ADMIN`, or the key is session-restricted.
 
 #### GET /api/stats/sessions/:sessionId
 
