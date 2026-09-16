@@ -443,6 +443,8 @@ export function useStatsMessagesQuery(period: StatsPeriod, groupIds: readonly st
     queryKey: queryKeys.statsMessages(period, normalizedGroupIds),
     queryFn: () => statsApi.getMessages(period, normalizedGroupIds),
     staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     retry: false,
   });
 }

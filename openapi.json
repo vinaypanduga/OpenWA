@@ -14308,12 +14308,12 @@
           },
           "deliveredRecipients": {
             "type": "number",
-            "description": "Unique recipient deliveries summed across outgoing messages.",
+            "description": "Sum of each chat’s distinct people who received at least one outgoing message during the period.",
             "example": 340
           },
           "readRecipients": {
             "type": "number",
-            "description": "Unique recipient reads summed across outgoing messages.",
+            "description": "Sum of each chat’s distinct people who read at least one outgoing message during the period.",
             "example": 275
           },
           "reactedMessages": {
@@ -14411,12 +14411,12 @@
           },
           "deliveredRecipients": {
             "type": "number",
-            "description": "Recipient deliveries across outgoing messages in this chat.",
+            "description": "Distinct people who received an outgoing message in this chat.",
             "example": 48
           },
           "readRecipients": {
             "type": "number",
-            "description": "Recipient reads across outgoing messages in this chat.",
+            "description": "Distinct people who read an outgoing message in this chat.",
             "example": 37
           }
         },
@@ -14457,12 +14457,12 @@
           },
           "deliveredRecipients": {
             "type": "number",
-            "description": "Member deliveries across outgoing messages in this group.",
+            "description": "Distinct members who received an outgoing message in this group.",
             "example": 225
           },
           "readRecipients": {
             "type": "number",
-            "description": "Member reads across outgoing messages in this group.",
+            "description": "Distinct members who read an outgoing message in this group.",
             "example": 190
           }
         },

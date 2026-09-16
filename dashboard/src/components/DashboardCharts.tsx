@@ -212,6 +212,14 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
     : groupBreakdown;
   const allGroupMessages = groupBreakdown.reduce((total, group) => total + group.total, 0);
   const summary = data?.summary;
+  const deliveredPeopleHelp = t('dashboard.tooltips.deliveredPeople', {
+    defaultValue:
+      'The delivery count from each selected group is added together. Within one group, each person is counted once even after receiving several messages. A person in multiple groups counts once in each group. A read also proves delivery. WhatsApp receipts are best-effort and can be unavailable because of privacy settings or missing history.',
+  });
+  const readPeopleHelp = t('dashboard.tooltips.readPeople', {
+    defaultValue:
+      'The read count from each selected group is added together. Within one group, each person is counted once even after reading several messages. A person in multiple groups counts once in each group. WhatsApp receipts are best-effort and can be unavailable because of privacy settings or missing history.',
+  });
   const hasData =
     Boolean(summary && (summary.sent > 0 || summary.received > 0 || summary.interactions > 0)) ||
     timeSeries.length > 0 ||
@@ -416,7 +424,7 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                     <WidgetTooltip
                       text={t('dashboard.tooltips.sentMessageInteractions', {
                         defaultValue:
-                          'Recipient acknowledgements for messages your account sent. Each member is counted once per message; the same member may count again for another message.',
+                          'Adds the distinct delivered and read audiences from each selected group. A person who belongs to several groups contributes once to each group.',
                       })}
                     />
                   </span>
@@ -434,11 +442,17 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                   <strong>{summary?.sent.toLocaleString() ?? '0'}</strong>
                 </div>
                 <div>
-                  <span>{t('analytics.deliveredTo', { defaultValue: 'Delivered to' })}</span>
+                  <span className="receipt-metric-label">
+                    {t('analytics.deliveredPeople', { defaultValue: 'Delivered people' })}
+                    <WidgetTooltip text={deliveredPeopleHelp} label="About delivered people" />
+                  </span>
                   <strong>{summary?.deliveredRecipients.toLocaleString() ?? '0'}</strong>
                 </div>
                 <div>
-                  <span>{t('analytics.readBy', { defaultValue: 'Read by' })}</span>
+                  <span className="receipt-metric-label">
+                    {t('analytics.readers', { defaultValue: 'Readers' })}
+                    <WidgetTooltip text={readPeopleHelp} label="About readers" />
+                  </span>
                   <strong>{summary?.readRecipients.toLocaleString() ?? '0'}</strong>
                 </div>
                 <div>
@@ -453,7 +467,7 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
               <p>
                 <Eye size={14} aria-hidden="true" />
                 {t('analytics.readRateExplanation', {
-                  defaultValue: 'Read rate is recipients who read ÷ recipients who received the sent messages.',
+                  defaultValue: 'Read rate is the summed group read counts ÷ the summed group delivery counts.',
                 })}
               </p>
             </div>
@@ -614,7 +628,7 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                 })}{' '}
                 {t('dashboard.charts.receiptCountExplanation', {
                   defaultValue:
-                    'Delivered and Read count unique recipients for each outgoing message; the same member can count again on another message.',
+                    'Delivered and Read show distinct people in each row. The headline total adds these per-chat counts.',
                 })}
               </p>
               {chatActivity.length === 0 ? (
@@ -630,8 +644,14 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                     <span>{t('dashboard.charts.fromThem', { defaultValue: 'From them' })}</span>
                     <span>{t('dashboard.charts.replies', { defaultValue: 'Replies' })}</span>
                     <span>{t('dashboard.charts.total', { defaultValue: 'Total' })}</span>
-                    <span>{t('dashboard.charts.delivered', { defaultValue: 'Delivered' })}</span>
-                    <span>{t('dashboard.charts.read', { defaultValue: 'Read' })}</span>
+                    <span className="receipt-column-heading">
+                      {t('dashboard.charts.delivered', { defaultValue: 'Delivered' })}
+                      <WidgetTooltip text={deliveredPeopleHelp} label="About delivered people" />
+                    </span>
+                    <span className="receipt-column-heading">
+                      {t('dashboard.charts.read', { defaultValue: 'Read' })}
+                      <WidgetTooltip text={readPeopleHelp} label="About readers" />
+                    </span>
                     <span>{t('dashboard.charts.activity', { defaultValue: 'Activity' })}</span>
                   </div>
                   {visibleChatActivity.map(chat => (
@@ -676,8 +696,8 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
             <p className="group-breakdown-note">
               <strong>Message share</strong> = this group’s total messages ÷ messages across all groups in the selected
               period. Direct messages are not included in this percentage. <strong>Delivered</strong> and{' '}
-              <strong>Read</strong> count unique members per outgoing message, so one member can count again for another
-              message.
+              <strong>Read</strong> show distinct members in each group during the selected period. Each member is
+              counted once per group, even across several messages; the headline total adds the group rows.
             </p>
             {groupBreakdown.length === 0 ? (
               <div className="charts-empty small">No group activity in this period.</div>
@@ -690,8 +710,14 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                   <span>Sent</span>
                   <span>Received</span>
                   <span>Total</span>
-                  <span>Delivered</span>
-                  <span>Read</span>
+                  <span className="receipt-column-heading">
+                    Delivered
+                    <WidgetTooltip text={deliveredPeopleHelp} label="About delivered people" />
+                  </span>
+                  <span className="receipt-column-heading">
+                    Read
+                    <WidgetTooltip text={readPeopleHelp} label="About readers" />
+                  </span>
                   <span>Message share</span>
                 </div>
                 {visibleGroups.map(group => (

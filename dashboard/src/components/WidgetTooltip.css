@@ -66,6 +66,14 @@
   transform: translateY(0);
 }
 
+.widget-tooltip-content-fixed {
+  position: fixed;
+  z-index: 1000;
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+}
+
 [dir='rtl'] .widget-tooltip-content {
   right: 0;
   left: auto;

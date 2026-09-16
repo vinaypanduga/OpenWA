@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { Session, SessionStatus } from '../session/entities/session.entity';
-import { Message, MessageStatus } from '../message/entities/message.entity';
+import { Message, MessageDirection, MessageStatus } from '../message/entities/message.entity';
 import { CacheService } from '../../common/cache';
 
 /**
@@ -103,6 +103,24 @@ export interface SessionStats {
   messages: { sent: number; received: number; today: number; failed: number };
   topChats: Array<{ chatId: string; chatName: string | null; count: number; lastActive: string }>;
   hourlyActivity: Array<{ hour: number; sent: number; received: number }>;
+}
+
+interface ReceiptAudience {
+  delivered: Set<string>;
+  read: Set<string>;
+}
+
+function receiptMembers(value: unknown): string[] {
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value) as unknown;
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((member): member is string => typeof member === 'string' && member.length > 0);
 }
 
 @Injectable()
@@ -239,8 +257,6 @@ export class StatsService {
       .createQueryBuilder('m')
       .select(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
       .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
-      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.deliveryCount ELSE 0 END)`, 'deliveredRecipients')
-      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.readCount ELSE 0 END)`, 'readRecipients')
       .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' AND m.reactionCount > 0 THEN 1 ELSE 0 END)`, 'reactedMessages')
       .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.reactionCount ELSE 0 END)`, 'emojiReactions')
       // A chat JID can appear under multiple sessions; those are separate operator conversations.
@@ -253,18 +269,23 @@ export class StatsService {
       sent: string;
       received: string;
       interactions: string;
-      deliveredRecipients: string;
-      readRecipients: string;
       reactedMessages: string;
       emojiReactions: string;
     }>();
+
+    // Load all chats once because groupBreakdown intentionally remains unfiltered. Headline metrics
+    // are then reduced to the selected chat set without erasing receipt totals for comparison rows.
+    const receiptAudienceByChat = await this.getReceiptAudienceByChat(since);
+    const summaryReceiptTotals = this.sumReceiptAudiences(
+      groupIds.length ? groupIds.map(groupId => receiptAudienceByChat.get(groupId)) : receiptAudienceByChat.values(),
+    );
 
     const summary: MessageAnalyticsSummary = {
       sent: parseInt(summaryRaw?.sent || '0'),
       received: parseInt(summaryRaw?.received || '0'),
       interactions: parseInt(summaryRaw?.interactions || '0'),
-      deliveredRecipients: parseInt(summaryRaw?.deliveredRecipients || '0'),
-      readRecipients: parseInt(summaryRaw?.readRecipients || '0'),
+      deliveredRecipients: summaryReceiptTotals.delivered,
+      readRecipients: summaryReceiptTotals.read,
       reactedMessages: parseInt(summaryRaw?.reactedMessages || '0'),
       emojiReactions: parseInt(summaryRaw?.emojiReactions || '0'),
     };
@@ -331,8 +352,6 @@ export class StatsService {
       .addSelect('MAX(m.chatName)', 'chatName')
       .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
       .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
-      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.deliveryCount ELSE 0 END)`, 'deliveredRecipients')
-      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.readCount ELSE 0 END)`, 'readRecipients')
       .addSelect(maxCreatedAtSql(this.dataDbType), 'lastActive')
       .where('m.createdAt >= :since', { since });
     if (groupIds.length) topChatsQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
@@ -350,8 +369,6 @@ export class StatsService {
         chatName: string | null;
         sent: string;
         received: string;
-        deliveredRecipients: string;
-        readRecipients: string;
         lastActive: string;
       }>();
 
@@ -365,8 +382,6 @@ export class StatsService {
       .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
       .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
       .addSelect('COUNT(*)', 'total')
-      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.deliveryCount ELSE 0 END)`, 'deliveredRecipients')
-      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.readCount ELSE 0 END)`, 'readRecipients')
       .where('m.createdAt >= :since', { since })
       .andWhere('m.chatId LIKE :groupSuffix', { groupSuffix: '%@g.us' })
       .groupBy('m.chatId')
@@ -377,8 +392,6 @@ export class StatsService {
         sent: string;
         received: string;
         total: string;
-        deliveredRecipients: string;
-        readRecipients: string;
       }>();
 
     return {
@@ -386,26 +399,84 @@ export class StatsService {
       timeSeries,
       byType,
       bySession,
-      topChats: topChats.map(c => ({
-        chatId: c.chatId,
-        chatName: c.chatName ?? null,
-        sent: parseInt(c.sent || '0'),
-        received: parseInt(c.received || '0'),
-        messageCount: parseInt(c.messageCount),
-        deliveredRecipients: parseInt(c.deliveredRecipients || '0'),
-        readRecipients: parseInt(c.readRecipients || '0'),
-        lastActive: c.lastActive,
-      })),
-      groupBreakdown: groupBreakdownRaw.map(group => ({
-        groupId: group.groupId,
-        groupName: group.groupName ?? null,
-        sent: parseInt(group.sent || '0'),
-        received: parseInt(group.received || '0'),
-        total: parseInt(group.total || '0'),
-        deliveredRecipients: parseInt(group.deliveredRecipients || '0'),
-        readRecipients: parseInt(group.readRecipients || '0'),
-      })),
+      topChats: topChats.map(c => {
+        const audience = receiptAudienceByChat.get(c.chatId);
+        return {
+          chatId: c.chatId,
+          chatName: c.chatName ?? null,
+          sent: parseInt(c.sent || '0'),
+          received: parseInt(c.received || '0'),
+          messageCount: parseInt(c.messageCount),
+          deliveredRecipients: audience?.delivered.size ?? 0,
+          readRecipients: audience?.read.size ?? 0,
+          lastActive: c.lastActive,
+        };
+      }),
+      groupBreakdown: groupBreakdownRaw.map(group => {
+        const audience = receiptAudienceByChat.get(group.groupId);
+        return {
+          groupId: group.groupId,
+          groupName: group.groupName ?? null,
+          sent: parseInt(group.sent || '0'),
+          received: parseInt(group.received || '0'),
+          total: parseInt(group.total || '0'),
+          deliveredRecipients: audience?.delivered.size ?? 0,
+          readRecipients: audience?.read.size ?? 0,
+        };
+      }),
     };
+  }
+
+  /**
+   * Unique people who acknowledged at least one outgoing message, grouped by chat. The
+   * denormalized integer columns answer per-message questions, but summing them makes the same
+   * member appear once for every message they received. Merge the hidden recipient sets within
+   * each chat, then let the summary add those per-chat audiences. This small projection avoids
+   * loading message bodies.
+   */
+  private async getReceiptAudienceByChat(since: Date): Promise<Map<string, ReceiptAudience>> {
+    const query = this.messageRepo
+      .createQueryBuilder('m')
+      .select('m.chatId', 'chatId')
+      .addSelect('m.deliveredTo', 'deliveredTo')
+      .addSelect('m.readBy', 'readBy')
+      .where('m.createdAt >= :since', { since })
+      .andWhere('m.direction = :direction', { direction: MessageDirection.OUTGOING })
+      .andWhere('(m.deliveryCount > 0 OR m.readCount > 0)');
+
+    const rows = await query.getRawMany<{ chatId: string; deliveredTo: unknown; readBy: unknown }>();
+    const byChat = new Map<string, ReceiptAudience>();
+    for (const row of rows) {
+      let chat = byChat.get(row.chatId);
+      if (!chat) {
+        chat = { delivered: new Set(), read: new Set() };
+        byChat.set(row.chatId, chat);
+      }
+      for (const member of receiptMembers(row.deliveredTo)) {
+        chat.delivered.add(member);
+      }
+      for (const member of receiptMembers(row.readBy)) {
+        // A read proves delivery even if an upstream snapshot omitted its delivery list.
+        chat.read.add(member);
+        chat.delivered.add(member);
+      }
+    }
+    return byChat;
+  }
+
+  /** Add each chat's distinct audience; a person present in two groups counts once in each group. */
+  private sumReceiptAudiences(audiences: Iterable<ReceiptAudience | undefined>): {
+    delivered: number;
+    read: number;
+  } {
+    let delivered = 0;
+    let read = 0;
+    for (const audience of audiences) {
+      if (!audience) continue;
+      delivered += audience.delivered.size;
+      read += audience.read.size;
+    }
+    return { delivered, read };
   }
 
   async getSessionStats(sessionId: string): Promise<SessionStats> {

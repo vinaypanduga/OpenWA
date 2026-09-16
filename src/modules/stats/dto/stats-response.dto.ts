@@ -62,10 +62,16 @@ export class MessageAnalyticsSummaryDto {
   @ApiProperty({ description: 'Distinct session-and-chat pairs with message activity during the period.', example: 42 })
   interactions!: number;
 
-  @ApiProperty({ description: 'Unique recipient deliveries summed across outgoing messages.', example: 340 })
+  @ApiProperty({
+    description: 'Sum of each chat’s distinct people who received at least one outgoing message during the period.',
+    example: 340,
+  })
   deliveredRecipients!: number;
 
-  @ApiProperty({ description: 'Unique recipient reads summed across outgoing messages.', example: 275 })
+  @ApiProperty({
+    description: 'Sum of each chat’s distinct people who read at least one outgoing message during the period.',
+    example: 275,
+  })
   readRecipients!: number;
 
   @ApiProperty({ description: 'Outgoing messages with at least one active emoji reaction.', example: 18 })
@@ -95,10 +101,10 @@ export class StatsTopChatDto {
 
   @ApiProperty({ example: 42 }) messageCount!: number;
 
-  @ApiProperty({ description: 'Recipient deliveries across outgoing messages in this chat.', example: 48 })
+  @ApiProperty({ description: 'Distinct people who received an outgoing message in this chat.', example: 48 })
   deliveredRecipients!: number;
 
-  @ApiProperty({ description: 'Recipient reads across outgoing messages in this chat.', example: 37 })
+  @ApiProperty({ description: 'Distinct people who read an outgoing message in this chat.', example: 37 })
   readRecipients!: number;
 
   @ApiProperty({ description: 'Most recent message timestamp.', example: '2026-08-07 12:34:56' })
@@ -114,9 +120,9 @@ export class StatsGroupBreakdownDto {
   @ApiProperty({ example: 65 }) sent!: number;
   @ApiProperty({ example: 41 }) received!: number;
   @ApiProperty({ example: 106 }) total!: number;
-  @ApiProperty({ description: 'Member deliveries across outgoing messages in this group.', example: 225 })
+  @ApiProperty({ description: 'Distinct members who received an outgoing message in this group.', example: 225 })
   deliveredRecipients!: number;
-  @ApiProperty({ description: 'Member reads across outgoing messages in this group.', example: 190 })
+  @ApiProperty({ description: 'Distinct members who read an outgoing message in this group.', example: 190 })
   readRecipients!: number;
 }
 

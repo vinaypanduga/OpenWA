@@ -380,6 +380,37 @@
   text-transform: uppercase;
 }
 
+.dashboard-charts .receipt-metric-label,
+.dashboard-charts .receipt-column-heading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.1rem;
+}
+
+.dashboard-charts .receipt-metric-label {
+  justify-content: flex-start;
+}
+
+.dashboard-charts .receipt-metric-label .widget-tooltip-trigger,
+.dashboard-charts .receipt-column-heading .widget-tooltip-trigger {
+  width: 18px;
+  height: 18px;
+}
+
+.dashboard-charts .receipt-metric-label .widget-tooltip-content,
+.dashboard-charts .receipt-column-heading .widget-tooltip-content {
+  right: 0;
+  left: auto;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+}
+
 .dashboard-charts .sent-message-interactions-values strong {
   color: var(--text-primary);
   font-size: 1.35rem;

@@ -101,6 +101,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       status: MessageStatus.READ,
       deliveryCount: 1,
       readCount: 1,
+      deliveredTo: ['alice@c.us'],
+      readBy: ['alice@c.us'],
       reactionCount: 2,
     });
     await seedMessage({
@@ -108,6 +110,7 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       direction: MessageDirection.OUTGOING,
       status: MessageStatus.DELIVERED,
       deliveryCount: 1,
+      deliveredTo: ['alice@c.us'],
     });
     await seedMessage({ chatId: 'bob@c.us', direction: MessageDirection.INCOMING, status: MessageStatus.READ });
     await seedMessage({
@@ -123,7 +126,7 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       sent: 2,
       received: 2,
       interactions: 3,
-      deliveredRecipients: 2,
+      deliveredRecipients: 1,
       readRecipients: 1,
       reactedMessages: 1,
       emojiReactions: 2,
@@ -145,6 +148,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       direction: MessageDirection.OUTGOING,
       deliveryCount: 4,
       readCount: 3,
+      deliveredTo: ['a@c.us', 'b@c.us', 'c@c.us', 'd@c.us'],
+      readBy: ['a@c.us', 'b@c.us', 'c@c.us'],
       reactionCount: 3,
     });
     await seedMessage({
@@ -163,6 +168,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       direction: MessageDirection.OUTGOING,
       deliveryCount: 5,
       readCount: 2,
+      deliveredTo: ['a@c.us', 'b@c.us', 'f@c.us', 'g@c.us'],
+      readBy: ['a@c.us', 'e@c.us'],
       reactionCount: 1,
     });
     await seedMessage({
@@ -172,6 +179,28 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       direction: MessageDirection.OUTGOING,
       deliveryCount: 2,
       readCount: 1,
+      // This member also appears in Alpha. The headline must add the per-group audiences rather
+      // than deduplicating the same person across different groups.
+      deliveredTo: ['a@c.us', 'i@c.us'],
+      readBy: ['a@c.us'],
+    });
+    await seedMessage({
+      chatId: 'gamma@g.us',
+      chatName: 'Gamma Team',
+      body: 'not selected',
+      direction: MessageDirection.OUTGOING,
+      deliveryCount: 1,
+      readCount: 1,
+      deliveredTo: ['j@c.us'],
+      readBy: ['j@c.us'],
+    });
+    await seedMessage({
+      chatId: 'gamma@g.us',
+      chatName: 'Gamma Team',
+      body: 'also not selected',
+      direction: MessageDirection.OUTGOING,
+      deliveryCount: 1,
+      deliveredTo: ['j@c.us'],
     });
     await seedMessage({
       chatId: 'person@c.us',
@@ -186,8 +215,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       sent: 3,
       received: 1,
       interactions: 3,
-      deliveredRecipients: 11,
-      readRecipients: 6,
+      deliveredRecipients: 9,
+      readRecipients: 5,
       reactedMessages: 2,
       emojiReactions: 4,
     });
@@ -208,8 +237,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
           sent: 2,
           received: 1,
           messageCount: 3,
-          deliveredRecipients: 9,
-          readRecipients: 5,
+          deliveredRecipients: 7,
+          readRecipients: 4,
         }),
         expect.objectContaining({
           chatId: 'beta@g.us',
@@ -223,26 +252,38 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       ]),
     );
     expect(stats.topChats[0].lastActive).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
-    expect(stats.groupBreakdown).toEqual([
-      {
-        groupId: 'alpha@g.us',
-        groupName: 'Alpha Team',
-        sent: 2,
-        received: 1,
-        total: 3,
-        deliveredRecipients: 9,
-        readRecipients: 5,
-      },
-      {
-        groupId: 'beta@g.us',
-        groupName: 'Beta Team',
-        sent: 1,
-        received: 0,
-        total: 1,
-        deliveredRecipients: 2,
-        readRecipients: 1,
-      },
-    ]);
+    expect(stats.groupBreakdown).toHaveLength(3);
+    expect(stats.groupBreakdown).toEqual(
+      expect.arrayContaining([
+        {
+          groupId: 'alpha@g.us',
+          groupName: 'Alpha Team',
+          sent: 2,
+          received: 1,
+          total: 3,
+          deliveredRecipients: 7,
+          readRecipients: 4,
+        },
+        {
+          groupId: 'gamma@g.us',
+          groupName: 'Gamma Team',
+          sent: 2,
+          received: 0,
+          total: 2,
+          deliveredRecipients: 1,
+          readRecipients: 1,
+        },
+        {
+          groupId: 'beta@g.us',
+          groupName: 'Beta Team',
+          sent: 1,
+          received: 0,
+          total: 1,
+          deliveredRecipients: 2,
+          readRecipients: 1,
+        },
+      ]),
+    );
   });
 
   it('getMessageStats topChats surfaces chatName via the MAX aggregate (ignoring null rows)', async () => {
