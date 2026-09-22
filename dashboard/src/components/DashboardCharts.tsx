@@ -499,13 +499,13 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
               </small>
             </div>
           </div>
-          <div className="active-groups-explanation">
-            <strong>{t('analytics.activeGroups', { defaultValue: 'Active groups' })}:</strong>{' '}
-            {/* {t('analytics.activeGroupsExplanation', {
+          {/* <div className="active-groups-explanation"> */}
+          {/* <strong>{t('analytics.activeGroups', { defaultValue: 'Active groups' })}:</strong>{' '} */}
+          {/* {t('analytics.activeGroupsExplanation', {
               defaultValue:
                 'This counts WhatsApp groups, not messages. A group with 1 message or 100 messages counts as 1 active group. Direct chats are not included.',
             })} */}
-          </div>
+          {/* </div> */}
           <div className="charts-grid">
             <div className="chart-card chart-wide">
               <div className="chart-card-title">
