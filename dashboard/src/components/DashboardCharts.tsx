@@ -20,7 +20,6 @@ import {
   ChevronDown,
   Eye,
   Layers3,
-  MessageCircleMore,
   MessageSquare,
   Minus,
   Send,
@@ -192,6 +191,9 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
       )
     : groupBreakdown;
   const allGroupMessages = groupBreakdown.reduce((total, group) => total + group.total, 0);
+  const activeGroupCount = selectedGroupIds.length
+    ? groupBreakdown.filter(group => selectedGroupIdSet.has(group.groupId)).length
+    : groupBreakdown.length;
   const summary = data?.summary;
   const deliveredPeopleHelp = t('dashboard.tooltips.deliveredPeople', {
     defaultValue:
@@ -239,16 +241,16 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
           tone: 'total',
         },
         {
-          label: t('analytics.activeChats', { defaultValue: 'Active chats' }),
-          value: summary.interactions.toLocaleString(),
-          detail: t('analytics.activeChatsDetail', {
-            defaultValue: 'Different chat windows with at least one message',
+          label: t('analytics.activeGroups', { defaultValue: 'Active groups' }),
+          value: activeGroupCount.toLocaleString(),
+          detail: t('analytics.activeGroupsDetail', {
+            defaultValue: 'Groups with at least one message in this period',
           }),
-          tooltip: t('dashboard.tooltips.activeChats', {
+          tooltip: t('dashboard.tooltips.activeGroups', {
             defaultValue:
-              'A chat is counted once when it has any sent or received message. One message or 100 messages in the same chat still count as one active chat.',
+              'A WhatsApp group is counted once when it has at least one sent or received message in the selected period. Direct chats are not included.',
           }),
-          icon: MessageCircleMore,
+          icon: Layers3,
           tone: 'interactions',
         },
       ]
@@ -497,11 +499,11 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
               </small>
             </div>
           </div>
-          <div className="active-chats-explanation">
-            <strong>{t('analytics.activeChats', { defaultValue: 'Active chats' })}:</strong>{' '}
-            {t('analytics.activeChatsExplanation', {
+          <div className="active-groups-explanation">
+            <strong>{t('analytics.activeGroups', { defaultValue: 'Active groups' })}:</strong>{' '}
+            {t('analytics.activeGroupsExplanation', {
               defaultValue:
-                'This counts different chat windows, not messages. If the same group has 1 message or 100 messages through one WhatsApp session, it counts as 1 active chat.',
+                'This counts WhatsApp groups, not messages. A group with 1 message or 100 messages counts as 1 active group. Direct chats are not included.',
             })}
           </div>
           <div className="charts-grid">
