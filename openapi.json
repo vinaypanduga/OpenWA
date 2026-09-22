@@ -14400,9 +14400,19 @@
             "type": "number",
             "description": "Sent and received messages of this type.",
             "example": 42
+          },
+          "deliveredRecipients": {
+            "type": "number",
+            "description": "Sum of each chat’s distinct recipients of this message type.",
+            "example": 48
+          },
+          "readRecipients": {
+            "type": "number",
+            "description": "Sum of each chat’s distinct readers of this message type.",
+            "example": 37
           }
         },
-        "required": ["type", "sent", "received", "total"]
+        "required": ["type", "sent", "received", "total", "deliveredRecipients", "readRecipients"]
       },
       "StatsTopChatDto": {
         "type": "object",
@@ -14524,7 +14534,7 @@
             }
           },
           "byTypeBreakdown": {
-            "description": "Sent, received, and total message counts for each content type.",
+            "description": "Sent, received, total, delivered-recipient, and read-recipient counts for each content type.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StatsByTypeBreakdownDto"

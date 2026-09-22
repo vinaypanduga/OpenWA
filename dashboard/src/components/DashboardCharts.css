@@ -573,9 +573,9 @@
 
 .dashboard-charts .type-breakdown-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1.3fr) repeat(4, minmax(64px, 0.7fr));
+  grid-template-columns: minmax(120px, 1.3fr) repeat(6, minmax(64px, 0.7fr));
   align-items: center;
-  min-width: 440px;
+  min-width: 590px;
   min-height: 44px;
   padding: 0.55rem 0.7rem;
   color: var(--text-secondary);

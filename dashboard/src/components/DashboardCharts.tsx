@@ -558,7 +558,7 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                 <WidgetTooltip
                   text={t('dashboard.tooltips.messagesByType', {
                     defaultValue:
-                      'Breaks message activity down by content type, with separate sent, received, total, and message-share values.',
+                      'Breaks activity down by content type. Delivered and read count distinct people once per chat and type; a read also proves delivery.',
                   })}
                 />
               </div>
@@ -590,6 +590,8 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                       <span>{t('dashboard.charts.sent', { defaultValue: 'Sent' })}</span>
                       <span>{t('dashboard.charts.received', { defaultValue: 'Received' })}</span>
                       <span>{t('dashboard.charts.total', { defaultValue: 'Total' })}</span>
+                      <span>{t('chats.messageStatus.delivered', { defaultValue: 'Delivered' })}</span>
+                      <span>{t('chats.messageStatus.read', { defaultValue: 'Read' })}</span>
                       <span>{t('dashboard.charts.messageShare', { defaultValue: 'Share' })}</span>
                     </div>
                     {byTypeBreakdown.map(item => (
@@ -601,6 +603,8 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
                         <span>{item.sent.toLocaleString()}</span>
                         <span>{item.received.toLocaleString()}</span>
                         <span>{item.total.toLocaleString()}</span>
+                        <span>{item.deliveredRecipients.toLocaleString()}</span>
+                        <span>{item.readRecipients.toLocaleString()}</span>
                         <span>
                           {typedMessageTotal > 0 ? `${((item.total / typedMessageTotal) * 100).toFixed(1)}%` : '0%'}
                         </span>

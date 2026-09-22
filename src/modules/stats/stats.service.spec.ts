@@ -223,8 +223,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     expect(stats.timeSeries.reduce((total, point) => total + point.sent + point.received, 0)).toBe(4);
     expect(stats.byType).toEqual({ text: 3, image: 1 });
     expect(stats.byTypeBreakdown).toEqual([
-      { type: 'text', sent: 3, received: 0, total: 3 },
-      { type: 'image', sent: 0, received: 1, total: 1 },
+      { type: 'text', sent: 3, received: 0, total: 3, deliveredRecipients: 9, readRecipients: 5 },
+      { type: 'image', sent: 0, received: 1, total: 1, deliveredRecipients: 0, readRecipients: 0 },
     ]);
     expect(stats.bySession).toEqual(
       expect.arrayContaining([
@@ -303,6 +303,60 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     expect(chat?.chatName).toBe('Alice');
   });
 
+  it('counts receipt audiences once per chat and message type', async () => {
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's1', name: 'n', status: SessionStatus.READY, config: {} }));
+    await seedMessage({
+      chatId: 'team-one@g.us',
+      type: 'text',
+      body: 'first text',
+      deliveryCount: 2,
+      readCount: 1,
+      deliveredTo: ['a@c.us', 'b@c.us'],
+      readBy: ['a@c.us'],
+    });
+    await seedMessage({
+      chatId: 'team-one@g.us',
+      type: 'text',
+      body: 'second text',
+      deliveryCount: 2,
+      readCount: 1,
+      deliveredTo: ['a@c.us', 'c@c.us'],
+      readBy: ['b@c.us'],
+    });
+    await seedMessage({
+      chatId: 'team-one@g.us',
+      type: 'image',
+      body: '',
+      metadata: { media: { mimetype: 'image/png' } },
+      deliveryCount: 1,
+      readCount: 1,
+      deliveredTo: ['a@c.us'],
+      readBy: ['a@c.us'],
+    });
+    await seedMessage({
+      chatId: 'team-two@g.us',
+      type: 'image',
+      body: '',
+      metadata: { media: { mimetype: 'image/png' } },
+      deliveryCount: 1,
+      readCount: 1,
+      deliveredTo: ['a@c.us'],
+      readBy: ['a@c.us'],
+    });
+
+    const stats = await service.getMessageStats('24h');
+
+    expect(stats.byTypeBreakdown).toEqual([
+      { type: 'image', sent: 2, received: 0, total: 2, deliveredRecipients: 2, readRecipients: 2 },
+      { type: 'text', sent: 2, received: 0, total: 2, deliveredRecipients: 3, readRecipients: 2 },
+    ]);
+    // The same reader can appear in each content type, while the headline remains deduplicated per chat.
+    expect(stats.summary.deliveredRecipients).toBe(4);
+    expect(stats.summary.readRecipients).toBe(3);
+  });
+
   it('getMessageStats byType excludes content-less system/event rows (no body AND no metadata)', async () => {
     await ds
       .getRepository(Session)
@@ -317,8 +371,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     const stats = await service.getMessageStats('24h');
     expect(stats.byType).toEqual({ text: 1, image: 1 });
     expect(stats.byTypeBreakdown).toEqual([
-      { type: 'image', sent: 1, received: 0, total: 1 },
-      { type: 'text', sent: 1, received: 0, total: 1 },
+      { type: 'image', sent: 1, received: 0, total: 1, deliveredRecipients: 0, readRecipients: 0 },
+      { type: 'text', sent: 1, received: 0, total: 1, deliveredRecipients: 0, readRecipients: 0 },
     ]);
   });
 

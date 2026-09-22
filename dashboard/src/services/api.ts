@@ -1445,7 +1445,14 @@ export interface MessageStats {
   };
   timeSeries: MessageTimeSeriesPoint[];
   byType: Record<string, number>;
-  byTypeBreakdown: Array<{ type: string; sent: number; received: number; total: number }>;
+  byTypeBreakdown: Array<{
+    type: string;
+    sent: number;
+    received: number;
+    total: number;
+    deliveredRecipients: number;
+    readRecipients: number;
+  }>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;
   topChats: Array<{
     chatId: string;

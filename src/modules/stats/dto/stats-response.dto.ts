@@ -93,6 +93,10 @@ export class StatsByTypeBreakdownDto {
   @ApiProperty({ description: 'Outgoing messages of this type.', example: 18 }) sent!: number;
   @ApiProperty({ description: 'Incoming messages of this type.', example: 24 }) received!: number;
   @ApiProperty({ description: 'Sent and received messages of this type.', example: 42 }) total!: number;
+  @ApiProperty({ description: 'Sum of each chat’s distinct recipients of this message type.', example: 48 })
+  deliveredRecipients!: number;
+  @ApiProperty({ description: 'Sum of each chat’s distinct readers of this message type.', example: 37 })
+  readRecipients!: number;
 }
 
 export class StatsTopChatDto {
@@ -149,7 +153,7 @@ export class MessageStatsResponseDto {
 
   @ApiProperty({
     type: [StatsByTypeBreakdownDto],
-    description: 'Sent, received, and total message counts for each content type.',
+    description: 'Sent, received, total, delivered-recipient, and read-recipient counts for each content type.',
   })
   byTypeBreakdown!: StatsByTypeBreakdownDto[];
 

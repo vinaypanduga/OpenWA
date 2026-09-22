@@ -5045,9 +5045,30 @@ Get message statistics over a period: headline totals, time series, counts by ty
   ],
   "byType": { "chat": 180, "image": 24, "unknown": 3 },
   "byTypeBreakdown": [
-    { "type": "chat", "sent": 110, "received": 70, "total": 180 },
-    { "type": "image", "sent": 14, "received": 10, "total": 24 },
-    { "type": "unknown", "sent": 1, "received": 2, "total": 3 }
+    {
+      "type": "chat",
+      "sent": 110,
+      "received": 70,
+      "total": 180,
+      "deliveredRecipients": 451,
+      "readRecipients": 340
+    },
+    {
+      "type": "image",
+      "sent": 14,
+      "received": 10,
+      "total": 24,
+      "deliveredRecipients": 127,
+      "readRecipients": 98
+    },
+    {
+      "type": "unknown",
+      "sent": 1,
+      "received": 2,
+      "total": 3,
+      "deliveredRecipients": 0,
+      "readRecipients": 0
+    }
   ],
   "bySession": [{ "sessionId": "9f1c…", "name": "support-line", "sent": 200, "received": 140 }],
   "topChats": [
@@ -5076,7 +5097,7 @@ Get message statistics over a period: headline totals, time series, counts by ty
 }
 ```
 
-Notes: raw handler return. The dashboard labels `summary.interactions` as **Active chats**: each unique session-and-chat pair with at least one incoming or outgoing message is counted once. One message or 100 messages in the same chat through the same WhatsApp session still count as one active chat; it is not a message or participant count. Each `topChats` and `groupBreakdown` row's `deliveredRecipients` and `readRecipients` count distinct people who acknowledged at least one outgoing message in that chat during the selected period. A person is counted once within a chat even after receiving or reading several messages, and a read also implies delivery. The summary adds these per-chat audiences: if the same member is present in three selected groups, that member contributes once to each group and therefore three to the summary. Recipient identities are stored internally for deduplication but are not exposed by this analytics response. Receipt collection starts after the recipient-tracking migration is deployed; older group messages cannot be reconstructed and remain zero unless WhatsApp emits a later receipt for them. Delivery/read receipts are best-effort upstream signals and can be unavailable when privacy settings or engine history prevent WhatsApp from returning them. `reactedMessages` counts outgoing messages with at least one currently active emoji reaction; `emojiReactions` counts the active sender-to-emoji entries on those messages. Changing an emoji does not increase the total, and removing it decreases the total. Historical reactions start at zero and become accurate for a message when a new reaction event refreshes its stored snapshot after deployment. When `groupId` or `groupIds` is supplied, `summary`, `timeSeries`, `byType`, `byTypeBreakdown`, `bySession`, and `topChats` contain only the union of those groups; duplicate values are ignored. The dashboard expands saved custom-group presets into `groupIds`, and also permits individual groups to be selected together. `groupBreakdown` deliberately remains unfiltered so clients can display or switch among every active group in the period; direct chats are excluded from that array. Its message share is the group's `total` divided by the sum of `total` across this group-only array. `timeSeries.timestamp` is a DB-formatted bucket string — hourly `YYYY-MM-DD HH:00:00` for `24h`, daily `YYYY-MM-DD` for `7d`/`30d` — sorted ascending. `byType` keys are message-type strings (a null type becomes `unknown`); `byTypeBreakdown` exposes the same classified messages as sorted sent, received, and total rows so clients can calculate each type's share. `bySession.name` is `Unknown` when the session is not found. `topChats` contains up to 1,000 chats by `messageCount` DESC so API clients can inspect chat-level activity; `received` is what the chat sent to the account, `sent` is the account's replies, and `lastActive` is the most recent message. All counts are numbers.
+Notes: raw handler return. The dashboard labels `summary.interactions` as **Active chats**: each unique session-and-chat pair with at least one incoming or outgoing message is counted once. One message or 100 messages in the same chat through the same WhatsApp session still count as one active chat; it is not a message or participant count. Each `topChats` and `groupBreakdown` row's `deliveredRecipients` and `readRecipients` count distinct people who acknowledged at least one outgoing message in that chat during the selected period. A person is counted once within a chat even after receiving or reading several messages, and a read also implies delivery. The summary adds these per-chat audiences: if the same member is present in three selected groups, that member contributes once to each group and therefore three to the summary. Recipient identities are stored internally for deduplication but are not exposed by this analytics response. Receipt collection starts after the recipient-tracking migration is deployed; older group messages cannot be reconstructed and remain zero unless WhatsApp emits a later receipt for them. Delivery/read receipts are best-effort upstream signals and can be unavailable when privacy settings or engine history prevent WhatsApp from returning them. `reactedMessages` counts outgoing messages with at least one currently active emoji reaction; `emojiReactions` counts the active sender-to-emoji entries on those messages. Changing an emoji does not increase the total, and removing it decreases the total. Historical reactions start at zero and become accurate for a message when a new reaction event refreshes its stored snapshot after deployment. When `groupId` or `groupIds` is supplied, `summary`, `timeSeries`, `byType`, `byTypeBreakdown`, `bySession`, and `topChats` contain only the union of those groups; duplicate values are ignored. The dashboard expands saved custom-group presets into `groupIds`, and also permits individual groups to be selected together. `groupBreakdown` deliberately remains unfiltered so clients can display or switch among every active group in the period; direct chats are excluded from that array. Its message share is the group's `total` divided by the sum of `total` across this group-only array. `timeSeries.timestamp` is a DB-formatted bucket string — hourly `YYYY-MM-DD HH:00:00` for `24h`, daily `YYYY-MM-DD` for `7d`/`30d` — sorted ascending. `byType` keys are message-type strings (a null type becomes `unknown`); `byTypeBreakdown` exposes the same classified messages as sorted sent, received, and total rows so clients can calculate each type's share, plus delivered/read recipient counts. A recipient is counted once within each chat and message type, then those chat totals are added; a person who acknowledges both a text and an image appears once in each type. `bySession.name` is `Unknown` when the session is not found. `topChats` contains up to 1,000 chats by `messageCount` DESC so API clients can inspect chat-level activity; `received` is what the chat sent to the account, `sent` is the account's replies, and `lastActive` is the most recent message. All counts are numbers.
 
 **Errors:** `400` — `period` not in the enum, a group filter is empty/invalid/too large, or any non-whitelisted query field (strict `whitelist` + `forbidNonWhitelisted`) · `401` — missing/invalid API key · `403` — role below `ADMIN`, or the key is session-restricted.
 

@@ -76,7 +76,14 @@ export interface MessageStats {
   summary: MessageAnalyticsSummary;
   timeSeries: TimeSeriesPoint[];
   byType: Record<string, number>;
-  byTypeBreakdown: Array<{ type: string; sent: number; received: number; total: number }>;
+  byTypeBreakdown: Array<{
+    type: string;
+    sent: number;
+    received: number;
+    total: number;
+    deliveredRecipients: number;
+    readRecipients: number;
+  }>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;
   topChats: Array<{
     chatId: string;
@@ -109,6 +116,11 @@ export interface SessionStats {
 interface ReceiptAudience {
   delivered: Set<string>;
   read: Set<string>;
+}
+
+interface ReceiptAudiences {
+  byChat: Map<string, ReceiptAudience>;
+  byTypeAndChat: Map<string, Map<string, ReceiptAudience>>;
 }
 
 function receiptMembers(value: unknown): string[] {
@@ -276,7 +288,8 @@ export class StatsService {
 
     // Load all chats once because groupBreakdown intentionally remains unfiltered. Headline metrics
     // are then reduced to the selected chat set without erasing receipt totals for comparison rows.
-    const receiptAudienceByChat = await this.getReceiptAudienceByChat(since);
+    const receiptAudiences = await this.getReceiptAudiences(since);
+    const receiptAudienceByChat = receiptAudiences.byChat;
     const summaryReceiptTotals = this.sumReceiptAudiences(
       groupIds.length ? groupIds.map(groupId => receiptAudienceByChat.get(groupId)) : receiptAudienceByChat.values(),
     );
@@ -324,9 +337,18 @@ export class StatsService {
       breakdown.total += count;
       byTypeBreakdownMap.set(type, breakdown);
     }
-    const byTypeBreakdown = Array.from(byTypeBreakdownMap, ([type, counts]) => ({ type, ...counts })).sort(
-      (a, b) => b.total - a.total || a.type.localeCompare(b.type),
-    );
+    const byTypeBreakdown = Array.from(byTypeBreakdownMap, ([type, counts]) => {
+      const audiencesByChat = receiptAudiences.byTypeAndChat.get(type);
+      const receiptTotals = this.sumReceiptAudiences(
+        groupIds.length ? groupIds.map(groupId => audiencesByChat?.get(groupId)) : (audiencesByChat?.values() ?? []),
+      );
+      return {
+        type,
+        ...counts,
+        deliveredRecipients: receiptTotals.delivered,
+        readRecipients: receiptTotals.read,
+      };
+    }).sort((a, b) => b.total - a.total || a.type.localeCompare(b.type));
 
     // By session
     const bySessionQuery = this.messageRepo
@@ -445,24 +467,39 @@ export class StatsService {
   }
 
   /**
-   * Unique people who acknowledged at least one outgoing message, grouped by chat. The
-   * denormalized integer columns answer per-message questions, but summing them makes the same
-   * member appear once for every message they received. Merge the hidden recipient sets within
-   * each chat, then let the summary add those per-chat audiences. This small projection avoids
-   * loading message bodies.
+   * Unique people who acknowledged at least one outgoing message, grouped both by chat and by
+   * type-within-chat. The denormalized integer columns answer per-message questions, but summing
+   * them makes the same member appear once for every message they received. Merge the hidden
+   * recipient sets instead; the SQL content flag keeps type analytics aligned without loading
+   * message bodies or media metadata.
    */
-  private async getReceiptAudienceByChat(since: Date): Promise<Map<string, ReceiptAudience>> {
+  private async getReceiptAudiences(since: Date): Promise<ReceiptAudiences> {
     const query = this.messageRepo
       .createQueryBuilder('m')
       .select('m.chatId', 'chatId')
+      .addSelect('m.type', 'type')
       .addSelect('m.deliveredTo', 'deliveredTo')
       .addSelect('m.readBy', 'readBy')
+      // Keep the by-type receipt rows aligned with the byType aggregation without selecting body
+      // or metadata payloads (which can contain large inline media). Summary/chat audiences still
+      // include every receipt-bearing outgoing row.
+      .addSelect(
+        "CASE WHEN ((m.body IS NOT NULL AND m.body != '') OR m.metadata IS NOT NULL) THEN 1 ELSE 0 END",
+        'hasContent',
+      )
       .where('m.createdAt >= :since', { since })
       .andWhere('m.direction = :direction', { direction: MessageDirection.OUTGOING })
       .andWhere('(m.deliveryCount > 0 OR m.readCount > 0)');
 
-    const rows = await query.getRawMany<{ chatId: string; deliveredTo: unknown; readBy: unknown }>();
+    const rows = await query.getRawMany<{
+      chatId: string;
+      type: string | null;
+      deliveredTo: unknown;
+      readBy: unknown;
+      hasContent: number | string | boolean;
+    }>();
     const byChat = new Map<string, ReceiptAudience>();
+    const byTypeAndChat = new Map<string, Map<string, ReceiptAudience>>();
     for (const row of rows) {
       let chat = byChat.get(row.chatId);
       if (!chat) {
@@ -477,8 +514,26 @@ export class StatsService {
         chat.read.add(member);
         chat.delivered.add(member);
       }
+
+      if (row.hasContent === false || row.hasContent === 0 || row.hasContent === '0') continue;
+      const type = row.type || 'unknown';
+      let chatsForType = byTypeAndChat.get(type);
+      if (!chatsForType) {
+        chatsForType = new Map();
+        byTypeAndChat.set(type, chatsForType);
+      }
+      let typedChat = chatsForType.get(row.chatId);
+      if (!typedChat) {
+        typedChat = { delivered: new Set(), read: new Set() };
+        chatsForType.set(row.chatId, typedChat);
+      }
+      for (const member of receiptMembers(row.deliveredTo)) typedChat.delivered.add(member);
+      for (const member of receiptMembers(row.readBy)) {
+        typedChat.read.add(member);
+        typedChat.delivered.add(member);
+      }
     }
-    return byChat;
+    return { byChat, byTypeAndChat };
   }
 
   /** Add each chat's distinct audience; a person present in two groups counts once in each group. */
