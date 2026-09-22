@@ -76,6 +76,7 @@ export interface MessageStats {
   summary: MessageAnalyticsSummary;
   timeSeries: TimeSeriesPoint[];
   byType: Record<string, number>;
+  byTypeBreakdown: Array<{ type: string; sent: number; received: number; total: number }>;
   bySession: Array<{ sessionId: string; name: string; sent: number; received: number }>;
   topChats: Array<{
     chatId: string;
@@ -299,18 +300,33 @@ export class StatsService {
     const byTypeQuery = this.messageRepo
       .createQueryBuilder('m')
       .select('m.type', 'type')
+      .addSelect('m.direction', 'direction')
       .addSelect('COUNT(*)', 'count')
       .where('m.createdAt >= :since', { since })
       // Keep the OR branches inside one predicate. Without the outer parentheses, SQL precedence
       // lets any row with a body bypass the date and optional group filters.
       .andWhere("((m.body IS NOT NULL AND m.body != '') OR m.metadata IS NOT NULL)");
     if (groupIds.length) byTypeQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
-    const byTypeRaw = await byTypeQuery.groupBy('m.type').getRawMany<{ type: string; count: string }>();
+    const byTypeRaw = await byTypeQuery
+      .groupBy('m.type')
+      .addGroupBy('m.direction')
+      .getRawMany<{ type: string | null; direction: string; count: string }>();
 
     const byType: Record<string, number> = {};
+    const byTypeBreakdownMap = new Map<string, { sent: number; received: number; total: number }>();
     for (const row of byTypeRaw) {
-      byType[row.type || 'unknown'] = parseInt(row.count);
+      const type = row.type || 'unknown';
+      const count = parseInt(row.count);
+      byType[type] = (byType[type] || 0) + count;
+      const breakdown = byTypeBreakdownMap.get(type) ?? { sent: 0, received: 0, total: 0 };
+      if (row.direction === MessageDirection.OUTGOING) breakdown.sent += count;
+      if (row.direction === MessageDirection.INCOMING) breakdown.received += count;
+      breakdown.total += count;
+      byTypeBreakdownMap.set(type, breakdown);
     }
+    const byTypeBreakdown = Array.from(byTypeBreakdownMap, ([type, counts]) => ({ type, ...counts })).sort(
+      (a, b) => b.total - a.total || a.type.localeCompare(b.type),
+    );
 
     // By session
     const bySessionQuery = this.messageRepo
@@ -398,6 +414,7 @@ export class StatsService {
       summary,
       timeSeries,
       byType,
+      byTypeBreakdown,
       bySession,
       topChats: topChats.map(c => {
         const audience = receiptAudienceByChat.get(c.chatId);

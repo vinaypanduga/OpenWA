@@ -3,6 +3,23 @@
   margin-bottom: 2rem;
 }
 
+.dashboard-charts.analytics-collapsed {
+  padding: 1rem 1.2rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.dashboard-charts.analytics-collapsed .charts-header {
+  margin-bottom: 0;
+}
+
+.dashboard-charts .analytics-visibility-button {
+  min-height: 38px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8125rem;
+}
+
 .dashboard-charts .charts-header {
   display: flex;
   align-items: center;
@@ -541,73 +558,41 @@
   margin: 0;
 }
 
-.dashboard-charts .chat-activity-card {
-  overflow: hidden;
-}
-
-.dashboard-charts .chat-activity-header {
-  display: flex;
+.dashboard-charts .type-analytics-content {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.4rem;
+  gap: 1rem;
 }
 
-.dashboard-charts .chat-activity-header .chart-card-title {
-  margin-bottom: 0;
-}
-
-.dashboard-charts .chat-activity-header input {
-  width: min(220px, 48%);
-  min-height: 36px;
-  padding: 0.4rem 0.65rem;
-  color: var(--text-primary);
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font: inherit;
-  font-size: 0.75rem;
-}
-
-.dashboard-charts .chat-activity-note {
-  margin: 0 0 0.75rem;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  line-height: 1.4;
-}
-
-.dashboard-charts .chat-activity-table {
-  max-height: 270px;
+.dashboard-charts .type-breakdown-table {
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
 }
 
-.dashboard-charts .chat-activity-row {
+.dashboard-charts .type-breakdown-row {
   display: grid;
-  grid-template-columns: minmax(155px, 1.6fr) repeat(5, minmax(54px, 0.55fr)) minmax(84px, 0.75fr);
+  grid-template-columns: minmax(120px, 1.3fr) repeat(4, minmax(64px, 0.7fr));
   align-items: center;
-  min-width: 650px;
-  min-height: 50px;
-  padding: 0.55rem 0.65rem;
+  min-width: 440px;
+  min-height: 44px;
+  padding: 0.55rem 0.7rem;
   color: var(--text-secondary);
   text-align: right;
   border-bottom: 1px solid var(--border);
   font-size: 0.75rem;
 }
 
-.dashboard-charts .chat-activity-row:last-child {
+.dashboard-charts .type-breakdown-row:last-child {
   border-bottom: 0;
 }
 
-.dashboard-charts .chat-activity-row > :first-child {
+.dashboard-charts .type-breakdown-row > :first-child {
   text-align: left;
 }
 
-.dashboard-charts .chat-activity-columns {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.dashboard-charts .type-breakdown-columns {
   min-height: 36px;
   color: var(--text-muted);
   background: var(--bg-light);
@@ -617,35 +602,21 @@
   text-transform: uppercase;
 }
 
-.dashboard-charts .chat-activity-name,
-.dashboard-charts .chat-activity-value {
-  display: flex;
-  flex-direction: column;
+.dashboard-charts .type-breakdown-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   min-width: 0;
-  gap: 0.1rem;
-}
-
-.dashboard-charts .chat-activity-value {
-  align-items: flex-end;
-}
-
-.dashboard-charts .chat-activity-name strong,
-.dashboard-charts .chat-activity-name small,
-.dashboard-charts .chat-activity-value small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dashboard-charts .chat-activity-name strong,
-.dashboard-charts .chat-activity-value strong {
   color: var(--text-primary);
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
-.dashboard-charts .chat-activity-name small,
-.dashboard-charts .chat-activity-value small {
-  color: var(--text-muted);
-  font-size: 0.65rem;
+.dashboard-charts .type-breakdown-name i {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
 }
 
 .dashboard-charts .charts-empty {
@@ -778,6 +749,10 @@
 }
 
 @media (max-width: 768px) {
+  .dashboard-charts .type-analytics-content {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-charts .sent-message-insights {
     grid-template-columns: 1fr;
   }
@@ -819,15 +794,6 @@
   }
 
   .dashboard-charts .group-breakdown-header input {
-    width: 100%;
-  }
-
-  .dashboard-charts .chat-activity-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .dashboard-charts .chat-activity-header input {
     width: 100%;
   }
 

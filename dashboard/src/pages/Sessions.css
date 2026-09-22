@@ -11,6 +11,32 @@
 
 /* H1 inherited from global */
 
+.sessions-page .sessions-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sessions-page .sessions-overview-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.sessions-page .sessions-overview-title h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+}
+
+.sessions-page .sessions-overview-header > span {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
 .sessions-page .filters-bar {
   display: flex;
   gap: 1rem;
@@ -221,6 +247,12 @@
 }
 
 @media (max-width: 600px) {
+  .sessions-page .sessions-overview-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
   .sessions-page .sessions-grid {
     grid-template-columns: 1fr;
   }

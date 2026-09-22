@@ -437,13 +437,14 @@ export function useStatsOverviewQuery() {
   });
 }
 
-export function useStatsMessagesQuery(period: StatsPeriod, groupIds: readonly string[] = []) {
+export function useStatsMessagesQuery(period: StatsPeriod, groupIds: readonly string[] = [], enabled = true) {
   const normalizedGroupIds = [...new Set(groupIds)].sort();
   return useQuery({
     queryKey: queryKeys.statsMessages(period, normalizedGroupIds),
     queryFn: () => statsApi.getMessages(period, normalizedGroupIds),
+    enabled,
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: enabled ? 30_000 : false,
     refetchIntervalInBackground: false,
     retry: false,
   });

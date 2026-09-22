@@ -75,44 +75,48 @@ function shortChat(chatId: string): string {
   return chatId.split('@')[0] || chatId;
 }
 
-function phoneFromChatId(chatId: string): string | null {
-  const [local, domain] = chatId.split('@');
-  return local && /^\d+$/.test(local) && (domain === 'c.us' || domain === 's.whatsapp.net') ? `+${local}` : null;
-}
-
-function formatLastActive(value: string): string {
-  const normalized = value.includes('T') ? value : `${value.replace(' ', 'T')}Z`;
-  const timestamp = new Date(normalized).getTime();
-  if (!Number.isFinite(timestamp)) return value;
-  const elapsed = Math.max(0, Date.now() - timestamp);
-  if (elapsed < 60_000) return 'Just now';
-  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
-  if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
-  if (elapsed < 604_800_000) return `${Math.floor(elapsed / 86_400_000)}d ago`;
-  return new Date(timestamp).toLocaleDateString();
-}
-
 interface DashboardChartsProps {
   sessions?: Array<Pick<Session, 'id' | 'name' | 'status'>>;
 }
 
 export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
   const { t } = useTranslation();
+  const [analyticsVisible, setAnalyticsVisible] = useState(false);
   const [period, setPeriod] = useState<StatsPeriod>('24h');
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [groupSearch, setGroupSearch] = useState('');
-  const [chatSearch, setChatSearch] = useState('');
-  const { data, isLoading, isError, error } = useStatsMessagesQuery(period, selectedGroupIds);
+  const { data, isLoading, isError, error } = useStatsMessagesQuery(period, selectedGroupIds, analyticsVisible);
   const allSessionIds = sessions.map(session => session.id);
   const readySessionIds = sessions.filter(session => session.status === 'ready').map(session => session.id);
-  const groupListQueries = useSessionGroupListsQueries(readySessionIds);
-  const customGroupQueries = useSessionCustomGroupListsQueries(allSessionIds);
+  const groupListQueries = useSessionGroupListsQueries(analyticsVisible ? readySessionIds : []);
+  const customGroupQueries = useSessionCustomGroupListsQueries(analyticsVisible ? allSessionIds : []);
 
   // Non-admin keys 403 on /stats/messages → hide the section entirely. Any OTHER error (e.g. a
   // server 500) is a real fault: surface a small notice below instead of silently vanishing, which
   // is what masked the #488 stats crash and made the whole chart "disappear" with no explanation.
   const forbidden = (error as (Error & { status?: number }) | null)?.status === 403;
   if (isError && forbidden) return null;
+
+  if (!analyticsVisible) {
+    return (
+      <section className="dashboard-charts analytics-collapsed">
+        <div className="charts-header">
+          <div className="charts-title">
+            <BarChart3 size={18} />
+            <h2>{t('dashboard.charts.title')}</h2>
+          </div>
+          <button
+            type="button"
+            className="btn-primary analytics-visibility-button"
+            aria-expanded="false"
+            onClick={() => setAnalyticsVisible(true)}
+          >
+            {t('dashboard.charts.showAnalytics', { defaultValue: 'Show analytics' })}
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   const groupBreakdown = data?.groupBreakdown ?? [];
   const sessionNameById = new Map(sessions.map(session => [session.id, session.name]));
@@ -147,31 +151,8 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
   const byType = Object.entries(data?.byType ?? {})
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
-  const totalChatMessages = (data?.summary.sent ?? 0) + (data?.summary.received ?? 0);
-  const chatActivity = (data?.topChats ?? []).map(chat => {
-    const isGroup = chat.chatId.endsWith('@g.us');
-    const phone = phoneFromChatId(chat.chatId);
-    return {
-      ...chat,
-      name: isGroup
-        ? displayGroupName(chat.chatId, chat.chatName)
-        : chat.chatName ||
-          phone ||
-          t('dashboard.charts.contactNameUnavailable', { defaultValue: 'Contact name unavailable' }),
-      address:
-        phone ??
-        (isGroup
-          ? t('dashboard.charts.whatsappGroup', { defaultValue: 'WhatsApp group' })
-          : t('dashboard.charts.phoneUnavailable', { defaultValue: 'Phone unavailable' })),
-      activityShare: totalChatMessages > 0 ? (chat.messageCount / totalChatMessages) * 100 : 0,
-    };
-  });
-  const normalizedChatSearch = chatSearch.trim().toLowerCase();
-  const visibleChatActivity = normalizedChatSearch
-    ? chatActivity.filter(chat =>
-        `${chat.name ?? ''} ${chat.address} ${chat.chatId}`.toLowerCase().includes(normalizedChatSearch),
-      )
-    : chatActivity;
+  const byTypeBreakdown = data?.byTypeBreakdown ?? [];
+  const typedMessageTotal = byTypeBreakdown.reduce((total, item) => total + item.total, 0);
   const selectedGroupIdSet = new Set(selectedGroupIds);
   const selectedGroupLabels = selectedGroupIds.map(id => {
     const group = groupBreakdown.find(candidate => candidate.groupId === id);
@@ -224,7 +205,6 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
     Boolean(summary && (summary.sent > 0 || summary.received > 0 || summary.interactions > 0)) ||
     timeSeries.length > 0 ||
     byType.length > 0 ||
-    chatActivity.length > 0 ||
     groupBreakdown.length > 0;
   const metricCards = summary
     ? [
@@ -282,6 +262,14 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
           <h2>{t('dashboard.charts.title')}</h2>
         </div>
         <div className="analytics-filters">
+          <button
+            type="button"
+            className="btn-secondary analytics-visibility-button"
+            aria-expanded="true"
+            onClick={() => setAnalyticsVisible(false)}
+          >
+            {t('dashboard.charts.hideAnalytics', { defaultValue: 'Hide analytics' })}
+          </button>
           <div className="group-filter">
             <span>{t('dashboard.charts.groupFilter', { defaultValue: 'Group filter' })}</span>
             <details className="group-filter-picker">
@@ -564,113 +552,61 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
               </ResponsiveContainer>
             </div>
 
-            <div className="chart-card">
+            <div className="chart-card chart-wide">
               <div className="chart-card-title">
                 <h3>{t('dashboard.charts.byType')}</h3>
                 <WidgetTooltip
                   text={t('dashboard.tooltips.messagesByType', {
                     defaultValue:
-                      'Breaks message activity down by content type, such as text, image, audio, or document.',
+                      'Breaks message activity down by content type, with separate sent, received, total, and message-share values.',
                   })}
                 />
               </div>
               {byType.length === 0 ? (
                 <div className="charts-empty small">{t('dashboard.charts.empty')}</div>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={byType}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                    >
-                      {byType.map(entry => (
-                        <Cell key={entry.name} fill={colorForType(entry.name)} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div className="chart-card chat-activity-card">
-              <div className="chat-activity-header">
-                <div className="chart-card-title">
-                  <h3>{t('dashboard.charts.topChats')}</h3>
-                  <WidgetTooltip
-                    text={t('dashboard.tooltips.topChats', {
-                      defaultValue:
-                        'Search up to 1,000 of the most active chats by name or phone number. Activity is the chat’s share of all messages plus its most recent message time.',
-                    })}
-                  />
-                </div>
-                <input
-                  value={chatSearch}
-                  onChange={event => setChatSearch(event.target.value)}
-                  placeholder={t('dashboard.charts.searchChats', { defaultValue: 'Search name or phone' })}
-                  aria-label={t('dashboard.charts.searchChats', { defaultValue: 'Search name or phone' })}
-                />
-              </div>
-              <p className="chat-activity-note">
-                <strong>{t('dashboard.charts.fromThem', { defaultValue: 'From them' })}</strong>{' '}
-                {t('dashboard.charts.fromThemExplanation', {
-                  defaultValue: 'is how many messages that phone or chat sent to your WhatsApp account.',
-                })}{' '}
-                <strong>{t('dashboard.charts.activity', { defaultValue: 'Activity' })}</strong>{' '}
-                {t('dashboard.charts.activityExplanation', {
-                  defaultValue:
-                    'is this chat’s percentage of all messages in the period, together with its latest message time.',
-                })}{' '}
-                {t('dashboard.charts.receiptCountExplanation', {
-                  defaultValue:
-                    'Delivered and Read show distinct people in each row. The headline total adds these per-chat counts.',
-                })}
-              </p>
-              {chatActivity.length === 0 ? (
-                <div className="charts-empty small">{t('dashboard.charts.empty')}</div>
-              ) : visibleChatActivity.length === 0 ? (
-                <div className="charts-empty small">
-                  {t('dashboard.charts.noChatMatches', { defaultValue: 'No chats match your search.' })}
-                </div>
-              ) : (
-                <div className="chat-activity-table">
-                  <div className="chat-activity-row chat-activity-columns">
-                    <span>{t('dashboard.charts.chatAndPhone', { defaultValue: 'Chat / phone' })}</span>
-                    <span>{t('dashboard.charts.fromThem', { defaultValue: 'From them' })}</span>
-                    <span>{t('dashboard.charts.replies', { defaultValue: 'Replies' })}</span>
-                    <span>{t('dashboard.charts.total', { defaultValue: 'Total' })}</span>
-                    <span className="receipt-column-heading">
-                      {t('dashboard.charts.delivered', { defaultValue: 'Delivered' })}
-                      <WidgetTooltip text={deliveredPeopleHelp} label="About delivered people" />
-                    </span>
-                    <span className="receipt-column-heading">
-                      {t('dashboard.charts.read', { defaultValue: 'Read' })}
-                      <WidgetTooltip text={readPeopleHelp} label="About readers" />
-                    </span>
-                    <span>{t('dashboard.charts.activity', { defaultValue: 'Activity' })}</span>
-                  </div>
-                  {visibleChatActivity.map(chat => (
-                    <div className="chat-activity-row" key={chat.chatId}>
-                      <span className="chat-activity-name" title={chat.chatId}>
-                        <strong>{chat.name}</strong>
-                        <small>{chat.address}</small>
-                      </span>
-                      <span>{chat.received.toLocaleString()}</span>
-                      <span>{chat.sent.toLocaleString()}</span>
-                      <span>{chat.messageCount.toLocaleString()}</span>
-                      <span>{chat.deliveredRecipients.toLocaleString()}</span>
-                      <span>{chat.readRecipients.toLocaleString()}</span>
-                      <span className="chat-activity-value">
-                        <strong>{chat.activityShare.toFixed(1)}%</strong>
-                        <small>{formatLastActive(chat.lastActive)}</small>
-                      </span>
+                <div className="type-analytics-content">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie
+                        data={byType}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={2}
+                      >
+                        {byType.map(entry => (
+                          <Cell key={entry.name} fill={colorForType(entry.name)} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="type-breakdown-table">
+                    <div className="type-breakdown-row type-breakdown-columns">
+                      <span>{t('dashboard.charts.messageType', { defaultValue: 'Type' })}</span>
+                      <span>{t('dashboard.charts.sent', { defaultValue: 'Sent' })}</span>
+                      <span>{t('dashboard.charts.received', { defaultValue: 'Received' })}</span>
+                      <span>{t('dashboard.charts.total', { defaultValue: 'Total' })}</span>
+                      <span>{t('dashboard.charts.messageShare', { defaultValue: 'Share' })}</span>
                     </div>
-                  ))}
+                    {byTypeBreakdown.map(item => (
+                      <div className="type-breakdown-row" key={item.type}>
+                        <span className="type-breakdown-name">
+                          <i style={{ background: colorForType(item.type) }} aria-hidden="true" />
+                          {item.type}
+                        </span>
+                        <span>{item.sent.toLocaleString()}</span>
+                        <span>{item.received.toLocaleString()}</span>
+                        <span>{item.total.toLocaleString()}</span>
+                        <span>
+                          {typedMessageTotal > 0 ? `${((item.total / typedMessageTotal) * 100).toFixed(1)}%` : '0%'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

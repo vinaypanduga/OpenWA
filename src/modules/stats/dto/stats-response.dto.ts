@@ -88,6 +88,13 @@ export class StatsBySessionDto {
   @ApiProperty({ example: 34 }) received!: number;
 }
 
+export class StatsByTypeBreakdownDto {
+  @ApiProperty({ description: 'Stored message content type.', example: 'image' }) type!: string;
+  @ApiProperty({ description: 'Outgoing messages of this type.', example: 18 }) sent!: number;
+  @ApiProperty({ description: 'Incoming messages of this type.', example: 24 }) received!: number;
+  @ApiProperty({ description: 'Sent and received messages of this type.', example: 42 }) total!: number;
+}
+
 export class StatsTopChatDto {
   @ApiProperty({ example: '628123456789@c.us' })
   chatId!: string;
@@ -139,6 +146,12 @@ export class MessageStatsResponseDto {
     additionalProperties: { type: 'integer' },
   })
   byType!: { [messageType: string]: number };
+
+  @ApiProperty({
+    type: [StatsByTypeBreakdownDto],
+    description: 'Sent, received, and total message counts for each content type.',
+  })
+  byTypeBreakdown!: StatsByTypeBreakdownDto[];
 
   @ApiProperty({ type: [StatsBySessionDto] })
   bySession!: StatsBySessionDto[];

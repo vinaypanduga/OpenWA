@@ -14378,6 +14378,32 @@
         },
         "required": ["sessionId", "name", "sent", "received"]
       },
+      "StatsByTypeBreakdownDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Stored message content type.",
+            "example": "image"
+          },
+          "sent": {
+            "type": "number",
+            "description": "Outgoing messages of this type.",
+            "example": 18
+          },
+          "received": {
+            "type": "number",
+            "description": "Incoming messages of this type.",
+            "example": 24
+          },
+          "total": {
+            "type": "number",
+            "description": "Sent and received messages of this type.",
+            "example": 42
+          }
+        },
+        "required": ["type", "sent", "received", "total"]
+      },
       "StatsTopChatDto": {
         "type": "object",
         "properties": {
@@ -14497,6 +14523,13 @@
               "type": "integer"
             }
           },
+          "byTypeBreakdown": {
+            "description": "Sent, received, and total message counts for each content type.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatsByTypeBreakdownDto"
+            }
+          },
           "bySession": {
             "type": "array",
             "items": {
@@ -14517,7 +14550,7 @@
             }
           }
         },
-        "required": ["summary", "timeSeries", "byType", "bySession", "topChats", "groupBreakdown"]
+        "required": ["summary", "timeSeries", "byType", "byTypeBreakdown", "bySession", "topChats", "groupBreakdown"]
       },
       "SessionStatsSessionDto": {
         "type": "object",

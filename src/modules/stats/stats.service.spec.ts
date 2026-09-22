@@ -222,6 +222,10 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     });
     expect(stats.timeSeries.reduce((total, point) => total + point.sent + point.received, 0)).toBe(4);
     expect(stats.byType).toEqual({ text: 3, image: 1 });
+    expect(stats.byTypeBreakdown).toEqual([
+      { type: 'text', sent: 3, received: 0, total: 3 },
+      { type: 'image', sent: 0, received: 1, total: 1 },
+    ]);
     expect(stats.bySession).toEqual(
       expect.arrayContaining([
         { sessionId: 's1', name: 'primary', sent: 2, received: 1 },
@@ -312,6 +316,10 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
 
     const stats = await service.getMessageStats('24h');
     expect(stats.byType).toEqual({ text: 1, image: 1 });
+    expect(stats.byTypeBreakdown).toEqual([
+      { type: 'image', sent: 1, received: 0, total: 1 },
+      { type: 'text', sent: 1, received: 0, total: 1 },
+    ]);
   });
 
   it('time-series query never groups by the bare reserved word `timestamp` (Postgres-safe)', async () => {

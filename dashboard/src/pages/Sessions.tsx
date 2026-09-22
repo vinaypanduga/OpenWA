@@ -36,6 +36,7 @@ import { useSessionCreateForm } from '../hooks/useSessionCreateForm';
 import { PageHeader } from '../components/PageHeader';
 import { CustomSelect } from '../components/CustomSelect';
 import { Modal } from '../components/Modal';
+import { WidgetTooltip } from '../components/WidgetTooltip';
 import './Sessions.css';
 
 /**
@@ -404,6 +405,18 @@ export function Sessions() {
           )
         }
       />
+
+      <div className="sessions-overview-header">
+        <div className="sessions-overview-title">
+          <h2>{t('dashboard.sessionsOverview')}</h2>
+          <WidgetTooltip
+            text={t('dashboard.tooltips.sessionsOverview', {
+              defaultValue: 'Lists every WhatsApp session with its phone number, connection state, and last activity.',
+            })}
+          />
+        </div>
+        <span>{t('dashboard.showingSessions', { shown: filteredSessions.length, total: sessions.length })}</span>
+      </div>
 
       <div className="filters-bar">
         <div className="search-input">
