@@ -3,39 +3,15 @@ import type { BackendModule, ReadCallback, ResourceKey } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-export const supportedLanguages = [
-  'en',
-  'de',
-  'es',
-  'he',
-  'tr',
-  'zh-CN',
-  'zh-HK',
-  'ar',
-  'te',
-  'fr',
-  'it',
-  'pt-BR',
-  'ko',
-] as const;
+export const supportedLanguages = ['en', 'kn', 'hi'] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
-export const rtlLanguages: SupportedLanguage[] = ['he', 'ar'];
+export const rtlLanguages: SupportedLanguage[] = [];
 
 export const languageOptions: Array<{ value: SupportedLanguage; label: string; compactLabel: string }> = [
   { value: 'en', label: 'English', compactLabel: 'EN' },
-  { value: 'de', label: 'Deutsch', compactLabel: 'DE' },
-  { value: 'tr', label: 'Türkçe', compactLabel: 'TR' },
-  { value: 'es', label: 'Español', compactLabel: 'ES' },
-  { value: 'he', label: 'עברית', compactLabel: 'עברית' },
-  { value: 'zh-CN', label: '简体中文', compactLabel: '简中' },
-  { value: 'zh-HK', label: '繁體中文', compactLabel: '繁中' },
-  { value: 'ar', label: 'العربية', compactLabel: 'AR' },
-  { value: 'te', label: 'తెలుగు', compactLabel: 'TE' },
-  { value: 'fr', label: 'Français', compactLabel: 'FR' },
-  { value: 'it', label: 'Italiano', compactLabel: 'IT' },
-  { value: 'pt-BR', label: 'Português (Brasil)', compactLabel: 'PT' },
-  { value: 'ko', label: '한국어', compactLabel: 'KO' },
+  { value: 'kn', label: 'ಕನ್ನಡ', compactLabel: 'KN' },
+  { value: 'hi', label: 'हिन्दी', compactLabel: 'HI' },
 ];
 
 export function resolveSupportedLanguage(lang?: string): SupportedLanguage {
@@ -43,14 +19,7 @@ export function resolveSupportedLanguage(lang?: string): SupportedLanguage {
   const exact = supportedLanguages.find(supported => supported.toLowerCase() === value.toLowerCase());
   if (exact) return exact;
 
-  const parts = value.toLowerCase().split('-');
-  const base = parts[0];
-  if (base === 'zh') {
-    const subtags = new Set(parts.slice(1));
-    if (subtags.has('hant') || subtags.has('hk') || subtags.has('mo') || subtags.has('tw')) return 'zh-HK';
-    return 'zh-CN';
-  }
-
+  const base = value.toLowerCase().split('-')[0];
   return supportedLanguages.find(supported => supported === base) ?? 'en';
 }
 
@@ -82,7 +51,7 @@ const lazyLocaleBackend: BackendModule = {
  * they can. A chunk that 404s (a tab left open across a redeploy is the realistic way) still sets
  * `language`, still emits this event and still gets cached by the detector, while `t()` serves the
  * English fallback — so following the request would dress English copy right-to-left and leave the
- * picker reading EN against an `ar` document.
+ * picker reading EN against document metadata for a catalogue that never loaded.
  */
 function applyDirection() {
   const resolved = resolveSupportedLanguage(i18n.resolvedLanguage || i18n.language);

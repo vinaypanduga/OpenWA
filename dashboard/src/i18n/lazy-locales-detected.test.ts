@@ -1,4 +1,4 @@
-// The first load of a non-English, right-to-left visitor — the path where the lazy split actually
+// The first load of a non-English visitor — the path where the lazy split actually
 // costs something, because the catalogue is now a network round trip that first paint waits on.
 // `lazy-locales.test.ts` cannot cover it: the i18n module is a singleton, so one process only ever
 // has one initial language, and there it is English. Detection is steered the way a returning
@@ -23,22 +23,22 @@ before(async () => {
     installJsdomGlobals: typeof installJsdomGlobalsFn;
   };
   await installJsdomGlobals();
-  localStorage.setItem('openwa_language', 'ar');
+  localStorage.setItem('openwa_language', 'kn');
   const module = (await import('./index.ts')) as I18nModule;
   i18n = module.default;
   await module.i18nReady;
 });
 
-test('a stored Arabic preference is detected and its catalogue is loaded before i18nReady settles', () => {
-  assert.equal(i18n.resolvedLanguage, 'ar', 'the stored preference was not detected');
-  assert.equal(i18n.t('sessionStatus.failed'), 'فشل', 'the catalogue had not arrived when the promise settled');
+test('a stored Kannada preference is detected and its catalogue is loaded before i18nReady settles', () => {
+  assert.equal(i18n.resolvedLanguage, 'kn', 'the stored preference was not detected');
+  assert.equal(i18n.t('sessionStatus.failed'), 'ವಿಫಲವಾಗಿದೆ', 'the catalogue had not arrived when the promise settled');
 });
 
 // Rendering waits on the same promise, so this is the state the document is in at first paint —
-// the reason the split does not show a left-to-right frame before flipping.
-test('the document is already right-to-left when i18nReady settles', () => {
-  assert.equal(document.documentElement.dir, 'rtl');
-  assert.equal(document.documentElement.lang, 'ar');
+// the reason the split does not briefly show metadata for the previous language.
+test('the document already has Kannada metadata when i18nReady settles', () => {
+  assert.equal(document.documentElement.dir, 'ltr');
+  assert.equal(document.documentElement.lang, 'kn');
 });
 
 // A non-English visitor fetches two catalogues, not one: `fallbackLng` keeps English resident so a
@@ -47,6 +47,6 @@ test('the document is already right-to-left when i18nReady settles', () => {
 // promised rather than an implementation detail. Only a non-English initial language can assert it —
 // when English is the detected language, it is resident whether or not anything falls back to it.
 test('the English fallback is fetched alongside the detected catalogue', () => {
-  assert.ok(i18n.hasResourceBundle('ar', 'translation'), 'the detected catalogue is not loaded');
+  assert.ok(i18n.hasResourceBundle('kn', 'translation'), 'the detected catalogue is not loaded');
   assert.ok(i18n.hasResourceBundle('en', 'translation'), 'the English fallback was not fetched');
 });

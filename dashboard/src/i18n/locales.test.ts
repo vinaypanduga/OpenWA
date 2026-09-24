@@ -71,8 +71,7 @@ test('count badges resolve to a non-key, interpolated string in every locale', (
         const value = i18n.t(key, { lng, count });
         assert.ok(value && !value.startsWith(key), `${lng} ${key} count=${count} did not resolve (got "${value}")`);
         assert.ok(
-          // Hebrew/Arabic dual forms ("two filters") legitimately drop the numeral.
-          value.includes(String(count)) || (['he', 'ar'].includes(lng) && count === 2),
+          value.includes(String(count)),
           `${lng} ${key} count=${count} lost the count interpolation (got "${value}")`,
         );
       }
@@ -80,10 +79,9 @@ test('count badges resolve to a non-key, interpolated string in every locale', (
   }
 });
 
-test('Hebrew dual + Arabic plural categories resolve for the filter badge', () => {
-  assert.equal(i18n.t('webhooks.filters.badge', { lng: 'he', count: 2 }), 'שני מסננים');
-  assert.equal(i18n.t('webhooks.filters.badge', { lng: 'he', count: 5 }), '5 מסננים');
-  assert.equal(i18n.t('webhooks.filters.badge', { lng: 'ar', count: 3 }), '3 عوامل تصفية');
+test('Hindi and Kannada catalogues resolve translated session status copy', () => {
+  assert.equal(i18n.t('sessionStatus.failed', { lng: 'hi' }), 'विफल');
+  assert.equal(i18n.t('sessionStatus.failed', { lng: 'kn' }), 'ವಿಫಲವಾಗಿದೆ');
 });
 
 test('every new plugins.* key resolves in every locale', () => {
@@ -257,10 +255,9 @@ test('no locale catalogue is imported statically, anywhere in the dashboard sour
   assert.deepEqual(offenders, [], 'a static locale import is back — those languages are on the critical path again');
 });
 
-// rtlLanguages is deliberately a SUBSET (only he/ar today), so it is checked for validity, not parity:
-// an id here that is not a shipped locale would set dir="rtl" for a language that cannot be selected.
-test('rtlLanguages only names shipped locales', () => {
+// English, Kannada, and Hindi all render left-to-right. Keep the RTL registry empty until an RTL
+// catalogue is intentionally added again.
+test('rtlLanguages is empty for the three shipped languages', () => {
   const rtl = localeIdsIn(section('export const rtlLanguages:'));
-  assert.ok(rtl.length > 0, 'rtlLanguages parsed as empty — the anchor or the pattern has drifted');
-  for (const id of rtl) assert.ok(LOCALE_IDS.includes(id), `rtlLanguages names "${id}", which has no locale file`);
+  assert.deepEqual(rtl, []);
 });

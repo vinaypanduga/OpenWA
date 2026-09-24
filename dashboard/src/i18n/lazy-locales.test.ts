@@ -1,7 +1,7 @@
 // Everything the lazy locale split can break is runtime behaviour no build gate can see: the active
 // catalogue has to be in place before anything renders, a language switch has to pull its catalogue
-// in before components re-read it, and the direction flip that dresses Hebrew and Arabic has to
-// survive both. Exercised against the real i18n module under the same JSDOM bootstrap the page
+// in before components re-read it, and the document language/direction metadata has to follow the
+// resolved catalogue. Exercised against the real i18n module under the same JSDOM bootstrap the page
 // render tests use, because the loader only exists at runtime — `locales.test.ts` deliberately reads
 // this module as text and so can say nothing about any of it.
 //
@@ -39,28 +39,22 @@ test('the detected catalogue is loaded by the time i18nReady settles', () => {
 });
 
 // The whole reason the loader is an i18next backend rather than a hand-rolled fetch: i18next holds
-// `languageChanged` until the catalogue has arrived. Reading the Arabic copy straight after the
-// await is what proves that ordering — a half-loaded switch would answer with the English fallback.
+// `languageChanged` until the catalogue has arrived. Reading translated copy straight after the
+// await proves that ordering — a half-loaded switch would answer with the English fallback.
 test('switching language at runtime loads that catalogue before it resolves', async () => {
-  await i18n.changeLanguage('ar');
-  assert.equal(i18n.t('sessionStatus.failed'), 'فشل');
+  await i18n.changeLanguage('hi');
+  assert.equal(i18n.t('sessionStatus.failed'), 'विफल');
 
-  await i18n.changeLanguage('de');
-  assert.equal(i18n.t('sessionStatus.failed'), 'Fehlgeschlagen');
+  await i18n.changeLanguage('kn');
+  assert.equal(i18n.t('sessionStatus.failed'), 'ವಿಫಲವಾಗಿದೆ');
 });
 
-test('direction follows the language in both directions, for both RTL locales', async () => {
-  await i18n.changeLanguage('he');
-  assert.equal(document.documentElement.dir, 'rtl');
-  assert.equal(document.documentElement.lang, 'he');
-
-  await i18n.changeLanguage('ar');
-  assert.equal(document.documentElement.dir, 'rtl');
-
-  // Back to an LTR language: a direction that only ever gets set is a direction that sticks.
-  await i18n.changeLanguage('en');
-  assert.equal(document.documentElement.dir, 'ltr');
-  assert.equal(document.documentElement.lang, 'en');
+test('all three shipped languages use left-to-right document direction', async () => {
+  for (const language of ['en', 'kn', 'hi']) {
+    await i18n.changeLanguage(language);
+    assert.equal(document.documentElement.dir, 'ltr');
+    assert.equal(document.documentElement.lang, language);
+  }
 });
 
 // A catalogue that fails to arrive is the one state these runtime tests cannot reach: the loader
@@ -68,7 +62,7 @@ test('direction follows the language in both directions, for both RTL locales', 
 // redeploy asks for a hashed chunk that no longer exists — and i18next answers by setting
 // `language` to the request, emitting `languageChanged`, and serving the English fallback from
 // `t()`. Direction therefore has to follow `resolvedLanguage`, which reports what actually answered,
-// or the document is dressed right-to-left around English copy. Asserted against the source for the
+// rather than metadata for a catalogue that never loaded. Asserted against the source for the
 // same reason the main.tsx gate below is: the wiring is what breaks, and it cannot be provoked here.
 test('direction follows the catalogue that answered, not the one that was asked for', () => {
   const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'index.ts'), 'utf8');
