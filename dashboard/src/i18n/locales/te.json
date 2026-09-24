@@ -196,6 +196,7 @@
       "activeSessions": "కనెక్ట్ అయిన సెషన్లు",
       "sessionsDetail": "{{running}} నడుస్తోంది · మొత్తం {{total}}",
       "messagesToday": "ఈరోజు సందేశాలు",
+      "whatsappGroups": "వాట్సాప్ గ్రూపులు",
       "webhooksConfigured": "కాన్ఫిగర్ చేసిన వెబ్‌హుక్స్",
       "totalMessages": "మొత్తం సందేశాలు"
     },

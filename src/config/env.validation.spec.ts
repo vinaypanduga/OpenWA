@@ -194,6 +194,19 @@ describe('validateEnv', () => {
     expect(() => validateEnv({})).not.toThrow();
   });
 
+  it('validates the opt-in BigQuery analytics destination', () => {
+    expect(() => validateEnv({ BIGQUERY_ANALYTICS_EXPORT_ENABLED: 'yes' })).toThrow(
+      /BIGQUERY_ANALYTICS_EXPORT_ENABLED/,
+    );
+    expect(() => validateEnv({ BIGQUERY_ANALYTICS_EXPORT_ENABLED: 'true' })).toThrow(/BIGQUERY_PROJECT_ID/);
+    expect(() =>
+      validateEnv({ BIGQUERY_ANALYTICS_EXPORT_ENABLED: 'true', BIGQUERY_PROJECT_ID: 'openwa-prod' }),
+    ).not.toThrow();
+    expect(() => validateEnv({ BIGQUERY_DATASET_ID: 'bad-dataset' })).toThrow(/BIGQUERY_DATASET_ID/);
+    expect(() => validateEnv({ BIGQUERY_TABLE_ID: '1bad' })).toThrow(/BIGQUERY_TABLE_ID/);
+    expect(() => validateEnv({ BIGQUERY_LOCATION: 'US;drop' })).toThrow(/BIGQUERY_LOCATION/);
+  });
+
   it('rejects a mistyped value for the datastore, webhook and engine booleans too', () => {
     // Read with the same bare `=== 'true'` / `!== 'false'` comparison but absent from the strict list,
     // so a typo configured the opposite of what the operator asked for, in silence. DATABASE_SSL is

@@ -203,6 +203,7 @@
       "activeSessions": "סשנים מחוברים",
       "sessionsDetail": "{{running}} רצים · {{total}} בסך הכול",
       "messagesToday": "הודעות היום",
+      "whatsappGroups": "קבוצות WhatsApp",
       "webhooksConfigured": "Webhooks מוגדרים",
       "totalMessages": "סה\"כ הודעות"
     },

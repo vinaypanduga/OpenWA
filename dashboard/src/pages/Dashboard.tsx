@@ -1,9 +1,14 @@
 import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Activity, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Activity, Loader2, Users } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { useSessionsQuery, useSessionStatsQuery, useStatsOverviewQuery } from '../hooks/queries';
+import {
+  useSessionsQuery,
+  useSessionGroupListsQueries,
+  useSessionStatsQuery,
+  useStatsOverviewQuery,
+} from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
 import { WidgetTooltip } from '../components/WidgetTooltip';
 import './Dashboard.css';
@@ -17,11 +22,19 @@ export function Dashboard() {
   useDocumentTitle(t('dashboard.title'));
   const { data: sessions = [], isLoading: loadingSessions, error: sessionsError } = useSessionsQuery();
   const { data: stats } = useSessionStatsQuery();
+  const readySessionIds = sessions.filter(session => session.status === 'ready').map(session => session.id);
+  const groupListQueries = useSessionGroupListsQueries(readySessionIds);
   // /stats/overview is ADMIN-only; for a non-admin key it 403s → overview stays undefined and the
   // message cards fall back to '—' without breaking the (un-gated) session cards.
   const { data: overview } = useStatsOverviewQuery();
   const messagesToday = overview ? overview.messages.today.sent + overview.messages.today.received : '—';
   const totalMessages = overview ? overview.messages.sent + overview.messages.received : '—';
+  const groupsLoading = readySessionIds.length > 0 && groupListQueries.some(query => query.isLoading);
+  const groupsUnavailable = groupListQueries.some(query => query.isError);
+  const whatsappGroupCount =
+    groupsLoading || groupsUnavailable
+      ? '—'
+      : new Set(groupListQueries.flatMap(query => (query.data ?? []).map(group => group.id))).size;
   const loading = loadingSessions;
   const error =
     sessionsError instanceof Error ? sessionsError.message : sessionsError ? t('dashboard.loadError') : null;
@@ -45,6 +58,27 @@ export function Dashboard() {
       icon: Send,
       tooltip: t('dashboard.tooltips.messagesToday', {
         defaultValue: "Incoming and outgoing messages recorded since midnight in the server's local time.",
+      }),
+    },
+    {
+      label: t('dashboard.stats.whatsappGroups', { defaultValue: 'WhatsApp Groups' }),
+      value: whatsappGroupCount,
+      icon: Users,
+      detail:
+        readySessionIds.length === 0
+          ? t('dashboard.stats.groupsConnectSession', { defaultValue: 'Connect a session to load groups' })
+          : groupsLoading
+            ? t('dashboard.stats.groupsLoading', { defaultValue: 'Loading from WhatsApp…' })
+            : groupsUnavailable
+              ? t('dashboard.stats.groupsUnavailable', { defaultValue: 'Group count is temporarily unavailable' })
+              : t('dashboard.stats.groupsDetail', {
+                  count: readySessionIds.length,
+                  defaultValue: 'Across {{count}} connected session',
+                  defaultValue_other: 'Across {{count}} connected sessions',
+                }),
+      tooltip: t('dashboard.tooltips.whatsappGroups', {
+        defaultValue:
+          'Unique WhatsApp groups that the connected sessions currently belong to. The same group linked through multiple sessions is counted once.',
       }),
     },
     // The "Webhooks Configured" widget is intentionally hidden from the dashboard.

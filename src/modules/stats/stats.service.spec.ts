@@ -88,6 +88,32 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     expect(stats.timeSeries[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:00:00$/);
   });
 
+  it('getMessageStatsForRange uses an exact half-open window for repeatable exports', async () => {
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's1', name: 'n', status: SessionStatus.READY, config: {} }));
+
+    const since = new Date('2026-02-01T00:00:00.000Z');
+    const until = new Date('2026-03-03T00:00:00.000Z');
+    await seedMessage({ createdAt: new Date('2026-01-31T23:59:59.999Z'), body: 'before' });
+    await seedMessage({ createdAt: since, body: 'start included' });
+    await seedMessage({ createdAt: new Date('2026-03-02T23:59:59.999Z'), body: 'end included' });
+    await seedMessage({ createdAt: until, body: 'next window' });
+
+    const stats = await service.getMessageStatsForRange(since, until);
+
+    expect(stats.summary.sent).toBe(2);
+    expect(stats.timeSeries.reduce((total, point) => total + point.sent, 0)).toBe(2);
+    expect(stats.byType).toEqual({ text: 2 });
+    expect(stats.topChats[0].messageCount).toBe(2);
+  });
+
+  it('getMessageStatsForRange rejects an invalid or empty window', async () => {
+    const boundary = new Date('2026-09-01T00:00:00.000Z');
+    await expect(service.getMessageStatsForRange(boundary, boundary)).rejects.toThrow(RangeError);
+    await expect(service.getMessageStatsForRange(new Date('invalid'), boundary)).rejects.toThrow(RangeError);
+  });
+
   it('returns sent, received, and distinct-chat interaction analytics for the period', async () => {
     await ds
       .getRepository(Session)

@@ -264,10 +264,21 @@ describe('configuration search namespace', () => {
 });
 
 describe('configuration stats namespace', () => {
-  const orig = process.env.STATS_CACHE_TTL_MS;
+  const keys = [
+    'STATS_CACHE_TTL_MS',
+    'BIGQUERY_ANALYTICS_EXPORT_ENABLED',
+    'BIGQUERY_PROJECT_ID',
+    'BIGQUERY_DATASET_ID',
+    'BIGQUERY_TABLE_ID',
+    'BIGQUERY_LOCATION',
+  ] as const;
+  const orig: Record<string, string | undefined> = {};
+  beforeEach(() => keys.forEach(key => (orig[key] = process.env[key])));
   afterEach(() => {
-    if (orig === undefined) delete process.env.STATS_CACHE_TTL_MS;
-    else process.env.STATS_CACHE_TTL_MS = orig;
+    keys.forEach(key => {
+      if (orig[key] === undefined) delete process.env[key];
+      else process.env[key] = orig[key];
+    });
   });
 
   it('exposes stats memo defaults and parses STATS_CACHE_TTL_MS (0 disables the memo)', () => {
@@ -277,6 +288,30 @@ describe('configuration stats namespace', () => {
     expect(configuration().stats.cacheTtlMs).toBe(0);
     process.env.STATS_CACHE_TTL_MS = '60000';
     expect(configuration().stats.cacheTtlMs).toBe(60000);
+  });
+
+  it('exposes disabled BigQuery export defaults and configured destination values', () => {
+    keys.forEach(key => delete process.env[key]);
+    expect(configuration().stats.bigQueryExport).toEqual({
+      enabled: false,
+      projectId: '',
+      datasetId: 'openwa_analytics',
+      tableId: 'monthly_message_analytics',
+      location: 'US',
+    });
+
+    process.env.BIGQUERY_ANALYTICS_EXPORT_ENABLED = 'true';
+    process.env.BIGQUERY_PROJECT_ID = 'openwa-prod';
+    process.env.BIGQUERY_DATASET_ID = 'reporting';
+    process.env.BIGQUERY_TABLE_ID = 'message_monthly';
+    process.env.BIGQUERY_LOCATION = 'australia-southeast1';
+    expect(configuration().stats.bigQueryExport).toEqual({
+      enabled: true,
+      projectId: 'openwa-prod',
+      datasetId: 'reporting',
+      tableId: 'message_monthly',
+      location: 'australia-southeast1',
+    });
   });
 });
 

@@ -196,6 +196,7 @@
       "activeSessions": "Sessões conectadas",
       "sessionsDetail": "{{running}} em execução · {{total}} no total",
       "messagesToday": "Mensagens hoje",
+      "whatsappGroups": "Grupos do WhatsApp",
       "webhooksConfigured": "Webhooks configurados",
       "totalMessages": "Total de mensagens"
     },

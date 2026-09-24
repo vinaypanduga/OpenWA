@@ -196,6 +196,7 @@
       "activeSessions": "已连接会话",
       "sessionsDetail": "{{running}} 运行中 · 共 {{total}}",
       "messagesToday": "今日消息",
+      "whatsappGroups": "WhatsApp 群组",
       "webhooksConfigured": "已配置 Webhook",
       "totalMessages": "消息总数"
     },

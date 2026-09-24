@@ -207,6 +207,7 @@
       "activeSessions": "الجلسات المتصلة",
       "sessionsDetail": "{{running}} قيد التشغيل · {{total}} الإجمالي",
       "messagesToday": "رسائل اليوم",
+      "whatsappGroups": "مجموعات واتساب",
       "webhooksConfigured": "الويب هوك المُهيّأة",
       "totalMessages": "إجمالي الرسائل"
     },

@@ -196,6 +196,7 @@
       "activeSessions": "연결된 세션",
       "sessionsDetail": "{{running}} 실행 중 · 총 {{total}}",
       "messagesToday": "오늘의 메시지",
+      "whatsappGroups": "WhatsApp 그룹",
       "webhooksConfigured": "설정된 웹훅",
       "totalMessages": "전체 메시지"
     },

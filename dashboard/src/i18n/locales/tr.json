@@ -196,6 +196,7 @@
       "activeSessions": "Bağlı Oturumlar",
       "sessionsDetail": "{{running}} çalışıyor · {{total}} toplam",
       "messagesToday": "Bugünkü Mesajlar",
+      "whatsappGroups": "WhatsApp Grupları",
       "webhooksConfigured": "Yapılandırılmış Webhook'lar",
       "totalMessages": "Toplam Mesaj"
     },

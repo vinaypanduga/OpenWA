@@ -402,12 +402,38 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     // Perf/observability only, but same silent-typo class.
     'CACHE_ENABLED',
     'DATABASE_LOGGING',
+    // Monthly analytics export. A typo would silently leave an expected compliance/reporting feed
+    // disabled, so treat it like the other exact opt-in booleans.
+    'BIGQUERY_ANALYTICS_EXPORT_ENABLED',
     // DELIBERATELY NOT LISTED. `MCP_READONLY` is read `!== 'false'` and mcp.server.spec.ts asserts
     // that `yes` keeps it read-only — a tolerance the repo tests on purpose. `PUPPETEER_HEADLESS` is
     // read `!== 'false'` and `new` is a real Puppeteer value that works today. Both fail toward the
     // safe state, so strictness here would refuse working deployments to no benefit.
   ]) {
     checkBool(key);
+  }
+
+  const bigQueryEnabled = config['BIGQUERY_ANALYTICS_EXPORT_ENABLED'] === 'true';
+  const bigQueryProjectId = str('BIGQUERY_PROJECT_ID');
+  const bigQueryDatasetId = str('BIGQUERY_DATASET_ID');
+  const bigQueryTableId = str('BIGQUERY_TABLE_ID');
+  const bigQueryLocation = str('BIGQUERY_LOCATION');
+  if (bigQueryEnabled && !bigQueryProjectId) {
+    errors.push('BIGQUERY_PROJECT_ID is required when BIGQUERY_ANALYTICS_EXPORT_ENABLED=true');
+  }
+  if (bigQueryProjectId && !/^[A-Za-z0-9][A-Za-z0-9:.-]{0,127}$/.test(bigQueryProjectId)) {
+    errors.push(`BIGQUERY_PROJECT_ID contains invalid characters (got ${JSON.stringify(bigQueryProjectId)})`);
+  }
+  for (const [key, value] of [
+    ['BIGQUERY_DATASET_ID', bigQueryDatasetId],
+    ['BIGQUERY_TABLE_ID', bigQueryTableId],
+  ] as const) {
+    if (value && !/^[A-Za-z_][A-Za-z0-9_]{0,1023}$/.test(value)) {
+      errors.push(`${key} must start with a letter or underscore and contain only letters, digits, or underscores`);
+    }
+  }
+  if (bigQueryLocation && !/^[A-Za-z0-9-]+$/.test(bigQueryLocation)) {
+    errors.push(`BIGQUERY_LOCATION contains invalid characters (got ${JSON.stringify(bigQueryLocation)})`);
   }
 
   // MEDIA_DOWNLOAD_ENABLED is the one boolean whose read site NORMALISES before comparing

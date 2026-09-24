@@ -256,13 +256,33 @@ export class StatsService {
     return this.memoized(`messages:${period}`, () => this.loadMessageStats(period));
   }
 
+  /**
+   * Load an exact half-open analytics window (`since <= createdAt < until`). Monthly exports use
+   * this instead of the dashboard's rolling "30d from now" query so a retry always produces the
+   * same snapshot and a message on the month boundary cannot be exported twice.
+   */
+  async getMessageStatsForRange(since: Date, until: Date, groupIds: readonly string[] = []): Promise<MessageStats> {
+    if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || since >= until) {
+      throw new RangeError('Analytics range must have valid dates with since before until');
+    }
+    return this.loadMessageStatsRange(since, until, 'day', [...new Set(groupIds)]);
+  }
+
   private async loadMessageStats(
     period: '24h' | '7d' | '30d',
     groupIds: readonly string[] = [],
   ): Promise<MessageStats> {
     const since = this.getPeriodStart(period);
     const interval = period === '24h' ? 'hour' : 'day';
+    return this.loadMessageStatsRange(since, undefined, interval, groupIds);
+  }
 
+  private async loadMessageStatsRange(
+    since: Date,
+    until: Date | undefined,
+    interval: 'hour' | 'day',
+    groupIds: readonly string[],
+  ): Promise<MessageStats> {
     // One bounded aggregate supplies the analytics KPI cards. An interaction is one distinct
     // session-and-chat pair with recorded inbound or outbound activity in the period; unlike raw
     // message volume this answers "how many conversations did we engage with?".
@@ -277,6 +297,7 @@ export class StatsService {
       // COUNT(DISTINCT ...), whose syntax differs between the two engines.
       .addSelect(`COUNT(DISTINCT (m.sessionId || ':' || m.chatId))`, 'interactions')
       .where('m.createdAt >= :since', { since });
+    if (until) summaryQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) summaryQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
     const summaryRaw = await summaryQuery.getRawOne<{
       sent: string;
@@ -288,7 +309,7 @@ export class StatsService {
 
     // Load all chats once because groupBreakdown intentionally remains unfiltered. Headline metrics
     // are then reduced to the selected chat set without erasing receipt totals for comparison rows.
-    const receiptAudiences = await this.getReceiptAudiences(since);
+    const receiptAudiences = await this.getReceiptAudiences(since, until);
     const receiptAudienceByChat = receiptAudiences.byChat;
     const summaryReceiptTotals = this.sumReceiptAudiences(
       groupIds.length ? groupIds.map(groupId => receiptAudienceByChat.get(groupId)) : receiptAudienceByChat.values(),
@@ -305,7 +326,7 @@ export class StatsService {
     };
 
     // Time series - using raw query for SQLite compatibility
-    const timeSeries = await this.getTimeSeries(since, interval, groupIds);
+    const timeSeries = await this.getTimeSeries(since, until, interval, groupIds);
 
     // By type. Rows with no body AND no metadata are content-less system/event rows (e.g. @lid
     // privacy-user events the engine maps to `unknown`) — counting them would put a misleading
@@ -319,11 +340,12 @@ export class StatsService {
       // Keep the OR branches inside one predicate. Without the outer parentheses, SQL precedence
       // lets any row with a body bypass the date and optional group filters.
       .andWhere("((m.body IS NOT NULL AND m.body != '') OR m.metadata IS NOT NULL)");
+    if (until) byTypeQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) byTypeQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
     const byTypeRaw = await byTypeQuery
       .groupBy('m.type')
       .addGroupBy('m.direction')
-      .getRawMany<{ type: string | null; direction: string; count: string }>();
+      .getRawMany<{ type: string | null; direction: MessageDirection; count: string }>();
 
     const byType: Record<string, number> = {};
     const byTypeBreakdownMap = new Map<string, { sent: number; received: number; total: number }>();
@@ -357,6 +379,7 @@ export class StatsService {
       .addSelect('m.direction', 'direction')
       .addSelect('COUNT(*)', 'count')
       .where('m.createdAt >= :since', { since });
+    if (until) bySessionQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) bySessionQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
     const bySessionRaw = await bySessionQuery
       .groupBy('m.sessionId')
@@ -392,6 +415,7 @@ export class StatsService {
       .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
       .addSelect(maxCreatedAtSql(this.dataDbType), 'lastActive')
       .where('m.createdAt >= :since', { since });
+    if (until) topChatsQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) topChatsQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
     const topChats = await topChatsQuery
       .groupBy('m.chatId')
@@ -413,7 +437,7 @@ export class StatsService {
     // Keep this query independent of groupIds so the response always contains every group available
     // in the selected period. The dashboard uses it both as the filter's option list and as the
     // comparative group-level table while the headline/chart queries drill into one group.
-    const groupBreakdownRaw = await this.messageRepo
+    const groupBreakdownQuery = this.messageRepo
       .createQueryBuilder('m')
       .select('m.chatId', 'groupId')
       .addSelect('MAX(m.chatName)', 'groupName')
@@ -422,15 +446,15 @@ export class StatsService {
       .addSelect('COUNT(*)', 'total')
       .where('m.createdAt >= :since', { since })
       .andWhere('m.chatId LIKE :groupSuffix', { groupSuffix: '%@g.us' })
-      .groupBy('m.chatId')
-      .orderBy('COUNT(*)', 'DESC')
-      .getRawMany<{
-        groupId: string;
-        groupName: string | null;
-        sent: string;
-        received: string;
-        total: string;
-      }>();
+      .groupBy('m.chatId');
+    if (until) groupBreakdownQuery.andWhere('m.createdAt < :until', { until });
+    const groupBreakdownRaw = await groupBreakdownQuery.orderBy('COUNT(*)', 'DESC').getRawMany<{
+      groupId: string;
+      groupName: string | null;
+      sent: string;
+      received: string;
+      total: string;
+    }>();
 
     return {
       summary,
@@ -473,7 +497,7 @@ export class StatsService {
    * recipient sets instead; the SQL content flag keeps type analytics aligned without loading
    * message bodies or media metadata.
    */
-  private async getReceiptAudiences(since: Date): Promise<ReceiptAudiences> {
+  private async getReceiptAudiences(since: Date, until?: Date): Promise<ReceiptAudiences> {
     const query = this.messageRepo
       .createQueryBuilder('m')
       .select('m.chatId', 'chatId')
@@ -490,6 +514,7 @@ export class StatsService {
       .where('m.createdAt >= :since', { since })
       .andWhere('m.direction = :direction', { direction: MessageDirection.OUTGOING })
       .andWhere('(m.deliveryCount > 0 OR m.readCount > 0)');
+    if (until) query.andWhere('m.createdAt < :until', { until });
 
     const rows = await query.getRawMany<{
       chatId: string;
@@ -639,6 +664,7 @@ export class StatsService {
 
   private async getTimeSeries(
     since: Date,
+    until: Date | undefined,
     interval: 'hour' | 'day',
     groupIds: readonly string[] = [],
   ): Promise<TimeSeriesPoint[]> {
@@ -652,6 +678,7 @@ export class StatsService {
       .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
       .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
       .where('m.createdAt >= :since', { since });
+    if (until) query.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) query.andWhere('m.chatId IN (:...groupIds)', { groupIds });
     const raw = await query
       .groupBy('bucket')

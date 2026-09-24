@@ -115,6 +115,13 @@ export default () => ({
   // every request. 0 disables the memo.
   stats: {
     cacheTtlMs: parseInt(process.env.STATS_CACHE_TTL_MS || '30000', 10),
+    bigQueryExport: {
+      enabled: process.env.BIGQUERY_ANALYTICS_EXPORT_ENABLED === 'true',
+      projectId: process.env.BIGQUERY_PROJECT_ID || '',
+      datasetId: process.env.BIGQUERY_DATASET_ID || 'openwa_analytics',
+      tableId: process.env.BIGQUERY_TABLE_ID || 'monthly_message_analytics',
+      location: process.env.BIGQUERY_LOCATION || 'US',
+    },
   },
 
   // Runtime feature flags. Single source of truth: src/config/feature-flags.ts. Exposed here so the
