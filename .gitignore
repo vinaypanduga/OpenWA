@@ -64,6 +64,7 @@ uploads/
 *.bak
 *.tmp
 *.temp
+service-account.json
 
 # Git worktrees
 .worktrees/

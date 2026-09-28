@@ -257,9 +257,9 @@ export class StatsService {
   }
 
   /**
-   * Load an exact half-open analytics window (`since <= createdAt < until`). Monthly exports use
-   * this instead of the dashboard's rolling "30d from now" query so a retry always produces the
-   * same snapshot and a message on the month boundary cannot be exported twice.
+   * Load an exact half-open analytics window (`since <= createdAt < until`). BigQuery exports use
+   * this instead of the dashboard's rolling range so a retry always produces the same snapshot and
+   * a message on the window boundary cannot be exported twice.
    */
   async getMessageStatsForRange(since: Date, until: Date, groupIds: readonly string[] = []): Promise<MessageStats> {
     if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || since >= until) {

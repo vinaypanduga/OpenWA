@@ -402,7 +402,7 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     // Perf/observability only, but same silent-typo class.
     'CACHE_ENABLED',
     'DATABASE_LOGGING',
-    // Monthly analytics export. A typo would silently leave an expected compliance/reporting feed
+    // 15-day analytics export. A typo would silently leave an expected reporting feed
     // disabled, so treat it like the other exact opt-in booleans.
     'BIGQUERY_ANALYTICS_EXPORT_ENABLED',
     // DELIBERATELY NOT LISTED. `MCP_READONLY` is read `!== 'false'` and mcp.server.spec.ts asserts
@@ -418,6 +418,7 @@ export function validateEnv(config: EnvConfig): EnvConfig {
   const bigQueryDatasetId = str('BIGQUERY_DATASET_ID');
   const bigQueryTableId = str('BIGQUERY_TABLE_ID');
   const bigQueryLocation = str('BIGQUERY_LOCATION');
+  const bigQueryStartAt = str('BIGQUERY_ANALYTICS_EXPORT_START_AT');
   if (bigQueryEnabled && !bigQueryProjectId) {
     errors.push('BIGQUERY_PROJECT_ID is required when BIGQUERY_ANALYTICS_EXPORT_ENABLED=true');
   }
@@ -434,6 +435,9 @@ export function validateEnv(config: EnvConfig): EnvConfig {
   }
   if (bigQueryLocation && !/^[A-Za-z0-9-]+$/.test(bigQueryLocation)) {
     errors.push(`BIGQUERY_LOCATION contains invalid characters (got ${JSON.stringify(bigQueryLocation)})`);
+  }
+  if (bigQueryStartAt && !Number.isFinite(Date.parse(bigQueryStartAt))) {
+    errors.push('BIGQUERY_ANALYTICS_EXPORT_START_AT must be a valid ISO-8601 timestamp');
   }
 
   // MEDIA_DOWNLOAD_ENABLED is the one boolean whose read site NORMALISES before comparing

@@ -205,6 +205,9 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ BIGQUERY_DATASET_ID: 'bad-dataset' })).toThrow(/BIGQUERY_DATASET_ID/);
     expect(() => validateEnv({ BIGQUERY_TABLE_ID: '1bad' })).toThrow(/BIGQUERY_TABLE_ID/);
     expect(() => validateEnv({ BIGQUERY_LOCATION: 'US;drop' })).toThrow(/BIGQUERY_LOCATION/);
+    expect(() => validateEnv({ BIGQUERY_ANALYTICS_EXPORT_START_AT: 'not-a-date' })).toThrow(
+      /BIGQUERY_ANALYTICS_EXPORT_START_AT/,
+    );
   });
 
   it('rejects a mistyped value for the datastore, webhook and engine booleans too', () => {

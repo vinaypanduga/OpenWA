@@ -271,6 +271,7 @@ describe('configuration stats namespace', () => {
     'BIGQUERY_DATASET_ID',
     'BIGQUERY_TABLE_ID',
     'BIGQUERY_LOCATION',
+    'BIGQUERY_ANALYTICS_EXPORT_START_AT',
   ] as const;
   const orig: Record<string, string | undefined> = {};
   beforeEach(() => keys.forEach(key => (orig[key] = process.env[key])));
@@ -296,21 +297,24 @@ describe('configuration stats namespace', () => {
       enabled: false,
       projectId: '',
       datasetId: 'openwa_analytics',
-      tableId: 'monthly_message_analytics',
+      tableId: 'message_analytics_15d',
       location: 'US',
+      startAt: '',
     });
 
     process.env.BIGQUERY_ANALYTICS_EXPORT_ENABLED = 'true';
     process.env.BIGQUERY_PROJECT_ID = 'openwa-prod';
     process.env.BIGQUERY_DATASET_ID = 'reporting';
-    process.env.BIGQUERY_TABLE_ID = 'message_monthly';
+    process.env.BIGQUERY_TABLE_ID = 'message_analytics_custom';
     process.env.BIGQUERY_LOCATION = 'australia-southeast1';
+    process.env.BIGQUERY_ANALYTICS_EXPORT_START_AT = '2026-09-28T00:00:00.000Z';
     expect(configuration().stats.bigQueryExport).toEqual({
       enabled: true,
       projectId: 'openwa-prod',
       datasetId: 'reporting',
-      tableId: 'message_monthly',
+      tableId: 'message_analytics_custom',
       location: 'australia-southeast1',
+      startAt: '2026-09-28T00:00:00.000Z',
     });
   });
 });
