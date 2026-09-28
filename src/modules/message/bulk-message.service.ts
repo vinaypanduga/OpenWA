@@ -98,6 +98,11 @@ interface BatchExecutionState {
   cancelledByDb: boolean;
 }
 
+interface BatchCreationOptions {
+  /** Apply the configured delay before the first send as well as between later sends. */
+  delayBeforeFirstMessage?: boolean;
+}
+
 @Injectable()
 export class BulkMessageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BulkMessageService.name);
@@ -200,7 +205,11 @@ export class BulkMessageService implements OnApplicationBootstrap {
     return batches.filter(batch => claimable.has(batch.sessionId));
   }
 
-  async createBatch(sessionId: string, dto: SendBulkMessageDto): Promise<MessageBatch> {
+  async createBatch(
+    sessionId: string,
+    dto: SendBulkMessageDto,
+    creationOptions: BatchCreationOptions = {},
+  ): Promise<MessageBatch> {
     // Validate the session is started (guard only — the batch is sent later, by drainBatch).
     this.engines.require(sessionId, () => new BadRequestException(`Session '${sessionId}' is not active`));
 
@@ -250,6 +259,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
       randomizeDelay: dto.options?.randomizeDelay ?? true,
       minDelayBetweenMessages: dto.options?.minDelayBetweenMessages,
       maxDelayBetweenMessages: dto.options?.maxDelayBetweenMessages,
+      delayBeforeFirstMessage: creationOptions.delayBeforeFirstMessage ?? false,
       stopOnError: dto.options?.stopOnError ?? false,
     };
 
@@ -437,6 +447,18 @@ export class BulkMessageService implements OnApplicationBootstrap {
     engine: IWhatsAppEngine,
     state: BatchExecutionState,
   ): Promise<void> {
+    // Scheduled batches opt into a first-send delay. Combined with the existing delay after every
+    // non-final item, this gives every scheduled send a fresh jitter window, including the first
+    // item after a process restart. Cancellation is checked again after waiting so a cancelled
+    // campaign never sends merely because it was sleeping.
+    if (
+      batch.options.delayBeforeFirstMessage &&
+      batch.currentIndex < batch.messages.length &&
+      this.processingBatches.get(batch.id)
+    ) {
+      await setTimeout(this.calculateDelay(batch.options));
+      if (!this.processingBatches.get(batch.id)) return;
+    }
     for (let i = batch.currentIndex; i < batch.messages.length; i++) {
       if (!(await this.processBatchMessage(batch, engine, i, state))) break;
     }

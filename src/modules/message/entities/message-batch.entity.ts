@@ -68,6 +68,8 @@ export class MessageBatch {
     randomizeDelay: boolean;
     minDelayBetweenMessages?: number;
     maxDelayBetweenMessages?: number;
+    /** Internal scheduler option: apply jitter before the first (or resumed) send too. */
+    delayBeforeFirstMessage?: boolean;
     stopOnError: boolean;
   };
 

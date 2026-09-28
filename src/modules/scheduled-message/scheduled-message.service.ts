@@ -71,6 +71,9 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
     }
     const minDelaySeconds = dto.minDelaySeconds ?? 2;
     const maxDelaySeconds = dto.maxDelaySeconds ?? 10;
+    if (minDelaySeconds < 1 || maxDelaySeconds < 1) {
+      throw new BadRequestException('Scheduled-message jitter must be at least 1 second');
+    }
     if (maxDelaySeconds < minDelaySeconds) {
       throw new BadRequestException('maxDelaySeconds must be greater than or equal to minDelaySeconds');
     }
@@ -135,15 +138,24 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
     if (this.ticking) return;
     this.ticking = true;
     try {
+      // A PROCESSING schedule owns its WhatsApp session until its bulk batch reaches a terminal
+      // state. Other due schedules for that session remain PENDING, making the database rows the
+      // durable queue while still allowing independent WhatsApp sessions to work concurrently.
+      const processing = await this.repository.find({
+        select: { id: true, sessionId: true },
+        where: { status: ScheduledMessageStatus.PROCESSING },
+      });
+      const busySessions = new Set(processing.map(schedule => schedule.sessionId));
       const due = await this.repository.find({
         where: { status: ScheduledMessageStatus.PENDING, scheduledAt: LessThanOrEqual(new Date()) },
         order: { scheduledAt: 'ASC' },
         take: 20,
       });
       for (const schedule of due) {
+        if (busySessions.has(schedule.sessionId)) continue;
         // Leave due schedules queued when send capacity is full, rather than fail the campaign.
         if (!this.bulkMessages.hasBatchCapacity()) break;
-        await this.start(schedule);
+        if (await this.start(schedule)) busySessions.add(schedule.sessionId);
       }
       const active = await this.repository.find({
         select: {
@@ -168,31 +180,38 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
     }
   }
 
-  private async start(schedule: ScheduledMessage): Promise<void> {
+  private async start(schedule: ScheduledMessage): Promise<boolean> {
     const batchId = `scheduled_${schedule.id.replace(/-/g, '').slice(0, 20)}_${schedule.runCount + 1}`;
     const claimed = await this.repository.update(
       { id: schedule.id, status: ScheduledMessageStatus.PENDING },
       { status: ScheduledMessageStatus.PROCESSING, startedAt: new Date(), batchId, error: null },
     );
-    if (!claimed.affected) return;
+    if (!claimed.affected) return false;
     try {
       const collection = await this.customGroups.findOne(schedule.sessionId, schedule.customGroupId);
       if (!collection.groupIds.length) throw new BadRequestException('The custom group has no selected groups');
-      await this.bulkMessages.createBatch(schedule.sessionId, {
-        batchId,
-        messages: collection.groupIds.map(chatId => ({
-          chatId,
-          type: schedule.messageType,
-          content: schedule.content,
-        })),
-        options: {
-          delayBetweenMessages: schedule.minDelaySeconds * 1000,
-          minDelayBetweenMessages: schedule.minDelaySeconds * 1000,
-          maxDelayBetweenMessages: schedule.maxDelaySeconds * 1000,
-          randomizeDelay: true,
-          stopOnError: false,
+      // Clamp legacy rows that may have been saved before jitter became mandatory.
+      const minDelaySeconds = Math.max(1, schedule.minDelaySeconds);
+      const maxDelaySeconds = Math.max(minDelaySeconds, schedule.maxDelaySeconds);
+      await this.bulkMessages.createBatch(
+        schedule.sessionId,
+        {
+          batchId,
+          messages: collection.groupIds.map(chatId => ({
+            chatId,
+            type: schedule.messageType,
+            content: schedule.content,
+          })),
+          options: {
+            delayBetweenMessages: minDelaySeconds * 1000,
+            minDelayBetweenMessages: minDelaySeconds * 1000,
+            maxDelayBetweenMessages: maxDelaySeconds * 1000,
+            randomizeDelay: true,
+            stopOnError: false,
+          },
         },
-      });
+        { delayBeforeFirstMessage: true },
+      );
     } catch (error) {
       const completedAt = new Date();
       const message = error instanceof Error ? error.message : String(error);
@@ -212,6 +231,7 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
       }
       this.logger.error(`Scheduled message ${schedule.id} failed to start: ${message}`);
     }
+    return true;
   }
 
   private async reconcile(schedule: ScheduledMessage): Promise<void> {

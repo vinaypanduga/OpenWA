@@ -311,6 +311,32 @@ describe('BulkMessageService.processBatch', () => {
   const inFlightMarkers = (): Map<string, boolean> =>
     (service as unknown as { processingBatches: Map<string, boolean> }).processingBatches;
 
+  it('waits for configured jitter before the first scheduled send', async () => {
+    jest.useFakeTimers();
+    try {
+      const batch = makeBatch(1);
+      batch.options = {
+        delayBetweenMessages: 1000,
+        minDelayBetweenMessages: 1000,
+        maxDelayBetweenMessages: 1000,
+        randomizeDelay: true,
+        delayBeforeFirstMessage: true,
+        stopOnError: false,
+      };
+      repo.findOne.mockResolvedValue(batch);
+
+      const processing = runProcessBatch();
+      await jest.advanceTimersByTimeAsync(999);
+      expect(engine.sendTextMessage).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1);
+      await processing;
+      expect(engine.sendTextMessage).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('rejects a new batch (before persisting) when the concurrent in-flight cap is reached', async () => {
     const prev = process.env.BULK_MAX_CONCURRENT_BATCHES;
     process.env.BULK_MAX_CONCURRENT_BATCHES = '2';

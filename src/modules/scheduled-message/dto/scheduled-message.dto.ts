@@ -143,24 +143,24 @@ export class CreateScheduledMessageDto {
   @ApiPropertyOptional({
     description: 'Minimum random delay between groups in seconds',
     default: 2,
-    minimum: 0,
+    minimum: 1,
     maximum: MAX_DELAY_SECONDS,
   })
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   @Max(MAX_DELAY_SECONDS)
   minDelaySeconds?: number;
 
   @ApiPropertyOptional({
     description: 'Maximum random delay between groups in seconds',
     default: 10,
-    minimum: 0,
+    minimum: 1,
     maximum: MAX_DELAY_SECONDS,
   })
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   @Max(MAX_DELAY_SECONDS)
   maxDelaySeconds?: number;
 }

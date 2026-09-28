@@ -37,10 +37,69 @@ describe('ScheduledMessageService recurrence', () => {
   afterEach(() => jest.useRealTimers());
 
   it('keeps due schedules pending when all bulk slots are occupied', async () => {
-    repository.find.mockResolvedValueOnce([{ id: 'due' }]).mockResolvedValueOnce([]);
+    repository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'due', sessionId: 'session-1' }])
+      .mockResolvedValueOnce([]);
     await (service as unknown as { tick(): Promise<void> }).tick();
     expect(repository.update).not.toHaveBeenCalled();
     expect(bulkMessages.createBatch).not.toHaveBeenCalled();
+  });
+
+  it('leaves a due schedule queued while another schedule is processing for the same session', async () => {
+    bulkMessages.hasBatchCapacity.mockReturnValue(true);
+    const sameSession = scheduledMessage({ id: 'due-1', sessionId: 'session-1' });
+    const otherSession = scheduledMessage({ id: 'due-2', sessionId: 'session-2' });
+    repository.find
+      .mockResolvedValueOnce([{ id: 'active-1', sessionId: 'session-1' }])
+      .mockResolvedValueOnce([sameSession, otherSession])
+      .mockResolvedValueOnce([]);
+
+    await (service as unknown as { tick(): Promise<void> }).tick();
+
+    expect(repository.update).toHaveBeenCalledTimes(1);
+    expect(repository.update).toHaveBeenCalledWith(
+      { id: 'due-2', status: ScheduledMessageStatus.PENDING },
+      expect.objectContaining({ status: ScheduledMessageStatus.PROCESSING }),
+    );
+    expect(bulkMessages.createBatch).toHaveBeenCalledTimes(1);
+    expect(bulkMessages.createBatch).toHaveBeenCalledWith('session-2', expect.any(Object), {
+      delayBeforeFirstMessage: true,
+    });
+  });
+
+  it('starts only the oldest due schedule when several are queued for one session', async () => {
+    bulkMessages.hasBatchCapacity.mockReturnValue(true);
+    repository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        scheduledMessage({ id: 'oldest', sessionId: 'session-1' }),
+        scheduledMessage({ id: 'next', sessionId: 'session-1' }),
+      ])
+      .mockResolvedValueOnce([]);
+
+    await (service as unknown as { tick(): Promise<void> }).tick();
+
+    expect(repository.update).toHaveBeenCalledTimes(1);
+    expect(repository.update).toHaveBeenCalledWith(
+      { id: 'oldest', status: ScheduledMessageStatus.PENDING },
+      expect.any(Object),
+    );
+    expect(bulkMessages.createBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires at least one second of jitter for scheduled messages', async () => {
+    await expect(
+      service.create('session-1', {
+        name: 'No jitter',
+        customGroupId: 'collection-1',
+        messageType: 'text',
+        content: { text: 'Hello' },
+        scheduledAt: '2026-09-08T05:00:00.000Z',
+        minDelaySeconds: 0,
+        maxDelaySeconds: 10,
+      }),
+    ).rejects.toThrow('at least 1 second');
   });
 
   it('calculates and persists the first selected weekly occurrence', async () => {
@@ -101,3 +160,31 @@ describe('ScheduledMessageService recurrence', () => {
     );
   });
 });
+
+function scheduledMessage(overrides: Partial<ScheduledMessage> = {}): ScheduledMessage {
+  return {
+    id: 'schedule-1',
+    sessionId: 'session-1',
+    customGroupId: 'collection-1',
+    name: 'Campaign',
+    messageType: 'text',
+    content: { text: 'Hello' },
+    scheduledAt: new Date('2026-09-07T04:00:00.000Z'),
+    scheduleType: ScheduledMessageScheduleType.ONCE,
+    recurrenceDays: null,
+    recurrenceTime: null,
+    timezone: null,
+    runCount: 0,
+    lastRunAt: null,
+    minDelaySeconds: 2,
+    maxDelaySeconds: 10,
+    status: ScheduledMessageStatus.PENDING,
+    batchId: null,
+    error: null,
+    startedAt: null,
+    completedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}

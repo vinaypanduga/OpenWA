@@ -326,7 +326,7 @@ export function ScheduledMessages() {
                   <span>Minimum jitter (seconds)</span>
                   <input
                     type="number"
-                    min={0}
+                    min={1}
                     max={3600}
                     value={minDelaySeconds}
                     onChange={event => setMinDelaySeconds(Number(event.target.value))}
@@ -337,7 +337,7 @@ export function ScheduledMessages() {
                   <span>Maximum jitter (seconds)</span>
                   <input
                     type="number"
-                    min={0}
+                    min={1}
                     max={3600}
                     value={maxDelaySeconds}
                     onChange={event => setMaxDelaySeconds(Number(event.target.value))}
@@ -346,8 +346,9 @@ export function ScheduledMessages() {
                 </label>
               </div>
               <p className="scheduled-hint">
-                Each group receives the message after a fresh random delay between {minDelaySeconds} and{' '}
-                {maxDelaySeconds} seconds.
+                Scheduled campaigns are queued one at a time for this WhatsApp session. Every group, including the
+                first, receives the message after a fresh random delay between {minDelaySeconds} and {maxDelaySeconds}{' '}
+                seconds.
               </p>
               <button
                 className="btn-primary scheduled-save"
