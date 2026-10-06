@@ -37,6 +37,39 @@ const msgKey = (m: ChatMessage): string => m.waMessageId ?? m.id;
 const msgTime = (m: ChatMessage): number =>
   typeof m.timestamp === 'number' ? m.timestamp : Math.floor(Date.parse(m.createdAt) / 1000) || 0;
 
+/**
+ * Resolve the date shown for a chat message. WhatsApp timestamps are Unix seconds; `createdAt`
+ * remains the fallback for older database rows that do not have one. Invalid legacy values return
+ * null so the thread can still render the bubble without inventing a date.
+ */
+export function getChatMessageDate(message: Pick<ChatMessage, 'timestamp' | 'createdAt'>): Date | null {
+  const milliseconds =
+    typeof message.timestamp === 'number' && Number.isFinite(message.timestamp) && message.timestamp > 0
+      ? message.timestamp * 1000
+      : Date.parse(message.createdAt);
+  if (!Number.isFinite(milliseconds)) return null;
+  const date = new Date(milliseconds);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Browser-local calendar key. Deliberately avoids UTC (`toISOString`) so a late-night message is
+ * grouped under the day the operator sees in their own timezone. */
+export function localCalendarDayKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function relativeCalendarDay(date: Date, now = new Date()): 'today' | 'yesterday' | 'date' {
+  const dateKey = localCalendarDayKey(date);
+  if (dateKey === localCalendarDayKey(now)) return 'today';
+
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  yesterday.setDate(yesterday.getDate() - 1);
+  return dateKey === localCalendarDayKey(yesterday) ? 'yesterday' : 'date';
+}
+
 // Merge persisted DB messages with engine history into one ascending thread. The engine fills the
 // backfill (history from before the gateway captured anything); the DB copy wins on conflict so the
 // real delivery status survives. Deduped by the wweb.js serialized id (engine `id` == DB `waMessageId`).

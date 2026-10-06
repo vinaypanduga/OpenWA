@@ -1,4 +1,4 @@
-import { BigQueryAnalyticsExportService, fifteenDayAnalyticsWindow } from './bigquery-analytics-export.service';
+import { BigQueryAnalyticsExportService, sevenDayAnalyticsWindow } from './bigquery-analytics-export.service';
 import { MessageStats, StatsService } from './stats.service';
 
 const analytics: MessageStats = {
@@ -40,20 +40,20 @@ const analytics: MessageStats = {
   ],
 };
 
-describe('fifteenDayAnalyticsWindow', () => {
-  it('ends at the latest completed UTC midnight and covers exactly the preceding 15 days', () => {
-    const window = fifteenDayAnalyticsWindow(new Date('2026-09-23T18:45:00.000+05:30'));
+describe('sevenDayAnalyticsWindow', () => {
+  it('ends at the latest completed UTC midnight and covers exactly the preceding 7 days', () => {
+    const window = sevenDayAnalyticsWindow(new Date('2026-09-23T18:45:00.000+05:30'));
 
     expect(window).toEqual({
-      exportId: 'openwa-15d-20260923T000000Z',
-      start: new Date('2026-09-08T00:00:00.000Z'),
+      exportId: 'openwa-7d-20260923T000000Z',
+      start: new Date('2026-09-16T00:00:00.000Z'),
       end: new Date('2026-09-23T00:00:00.000Z'),
     });
-    expect(window.end.getTime() - window.start.getTime()).toBe(15 * 24 * 60 * 60 * 1000);
+    expect(window.end.getTime() - window.start.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
   });
 
   it('rejects an invalid date', () => {
-    expect(() => fifteenDayAnalyticsWindow(new Date('invalid'))).toThrow(RangeError);
+    expect(() => sevenDayAnalyticsWindow(new Date('invalid'))).toThrow(RangeError);
   });
 });
 
@@ -62,7 +62,7 @@ describe('BigQueryAnalyticsExportService', () => {
     'stats.bigQueryExport.enabled': true,
     'stats.bigQueryExport.projectId': 'example-project',
     'stats.bigQueryExport.datasetId': 'openwa_analytics',
-    'stats.bigQueryExport.tableId': 'message_analytics_15d',
+    'stats.bigQueryExport.tableId': 'message_analytics_7d',
     'stats.bigQueryExport.location': 'australia-southeast1',
   };
 
@@ -112,21 +112,21 @@ describe('BigQueryAnalyticsExportService', () => {
       expect.objectContaining({ location: 'australia-southeast1' }),
     );
     expect(dataset.createTable).toHaveBeenCalledWith(
-      'message_analytics_15d',
+      'message_analytics_7d',
       expect.objectContaining({ timePartitioning: { type: 'DAY', field: 'window_end' } }),
     );
     const createOptions = dataset.createTable.mock.calls[0][1];
     expect(createOptions.schema.map(field => field.name)).not.toContain('analytics_json');
     expect(stats.getMessageStatsForRange).toHaveBeenCalledWith(
-      new Date('2026-09-08T00:00:00.000Z'),
+      new Date('2026-09-16T00:00:00.000Z'),
       new Date('2026-09-23T00:00:00.000Z'),
     );
     expect(table.insert).toHaveBeenCalledWith(
       {
-        insertId: 'openwa-15d-20260923T000000Z',
+        insertId: 'openwa-7d-20260923T000000Z',
         json: expect.objectContaining({
-          export_id: 'openwa-15d-20260923T000000Z',
-          window_days: 15,
+          export_id: 'openwa-7d-20260923T000000Z',
+          window_days: 7,
           sent: 12,
           received: 7,
           active_groups: 1,
@@ -138,7 +138,7 @@ describe('BigQueryAnalyticsExportService', () => {
     );
   });
 
-  it('does not export until 15 days after the latest BigQuery window', async () => {
+  it('does not export until 7 days after the latest BigQuery window', async () => {
     const stats = { getMessageStatsForRange: jest.fn() };
     const { client, table } = makeBigQuery([
       { export_id: 'openwa-15d-20260923T000000Z', window_end: { value: '2026-09-23T00:00:00.000Z' } },
@@ -154,7 +154,7 @@ describe('BigQueryAnalyticsExportService', () => {
     expect(table.insert).not.toHaveBeenCalled();
   });
 
-  it('continues with the next consecutive 15-day window when it is due', async () => {
+  it('continues with the next consecutive 7-day window when it is due, including after a legacy 15-day row', async () => {
     const stats = { getMessageStatsForRange: jest.fn().mockResolvedValue(analytics) };
     const { client, table } = makeBigQuery([
       { export_id: 'openwa-15d-20260923T000000Z', window_end: '2026-09-23T00:00:00.000Z' },
@@ -165,12 +165,12 @@ describe('BigQueryAnalyticsExportService', () => {
       jest.fn().mockReturnValue(client),
     );
 
-    await expect(service.exportDueWindow(new Date('2026-10-08T12:00:00.000Z'))).resolves.toBe('exported');
+    await expect(service.exportDueWindow(new Date('2026-09-30T12:00:00.000Z'))).resolves.toBe('exported');
     expect(stats.getMessageStatsForRange).toHaveBeenCalledWith(
       new Date('2026-09-23T00:00:00.000Z'),
-      new Date('2026-10-08T00:00:00.000Z'),
+      new Date('2026-09-30T00:00:00.000Z'),
     );
-    expect(table.insert).toHaveBeenCalledWith(expect.objectContaining({ insertId: 'openwa-15d-20261008T000000Z' }), {
+    expect(table.insert).toHaveBeenCalledWith(expect.objectContaining({ insertId: 'openwa-7d-20260930T000000Z' }), {
       raw: true,
     });
   });
@@ -208,10 +208,10 @@ describe('BigQueryAnalyticsExportService', () => {
       jest.fn().mockReturnValue(client),
     );
 
-    await expect(service.exportDueWindow(new Date('2026-10-13T00:00:00.000Z'))).resolves.toBe('exported');
+    await expect(service.exportDueWindow(new Date('2026-10-05T00:00:00.000Z'))).resolves.toBe('exported');
     expect(stats.getMessageStatsForRange).toHaveBeenCalledWith(
       new Date('2026-09-28T00:00:00.000Z'),
-      new Date('2026-10-13T00:00:00.000Z'),
+      new Date('2026-10-05T00:00:00.000Z'),
     );
     expect(client.query).toHaveBeenCalledTimes(2);
     expect(table.insert).not.toHaveBeenCalled();

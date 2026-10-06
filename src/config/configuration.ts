@@ -119,6 +119,7 @@ export default () => ({
       enabled: process.env.BIGQUERY_ANALYTICS_EXPORT_ENABLED === 'true',
       projectId: process.env.BIGQUERY_PROJECT_ID || '',
       datasetId: process.env.BIGQUERY_DATASET_ID || 'openwa_analytics',
+      // Backward-compatible default: changing it would make an upgrade silently start a new table.
       tableId: process.env.BIGQUERY_TABLE_ID || 'message_analytics_15d',
       location: process.env.BIGQUERY_LOCATION || 'US',
       startAt: process.env.BIGQUERY_ANALYTICS_EXPORT_START_AT || '',

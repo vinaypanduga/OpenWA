@@ -1,9 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getChatMessageDate,
+  localCalendarDayKey,
   mapEngineHistoryMessage,
   mergeChatMessages,
   mergeReactionSnapshot,
+  relativeCalendarDay,
   type EngineHistoryMessage,
 } from './chatMessages.ts';
 import type { ChatMessage } from '../services/api';
@@ -35,6 +38,27 @@ const db = (over: Partial<ChatMessage> = {}): ChatMessage => ({
   timestamp: 1782053999,
   createdAt: '2026-06-23T11:16:34.000Z',
   ...over,
+});
+
+test('getChatMessageDate prefers the WhatsApp timestamp and falls back to createdAt', () => {
+  assert.equal(getChatMessageDate(db({ timestamp: 1_700_000_000 }))?.getTime(), 1_700_000_000_000);
+  assert.equal(
+    getChatMessageDate(db({ timestamp: undefined, createdAt: '2026-10-04T12:30:00.000Z' }))?.getTime(),
+    Date.parse('2026-10-04T12:30:00.000Z'),
+  );
+  assert.equal(getChatMessageDate(db({ timestamp: undefined, createdAt: 'not-a-date' })), null);
+});
+
+test('message day helpers use local calendar boundaries for today, yesterday, and older dates', () => {
+  const now = new Date(2026, 9, 6, 0, 15);
+  const today = new Date(2026, 9, 6, 0, 1);
+  const yesterday = new Date(2026, 9, 5, 23, 59);
+  const older = new Date(2026, 8, 30, 12, 0);
+
+  assert.equal(localCalendarDayKey(today), '2026-10-06');
+  assert.equal(relativeCalendarDay(today, now), 'today');
+  assert.equal(relativeCalendarDay(yesterday, now), 'yesterday');
+  assert.equal(relativeCalendarDay(older, now), 'date');
 });
 
 test('mapEngineHistoryMessage: fromMe=true becomes an outgoing bubble', () => {

@@ -98,6 +98,7 @@
     "replyingTo": "Replying to {{name}}",
     "you": "You",
     "youPrefix": "You: ",
+    "today": "Today",
     "yesterday": "Yesterday",
     "attachTitle": "Send file / image",
     "emojiTitle": "Pick emoji",

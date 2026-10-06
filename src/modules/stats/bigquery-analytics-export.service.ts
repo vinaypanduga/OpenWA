@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { BigQuery, Table } from '@google-cloud/bigquery';
 import { MessageStats, StatsService } from './stats.service';
 
-const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const EXPORT_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const BIGQUERY_ID = /^[A-Za-z_][A-Za-z0-9_]{0,1023}$/;
 
@@ -27,17 +27,17 @@ export interface AnalyticsExportWindow {
 
 export type BigQueryExportResult = 'disabled' | 'exported' | 'already-exported';
 
-/** The latest completed rolling 15-day window, ending at the current UTC midnight. */
-export function fifteenDayAnalyticsWindow(now: Date): AnalyticsExportWindow {
+/** The latest completed rolling 7-day window, ending at the current UTC midnight. */
+export function sevenDayAnalyticsWindow(now: Date): AnalyticsExportWindow {
   if (!Number.isFinite(now.getTime())) throw new RangeError('A valid date is required');
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  return fifteenDayWindowEndingAt(end);
+  return sevenDayWindowEndingAt(end);
 }
 
-function fifteenDayWindowEndingAt(end: Date): AnalyticsExportWindow {
-  const start = new Date(end.getTime() - FIFTEEN_DAYS_MS);
+function sevenDayWindowEndingAt(end: Date): AnalyticsExportWindow {
+  const start = new Date(end.getTime() - SEVEN_DAYS_MS);
   const compactBoundary = end.toISOString().replace(/[-:]/g, '').replace('.000', '');
-  return { exportId: `openwa-15d-${compactBoundary}`, start, end };
+  return { exportId: `openwa-7d-${compactBoundary}`, start, end };
 }
 
 const ANALYTICS_SCHEMA = [
@@ -57,8 +57,8 @@ const ANALYTICS_SCHEMA = [
 ];
 
 /**
- * Exports one aggregate-only snapshot every 15 days. The first tick runs at boot and exports the
- * preceding 15 completed UTC days unless an explicit start boundary is configured. Later windows
+ * Exports one aggregate-only snapshot every 7 days. The first tick runs at boot and exports the
+ * preceding 7 completed UTC days unless an explicit start boundary is configured. Later windows
  * continue from the latest BigQuery window_end, so restarts do not reset the cadence. The
  * deterministic export_id and insertId make retries idempotent without exporting chat IDs, phone
  * numbers, group names, message bodies, or full JSON.
@@ -81,7 +81,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     if (!settings.enabled) return;
 
     this.logger.log(
-      `15-day BigQuery analytics export enabled for ${settings.projectId}.${settings.datasetId}.${settings.tableId}`,
+      `7-day BigQuery analytics export enabled for ${settings.projectId}.${settings.datasetId}.${settings.tableId}`,
     );
     void this.runScheduledExport();
     this.timer = setInterval(() => void this.runScheduledExport(), EXPORT_CHECK_INTERVAL_MS);
@@ -92,7 +92,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     if (this.timer) clearInterval(this.timer);
   }
 
-  /** Export the next 15-day snapshot when due. Public for operational tests. */
+  /** Export the next 7-day snapshot when due. Public for operational tests. */
   async exportDueWindow(now = new Date()): Promise<BigQueryExportResult> {
     const settings = this.settings();
     if (!settings.enabled) return 'disabled';
@@ -113,11 +113,11 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     let window: AnalyticsExportWindow;
     if (existing.length > 0) {
       const latestEnd = this.readWindowEnd(existing[0]);
-      const nextEnd = new Date(latestEnd.getTime() + FIFTEEN_DAYS_MS);
+      const nextEnd = new Date(latestEnd.getTime() + SEVEN_DAYS_MS);
       this.nextExportDueAt = nextEnd.getTime();
       if (now.getTime() < nextEnd.getTime()) return 'already-exported';
-      window = fifteenDayWindowEndingAt(nextEnd);
-    } else window = fifteenDayAnalyticsWindow(now);
+      window = sevenDayWindowEndingAt(nextEnd);
+    } else window = sevenDayAnalyticsWindow(now);
 
     if (window.end.getTime() > now.getTime()) {
       return 'already-exported';
@@ -131,9 +131,9 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       },
       { raw: true },
     );
-    this.nextExportDueAt = window.end.getTime() + FIFTEEN_DAYS_MS;
+    this.nextExportDueAt = window.end.getTime() + SEVEN_DAYS_MS;
     this.logger.log(
-      `Exported 15-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
+      `Exported 7-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
     );
     return 'exported';
   }
@@ -141,7 +141,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
   /**
    * An explicit start boundary represents an operator asking to collect from that point forward.
    * Publish the open window immediately, refresh that same row hourly, and finalize elapsed windows
-   * before moving to the next one. This keeps exactly one row per 15-day window while making the
+   * before moving to the next one. This keeps exactly one row per 7-day window while making the
    * current AWS-only analytics visible from day one.
    */
   private async publishConfiguredWindow(
@@ -159,18 +159,18 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
 
     let window =
       existing.length > 0
-        ? fifteenDayWindowEndingAt(this.readTimestamp(existing[0], 'window_end'))
-        : fifteenDayWindowEndingAt(new Date(startAt.getTime() + FIFTEEN_DAYS_MS));
+        ? sevenDayWindowEndingAt(this.readTimestamp(existing[0], 'window_end'))
+        : sevenDayWindowEndingAt(new Date(startAt.getTime() + SEVEN_DAYS_MS));
     let published = false;
 
     while (now.getTime() >= window.end.getTime()) {
       const analytics = await this.statsService.getMessageStatsForRange(window.start, window.end);
       await this.upsertRow(client, settings, window, analytics, now);
       this.logger.log(
-        `Finalized 15-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
+        `Finalized 7-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
       );
       published = true;
-      window = fifteenDayWindowEndingAt(new Date(window.end.getTime() + FIFTEEN_DAYS_MS));
+      window = sevenDayWindowEndingAt(new Date(window.end.getTime() + SEVEN_DAYS_MS));
     }
 
     if (now.getTime() > window.start.getTime()) {
@@ -192,7 +192,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       await this.exportDueWindow();
     } catch (error) {
       const message = error instanceof Error ? error.stack || error.message : String(error);
-      this.logger.error(`15-day BigQuery analytics export failed; it will retry in one hour: ${message}`);
+      this.logger.error(`7-day BigQuery analytics export failed; it will retry in one hour: ${message}`);
     } finally {
       this.running = false;
     }
@@ -204,6 +204,8 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       enabled: this.configService.get<boolean>('stats.bigQueryExport.enabled', false),
       projectId: this.configService.get<string>('stats.bigQueryExport.projectId', ''),
       datasetId: this.configService.get<string>('stats.bigQueryExport.datasetId', 'openwa_analytics'),
+      // Keep the legacy default table name so upgrades do not silently split their history across
+      // two tables. New installations should explicitly configure a descriptive 7-day table name.
       tableId: this.configService.get<string>('stats.bigQueryExport.tableId', 'message_analytics_15d'),
       location: this.configService.get<string>('stats.bigQueryExport.location', 'US'),
       startAt: startAtRaw ? new Date(startAtRaw) : undefined,
@@ -244,7 +246,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       try {
         await dataset.createTable(settings.tableId, {
           schema: ANALYTICS_SCHEMA,
-          description: 'Minimal aggregate snapshots of consecutive 15-day OpenWA analytics windows',
+          description: 'Minimal aggregate snapshots of consecutive 7-day OpenWA analytics windows',
           timePartitioning: { type: 'DAY', field: 'window_end' },
         });
         this.logger.log(`Created BigQuery table ${settings.datasetId}.${settings.tableId}`);
@@ -317,7 +319,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       exported_at: BigQuery.timestamp(exportedAt).value,
       window_start: BigQuery.timestamp(window.start).value,
       window_end: BigQuery.timestamp(window.end).value,
-      window_days: 15,
+      window_days: 7,
       sent: analytics.summary.sent,
       received: analytics.summary.received,
       interactions: analytics.summary.interactions,

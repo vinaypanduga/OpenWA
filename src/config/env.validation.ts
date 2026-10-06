@@ -402,7 +402,7 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     // Perf/observability only, but same silent-typo class.
     'CACHE_ENABLED',
     'DATABASE_LOGGING',
-    // 15-day analytics export. A typo would silently leave an expected reporting feed
+    // 7-day analytics export. A typo would silently leave an expected reporting feed
     // disabled, so treat it like the other exact opt-in booleans.
     'BIGQUERY_ANALYTICS_EXPORT_ENABLED',
     // DELIBERATELY NOT LISTED. `MCP_READONLY` is read `!== 'false'` and mcp.server.spec.ts asserts

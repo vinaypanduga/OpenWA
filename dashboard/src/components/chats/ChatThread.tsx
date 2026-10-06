@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState, type RefObject } from 'react';
+import { Fragment, useCallback, useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, CornerUpLeft, Loader2, MessageSquare, Smile, Trash2 } from 'lucide-react';
 import { sessionApi, type Chat } from '../../services/api';
-import { getMediaSrc, senderKey, type ChatMessageView } from '../../utils/chatMessages';
+import {
+  getChatMessageDate,
+  getMediaSrc,
+  localCalendarDayKey,
+  relativeCalendarDay,
+  senderKey,
+  type ChatMessageView,
+} from '../../utils/chatMessages';
 import MessageBody from './MessageBody';
 
 // Stable per-sender colour for group message labels, like WhatsApp gives each participant a colour.
@@ -47,7 +54,7 @@ function ChatThread({
   onReact,
   onDelete,
 }: ChatThreadProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Media the message list did not inline. The route serves the bytes as an attachment
   // (Content-Disposition), and the list only carries payloads up to
@@ -125,6 +132,13 @@ function ChatThread({
     return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const now = new Date();
+  const dateFormatter = new Intl.DateTimeFormat(i18n.resolvedLanguage || i18n.language, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
   // position:relative so the scroll-to-bottom button can float inside.
   return (
     <div className="room-messages" ref={messagesContainerRef}>
@@ -161,17 +175,32 @@ function ChatThread({
           const isMe = msg.direction === 'outgoing';
           const formattedTime = formatTime(msg.timestamp || Math.floor(new Date(msg.createdAt).getTime() / 1000));
 
+          const messageDate = getChatMessageDate(msg);
+          const messageDayKey = messageDate ? localCalendarDayKey(messageDate) : null;
+          const prev = messages[index - 1];
+          const previousDate = prev ? getChatMessageDate(prev) : null;
+          const showDaySeparator = Boolean(
+            messageDayKey && (!previousDate || messageDayKey !== localCalendarDayKey(previousDate)),
+          );
+          const dayLabel = messageDate
+            ? (() => {
+                const relativeDay = relativeCalendarDay(messageDate, now);
+                if (relativeDay === 'today') return t('chats.today');
+                if (relativeDay === 'yesterday') return t('chats.yesterday');
+                return dateFormatter.format(messageDate);
+              })()
+            : '';
+
           // Label who posted, WhatsApp-style: only in groups, only on incoming messages,
           // and only on the first of a consecutive run from the same sender (so a burst
           // from one person isn't repeated on every bubble).
-          const prev = messages[index - 1];
           const showSender = Boolean(
             activeChat?.isGroup &&
             !isMe &&
             msg.chatName &&
             // Key the run on the stable sender id (participant JID), not the display
             // name — two participants who share a pushName must still start a new run.
-            (!prev || prev.direction === 'outgoing' || senderKey(prev) !== senderKey(msg)),
+            (showDaySeparator || !prev || prev.direction === 'outgoing' || senderKey(prev) !== senderKey(msg)),
           );
 
           const isMediaMessage = msg.type !== 'text';
@@ -274,124 +303,129 @@ function ChatThread({
           const isMasked = msg.type === 'masked';
 
           return (
-            <div
-              key={msg.id}
-              className={`message-bubble-wrapper ${isMe ? 'outgoing' : 'incoming'}`}
-              data-wa-message-id={msg.waMessageId}
-            >
-              <div className="message-bubble-container">
-                <div
-                  className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} ${msg.status} ${
-                    isMediaMessage ? 'media-type' : ''
-                  } ${isRevoked ? 'revoked-type' : ''}`}
-                >
-                  {/* Group sender label (WhatsApp-style: coloured name atop the bubble) */}
-                  {/* Group sender label (WhatsApp-style: coloured name atop the bubble).
+            <Fragment key={msg.id}>
+              {showDaySeparator && (
+                <div className="chat-day-separator" role="separator" aria-label={dayLabel}>
+                  <span>{dayLabel}</span>
+                </div>
+              )}
+              <div
+                className={`message-bubble-wrapper ${isMe ? 'outgoing' : 'incoming'}`}
+                data-wa-message-id={msg.waMessageId}
+              >
+                <div className="message-bubble-container">
+                  <div
+                    className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} ${msg.status} ${
+                      isMediaMessage ? 'media-type' : ''
+                    } ${isRevoked ? 'revoked-type' : ''}`}
+                  >
+                    {/* Group sender label (WhatsApp-style: coloured name atop the bubble).
                       Colour keys on the stable sender id, so same-named participants
                       still get distinct colours; the label shows the human name. */}
-                  {showSender && (
-                    <div className="message-sender" style={{ color: senderColor(senderKey(msg)!) }}>
-                      {msg.chatName}
-                    </div>
-                  )}
+                    {showSender && (
+                      <div className="message-sender" style={{ color: senderColor(senderKey(msg)!) }}>
+                        {msg.chatName}
+                      </div>
+                    )}
 
-                  {/* Quoted message display */}
-                  {msg.metadata?.quotedMessage && (
-                    <div className="message-quote-box">
-                      <MessageBody text={msg.metadata.quotedMessage.body} className="quote-body" />
-                    </div>
-                  )}
+                    {/* Quoted message display */}
+                    {msg.metadata?.quotedMessage && (
+                      <div className="message-quote-box">
+                        <MessageBody text={msg.metadata.quotedMessage.body} className="quote-body" />
+                      </div>
+                    )}
 
-                  {renderMedia()}
+                    {renderMedia()}
 
-                  {isRevoked ? (
-                    <div className="message-text">{t('chats.messageDeleted')}</div>
-                  ) : isMasked ? (
-                    <div className="message-text message-masked">{t('chats.messageMasked')}</div>
-                  ) : (
-                    msg.body &&
-                    (!mediaInfo || msg.body !== mediaInfo.filename) &&
-                    msg.type !== 'location' &&
-                    msg.type !== 'call' && <MessageBody text={msg.body} className="message-text" />
-                  )}
+                    {isRevoked ? (
+                      <div className="message-text">{t('chats.messageDeleted')}</div>
+                    ) : isMasked ? (
+                      <div className="message-text message-masked">{t('chats.messageMasked')}</div>
+                    ) : (
+                      msg.body &&
+                      (!mediaInfo || msg.body !== mediaInfo.filename) &&
+                      msg.type !== 'location' &&
+                      msg.type !== 'call' && <MessageBody text={msg.body} className="message-text" />
+                    )}
 
-                  <div className="message-meta">
-                    <span className="message-time">{formattedTime}</span>
-                    {/* delivered and read render the SAME glyph and differ only in colour, which
+                    <div className="message-meta">
+                      <span className="message-time">{formattedTime}</span>
+                      {/* delivered and read render the SAME glyph and differ only in colour, which
                         carries the meaning nowhere a screen reader or a colour-blind reader can
                         reach it. The status is spelled out for both. */}
-                    {isMe && (
-                      <span
-                        className={`message-status-icon ${msg.status}`}
-                        role="img"
-                        aria-label={t(`chats.messageStatus.${msg.status}`)}
-                        title={t(`chats.messageStatus.${msg.status}`)}
-                      >
-                        {msg.status === 'pending' && '🕒'}
-                        {msg.status === 'sent' && '✓'}
-                        {msg.status === 'delivered' && '✓✓'}
-                        {msg.status === 'read' && '✓✓'}
-                        {msg.status === 'failed' && '⚠️'}
-                      </span>
+                      {isMe && (
+                        <span
+                          className={`message-status-icon ${msg.status}`}
+                          role="img"
+                          aria-label={t(`chats.messageStatus.${msg.status}`)}
+                          title={t(`chats.messageStatus.${msg.status}`)}
+                        >
+                          {msg.status === 'pending' && '🕒'}
+                          {msg.status === 'sent' && '✓'}
+                          {msg.status === 'delivered' && '✓✓'}
+                          {msg.status === 'read' && '✓✓'}
+                          {msg.status === 'failed' && '⚠️'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Reactions display */}
+                    {hasReactions && (
+                      <div className="message-reactions-badge">
+                        {Object.values(reactions)
+                          .slice(0, 3)
+                          .map((emoji, idx) => (
+                            <span key={idx} className="reaction-emoji-span">
+                              {emoji}
+                            </span>
+                          ))}
+                        {Object.keys(reactions).length > 1 && (
+                          <span className="reactions-count-span">{Object.keys(reactions).length}</span>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {/* Reactions display */}
-                  {hasReactions && (
-                    <div className="message-reactions-badge">
-                      {Object.values(reactions)
-                        .slice(0, 3)
-                        .map((emoji, idx) => (
-                          <span key={idx} className="reaction-emoji-span">
-                            {emoji}
-                          </span>
-                        ))}
-                      {Object.keys(reactions).length > 1 && (
-                        <span className="reactions-count-span">{Object.keys(reactions).length}</span>
+                  {/* Message actions menu (hover) */}
+                  {!isRevoked && (
+                    <div className="message-actions-menu">
+                      <button
+                        type="button"
+                        className="action-btn"
+                        onClick={() => onReply(msg)}
+                        title={t('chats.actions.reply')}
+                      >
+                        <CornerUpLeft size={14} />
+                      </button>
+
+                      <div className="reaction-trigger-wrapper">
+                        <button type="button" className="action-btn reaction-btn" title={t('chats.actions.react')}>
+                          <Smile size={14} />
+                        </button>
+                        <div className="reaction-quick-popover">
+                          {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                            <button key={emoji} type="button" onClick={() => onReact(msg, emoji)}>
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {isMe && msg.status !== 'pending' && (
+                        <button
+                          type="button"
+                          className="action-btn delete-btn"
+                          onClick={() => onDelete(msg)}
+                          title={t('chats.actions.delete')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       )}
                     </div>
                   )}
                 </div>
-
-                {/* Message actions menu (hover) */}
-                {!isRevoked && (
-                  <div className="message-actions-menu">
-                    <button
-                      type="button"
-                      className="action-btn"
-                      onClick={() => onReply(msg)}
-                      title={t('chats.actions.reply')}
-                    >
-                      <CornerUpLeft size={14} />
-                    </button>
-
-                    <div className="reaction-trigger-wrapper">
-                      <button type="button" className="action-btn reaction-btn" title={t('chats.actions.react')}>
-                        <Smile size={14} />
-                      </button>
-                      <div className="reaction-quick-popover">
-                        {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
-                          <button key={emoji} type="button" onClick={() => onReact(msg, emoji)}>
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {isMe && msg.status !== 'pending' && (
-                      <button
-                        type="button"
-                        className="action-btn delete-btn"
-                        onClick={() => onDelete(msg)}
-                        title={t('chats.actions.delete')}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
-            </div>
+            </Fragment>
           );
         })
       )}

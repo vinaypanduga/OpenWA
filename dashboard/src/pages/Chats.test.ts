@@ -288,6 +288,17 @@ test('Chats renders: session/chat list loads, a chat opens, and a message sends'
   const thread = container.querySelector('.room-messages') as HTMLElement;
   await within(thread).findByText('hello from alice');
 
+  // The first message of each calendar day carries one visible day marker. This fixture is old
+  // enough to always use the full-date branch rather than the moving Today/Yesterday labels.
+  const daySeparator = thread.querySelector('.chat-day-separator');
+  assert.ok(daySeparator, 'expected a day separator before the first message');
+  assert.equal(
+    daySeparator.textContent,
+    new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(
+      new Date(DB_MESSAGE.timestamp! * 1000),
+    ),
+  );
+
   // Composer: the send button (aria-label = chats.send) and message input are the stable markers.
   const sendButton = screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement;
   const input = screen.getByPlaceholderText('Type a message...') as HTMLInputElement;

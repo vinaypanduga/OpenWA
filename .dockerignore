@@ -15,6 +15,11 @@ coverage/
 .env*
 **/.env*
 
+# Cloud credentials are mounted from the persistent data volume at runtime.
+# Never copy a local service-account key into an image layer or deployment context.
+service-account.json
+**/service-account.json
+
 # Data files — runtime state (sessions, media, databases, API keys), never
 # part of the build context
 data/
