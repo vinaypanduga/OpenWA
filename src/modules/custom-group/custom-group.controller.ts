@@ -1,15 +1,28 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequireRole } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { CustomGroupService } from './custom-group.service';
-import { CreateCustomGroupDto, CustomGroupResponseDto, UpdateCustomGroupDto } from './dto';
+import {
+  CreateCustomGroupDto,
+  CustomGroupResponseDto,
+  SupabaseCustomGroupSourceQueryDto,
+  SupabaseCustomGroupSourceResponseDto,
+  UpdateCustomGroupDto,
+} from './dto';
 import { CustomGroup } from './entities/custom-group.entity';
+import {
+  SupabaseCustomGroupSourceResponse,
+  SupabaseCustomGroupSourceService,
+} from './supabase-custom-group-source.service';
 
 @ApiTags('custom-groups')
 @Controller('sessions/:sessionId/custom-groups')
 export class CustomGroupController {
-  constructor(private readonly service: CustomGroupService) {}
+  constructor(
+    private readonly service: CustomGroupService,
+    private readonly supabaseSource: SupabaseCustomGroupSourceService,
+  ) {}
 
   @Post()
   @RequireRole(ApiKeyRole.OPERATOR)
@@ -25,6 +38,33 @@ export class CustomGroupController {
   @ApiOperation({ summary: 'List custom group collections for a session' })
   async findBySession(@Param('sessionId') sessionId: string): Promise<CustomGroup[]> {
     return this.service.findBySession(sessionId);
+  }
+
+  @Get('supabase-source')
+  @RequireRole(ApiKeyRole.OPERATOR)
+  @ApiOperation({ summary: 'Load Supabase programs and school group3 values for custom-group creation' })
+  @ApiQuery({ name: 'programIds', required: false, isArray: true, description: 'Selected Supabase program IDs' })
+  @ApiQuery({ name: 'groupNames', required: false, isArray: true, description: 'Selected school.group3 values' })
+  @ApiResponse({ status: 200, type: SupabaseCustomGroupSourceResponseDto })
+  async loadSupabaseSource(
+    @Query('programIds') programIds?: string | string[],
+    @Query('groupNames') groupNames?: string | string[],
+  ): Promise<SupabaseCustomGroupSourceResponse> {
+    const programIdList = (Array.isArray(programIds) ? programIds : programIds ? [programIds] : []).flatMap(value =>
+      value.split(','),
+    );
+    const groupNameList = Array.isArray(groupNames) ? groupNames : groupNames ? [groupNames] : [];
+    return this.supabaseSource.load(programIdList, groupNameList);
+  }
+
+  @Post('supabase-source/query')
+  @RequireRole(ApiKeyRole.OPERATOR)
+  @ApiOperation({ summary: 'Load Supabase target options for larger multi-selections' })
+  @ApiResponse({ status: 200, type: SupabaseCustomGroupSourceResponseDto })
+  async querySupabaseSource(
+    @Body() dto: SupabaseCustomGroupSourceQueryDto,
+  ): Promise<SupabaseCustomGroupSourceResponse> {
+    return this.supabaseSource.load(dto.programIds ?? [], dto.groupNames ?? []);
   }
 
   @Get(':id')

@@ -7,8 +7,8 @@ import {
   MessageSquare,
   // Webhook,
   Key,
-  FileText,
-  ClipboardList,
+  // FileText,
+  // ClipboardList,
   LogOut,
   Send,
   // Server,
@@ -41,7 +41,7 @@ const allNavItems = [
   { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false },
   { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false },
   // { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
-  { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
+  // { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
   { to: '/custom-groups', icon: UsersRound, key: 'customGroups' as const, adminOnly: false, label: 'Custom Groups' },
   {
     to: '/scheduled-messages',
@@ -55,7 +55,7 @@ const allNavItems = [
   // Backend /infra/* is ADMIN-only; hide the nav item from non-admins (UX + defense-in-depth).
   // { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true },
   // { to: '/plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true },
-  { to: '/logs', icon: FileText, key: 'logs' as const, adminOnly: false },
+  // { to: '/logs', icon: FileText, key: 'logs' as const, adminOnly: false },
 ];
 
 const themeIcons = { light: Sun, dark: Moon, system: Monitor };

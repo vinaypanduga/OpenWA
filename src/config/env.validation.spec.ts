@@ -61,6 +61,16 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ STORAGE_TYPE: 's3' })).not.toThrow();
   });
 
+  it('validates the optional Supabase custom-group credentials as one complete safe configuration', () => {
+    const valid = {
+      SUPABASE_URL: 'https://project.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: 'secret',
+    };
+    expect(() => validateEnv(valid)).not.toThrow();
+    expect(() => validateEnv({ SUPABASE_URL: valid.SUPABASE_URL })).toThrow(/must be configured together/);
+    expect(() => validateEnv({ ...valid, SUPABASE_URL: 'http://project.supabase.co' })).toThrow(/HTTPS origin/);
+  });
+
   // Every production hardening in the repo compares NODE_ENV against the exact string 'production',
   // so an unrecognised value silently selects the permissive branch of each one — including the
   // ALLOW_DEV_API_KEY rejection that stops the public `dev-admin-key` being seeded as an ADMIN

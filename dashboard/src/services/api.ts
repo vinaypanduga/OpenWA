@@ -166,6 +166,7 @@ export interface CustomGroup {
   sessionId: string;
   name: string;
   groupIds: string[];
+  source: 'custom' | 'supabase';
   createdAt: string;
   updatedAt: string;
 }
@@ -173,6 +174,20 @@ export interface CustomGroup {
 export interface CustomGroupPayload {
   name: string;
   groupIds: string[];
+  source?: 'custom' | 'supabase';
+}
+
+export interface SupabaseCustomGroupSource {
+  configured: boolean;
+  programs: Array<{ id: string; name: string }>;
+  groupNames: string[];
+  mappedGroupIds: string[];
+  rowsRead: number;
+  schoolRowsRead: number;
+  classRowsRead: number;
+  truncated: boolean;
+  table?: string;
+  nameColumn?: string;
 }
 
 export type ScheduledMessageStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -946,6 +961,11 @@ export const templateApi = {
 
 export const customGroupApi = {
   list: (sessionId: string) => request<CustomGroup[]>(`/sessions/${sessionId}/custom-groups`),
+  loadSupabaseSource: (sessionId: string, programIds: string[] = [], groupNames: string[] = []) =>
+    request<SupabaseCustomGroupSource>(`/sessions/${sessionId}/custom-groups/supabase-source/query`, {
+      method: 'POST',
+      body: JSON.stringify({ programIds, groupNames }),
+    }),
   create: (sessionId: string, data: CustomGroupPayload) =>
     request<CustomGroup>(`/sessions/${sessionId}/custom-groups`, {
       method: 'POST',

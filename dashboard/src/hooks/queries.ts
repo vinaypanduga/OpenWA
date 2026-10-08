@@ -31,6 +31,19 @@ export const queryKeys = {
   webhooks: ['webhooks'] as const,
   templates: (sessionId: string) => ['sessions', sessionId, 'templates'] as const,
   customGroups: (sessionId: string) => ['sessions', sessionId, 'custom-groups'] as const,
+  customGroupSupabaseSource: (
+    sessionId: string,
+    programIds: readonly string[] = [],
+    groupNames: readonly string[] = [],
+  ) =>
+    [
+      'sessions',
+      sessionId,
+      'custom-groups',
+      'supabase-source',
+      [...programIds].sort(),
+      [...groupNames].sort(),
+    ] as const,
   scheduledMessages: (sessionId: string) => ['sessions', sessionId, 'scheduled-messages'] as const,
   apiKeys: ['apiKeys'] as const,
   logs: (params: { severity?: string; page: number; limit: number }) => ['logs', params] as const,
@@ -197,6 +210,24 @@ export function useCustomGroupsQuery(sessionId: string, enabled = true) {
     queryFn: () => customGroupApi.list(sessionId),
     enabled: enabled && !!sessionId,
     staleTime: 30_000,
+  });
+}
+
+export function useCustomGroupSupabaseSourceQuery(
+  sessionId: string,
+  programIds: string[] = [],
+  groupNames: string[] = [],
+  enabled = true,
+) {
+  const normalizedProgramIds = [...programIds].sort();
+  const normalizedGroupNames = [...groupNames].sort();
+  return useQuery({
+    queryKey: queryKeys.customGroupSupabaseSource(sessionId, normalizedProgramIds, normalizedGroupNames),
+    queryFn: () => customGroupApi.loadSupabaseSource(sessionId, normalizedProgramIds, normalizedGroupNames),
+    enabled: enabled && !!sessionId,
+    staleTime: 60_000,
+    placeholderData: previous => previous,
+    retry: false,
   });
 }
 

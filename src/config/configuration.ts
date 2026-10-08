@@ -126,6 +126,16 @@ export default () => ({
     },
   },
 
+  // Optional Supabase source for the Custom Groups dashboard. Only connection credentials belong
+  // in the environment; the table/query shape lives with its consumer in the source service.
+  // The service-role key stays on the backend and is never returned to the browser.
+  customGroups: {
+    supabase: {
+      url: process.env.SUPABASE_URL || '',
+      serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    },
+  },
+
   // Runtime feature flags. Single source of truth: src/config/feature-flags.ts. Exposed here so the
   // full set is discoverable via ConfigService (`features.*`) instead of scattered process.env reads.
   features: computeFeatureFlags(),

@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { GroupService } from '../group/group.service';
 import { isUniqueViolation } from '../../common/utils/db-errors';
 import { createLogger } from '../../common/services/logger.service';
-import { CustomGroup } from './entities/custom-group.entity';
+import { CustomGroup, CustomGroupSource } from './entities/custom-group.entity';
 import { CreateCustomGroupDto, UpdateCustomGroupDto } from './dto';
 
 @Injectable()
@@ -37,6 +37,7 @@ export class CustomGroupService {
       sessionId,
       name,
       groupIds: await this.validateGroupIds(sessionId, dto.groupIds),
+      source: dto.source ?? CustomGroupSource.CUSTOM,
     });
     try {
       const saved = await this.repository.save(entity);

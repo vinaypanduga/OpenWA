@@ -440,6 +440,26 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     errors.push('BIGQUERY_ANALYTICS_EXPORT_START_AT must be a valid ISO-8601 timestamp');
   }
 
+  // The Custom Groups Supabase importer is enabled by supplying URL + service-role key. Reject partial
+  // configuration at boot: otherwise the dashboard shows a configured-looking tab that can never
+  // load. The source table, schema, selected columns, and row limit are defined in code.
+  const supabaseUrl = str('SUPABASE_URL');
+  const supabaseServiceRoleKey = str('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseRequired = [supabaseUrl, supabaseServiceRoleKey];
+  if (supabaseRequired.some(Boolean) && !supabaseRequired.every(Boolean)) {
+    errors.push('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured together');
+  }
+  if (supabaseUrl) {
+    try {
+      const parsed = new URL(supabaseUrl);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+        errors.push('SUPABASE_URL must be an HTTPS origin without credentials, query, or fragment');
+      }
+    } catch {
+      errors.push('SUPABASE_URL must be a valid HTTPS URL');
+    }
+  }
+
   // MEDIA_DOWNLOAD_ENABLED is the one boolean whose read site NORMALISES before comparing
   // (`inbound-media-cap.ts` trims and lowercases, then treats 'false'/'0'/'no' as off), so the strict
   // check above would reject spellings that demonstrably work — inbound-media-cap.spec.ts asserts
