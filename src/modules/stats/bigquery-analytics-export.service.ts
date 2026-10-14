@@ -1,11 +1,17 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BigQuery, Table } from '@google-cloud/bigquery';
-import { MessageStats, StatsService } from './stats.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { createHash } from 'node:crypto';
+import { CustomGroup } from '../custom-group/entities/custom-group.entity';
+import { MessageStats, StatsService, TargetAudienceAnalyticsSummary } from './stats.service';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const EXPORT_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const BIGQUERY_ID = /^[A-Za-z_][A-Za-z0-9_]{0,1023}$/;
+const TARGET_AUDIENCE_FIELD = { name: 'target_audience', type: 'STRING', mode: 'NULLABLE' } as const;
+const OVERALL_TARGET_AUDIENCE = 'Overall';
 
 export const BIGQUERY_CLIENT_FACTORY = Symbol('BIGQUERY_CLIENT_FACTORY');
 export type BigQueryClientFactory = (projectId: string) => BigQuery;
@@ -54,14 +60,20 @@ const ANALYTICS_SCHEMA = [
   { name: 'read_recipients', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'reacted_messages', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'emoji_reactions', type: 'INTEGER', mode: 'REQUIRED' },
+  TARGET_AUDIENCE_FIELD,
 ];
+
+export interface TargetAudienceAnalytics extends TargetAudienceAnalyticsSummary {
+  name: string;
+}
 
 /**
  * Exports one aggregate-only snapshot every 7 days. The first tick runs at boot and exports the
  * preceding 7 completed UTC days unless an explicit start boundary is configured. Later windows
  * continue from the latest BigQuery window_end, so restarts do not reset the cadence. The
  * deterministic export_id and insertId make retries idempotent without exporting chat IDs, phone
- * numbers, group names, message bodies, or full JSON.
+ * numbers, WhatsApp group names/IDs, message bodies, or the former full analytics JSON. The
+ * target_audience column identifies either the Overall row or one saved audience name.
  */
 @Injectable()
 export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDestroy {
@@ -74,6 +86,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     private readonly statsService: StatsService,
     private readonly configService: ConfigService,
     @Inject(BIGQUERY_CLIENT_FACTORY) private readonly createClient: BigQueryClientFactory,
+    @InjectRepository(CustomGroup, 'data') private readonly customGroupRepository: Repository<CustomGroup>,
   ) {}
 
   onModuleInit(): void {
@@ -102,11 +115,12 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     }
 
     const client = this.createClient(settings.projectId);
-    const table = await this.ensureDestination(client, settings);
+    await this.ensureDestination(client, settings);
     if (settings.startAt) return this.publishConfiguredWindow(client, settings, now);
 
     const [existing] = await client.query({
-      query: `SELECT export_id, window_start, window_end FROM \`${settings.datasetId}.${settings.tableId}\` ORDER BY window_end DESC LIMIT 1`,
+      query: `SELECT export_id, window_start, window_end FROM \`${settings.datasetId}.${settings.tableId}\` WHERE target_audience = @overall OR target_audience IS NULL ORDER BY window_end DESC LIMIT 1`,
+      params: { overall: OVERALL_TARGET_AUDIENCE },
       location: settings.location,
     });
 
@@ -123,14 +137,11 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       return 'already-exported';
     }
 
-    const analytics = await this.statsService.getMessageStatsForRange(window.start, window.end);
-    await table.insert(
-      {
-        insertId: window.exportId,
-        json: this.toRow(window, analytics, now),
-      },
-      { raw: true },
-    );
+    const [analytics, targetAudience] = await Promise.all([
+      this.statsService.getMessageStatsForRange(window.start, window.end),
+      this.getTargetAudienceAnalytics(window.start, window.end),
+    ]);
+    await this.upsertWindow(client, settings, window, analytics, targetAudience, now);
     this.nextExportDueAt = window.end.getTime() + SEVEN_DAYS_MS;
     this.logger.log(
       `Exported 7-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
@@ -140,9 +151,9 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
 
   /**
    * An explicit start boundary represents an operator asking to collect from that point forward.
-   * Publish the open window immediately, refresh that same row hourly, and finalize elapsed windows
-   * before moving to the next one. This keeps exactly one row per 7-day window while making the
-   * current AWS-only analytics visible from day one.
+   * Publish the open window immediately, refresh its rows hourly, and finalize elapsed windows
+   * before moving to the next one. Each refresh replaces that window's Overall and saved-audience
+   * rows, so renamed or deleted audiences do not leave stale rows behind.
    */
   private async publishConfiguredWindow(
     client: BigQuery,
@@ -153,7 +164,8 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     if (!startAt || now.getTime() < startAt.getTime()) return 'already-exported';
 
     const [existing] = await client.query({
-      query: `SELECT export_id, window_start, window_end FROM \`${settings.datasetId}.${settings.tableId}\` ORDER BY window_end DESC LIMIT 1`,
+      query: `SELECT export_id, window_start, window_end FROM \`${settings.datasetId}.${settings.tableId}\` WHERE target_audience = @overall OR target_audience IS NULL ORDER BY window_end DESC LIMIT 1`,
+      params: { overall: OVERALL_TARGET_AUDIENCE },
       location: settings.location,
     });
 
@@ -164,8 +176,11 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     let published = false;
 
     while (now.getTime() >= window.end.getTime()) {
-      const analytics = await this.statsService.getMessageStatsForRange(window.start, window.end);
-      await this.upsertRow(client, settings, window, analytics, now);
+      const [analytics, targetAudience] = await Promise.all([
+        this.statsService.getMessageStatsForRange(window.start, window.end),
+        this.getTargetAudienceAnalytics(window.start, window.end),
+      ]);
+      await this.upsertWindow(client, settings, window, analytics, targetAudience, now);
       this.logger.log(
         `Finalized 7-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
       );
@@ -174,8 +189,11 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     }
 
     if (now.getTime() > window.start.getTime()) {
-      const analytics = await this.statsService.getMessageStatsForRange(window.start, now);
-      await this.upsertRow(client, settings, window, analytics, now);
+      const [analytics, targetAudience] = await Promise.all([
+        this.statsService.getMessageStatsForRange(window.start, now),
+        this.getTargetAudienceAnalytics(window.start, now),
+      ]);
+      await this.upsertWindow(client, settings, window, analytics, targetAudience, now);
       this.logger.log(
         `Refreshed in-progress analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
       );
@@ -253,6 +271,34 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       } catch (error) {
         if ((error as { code?: number }).code !== 409) throw error;
       }
+    } else {
+      const metadataResponse = (await table.getMetadata()) as unknown;
+      const metadata =
+        Array.isArray(metadataResponse) && typeof metadataResponse[0] === 'object' && metadataResponse[0] !== null
+          ? (metadataResponse[0] as { schema?: { fields?: Array<Record<string, unknown>> } })
+          : {};
+      const fields = metadata.schema?.fields ?? [];
+      const targetAudienceField = fields.find(field => field.name === TARGET_AUDIENCE_FIELD.name);
+      if (!targetAudienceField) {
+        await table.setMetadata({ schema: { fields: [...fields, TARGET_AUDIENCE_FIELD] } });
+        this.logger.log(`Added target_audience column to ${settings.datasetId}.${settings.tableId}`);
+      } else if (String(targetAudienceField.type).toUpperCase() !== TARGET_AUDIENCE_FIELD.type) {
+        await client.query({
+          query: `
+            ALTER TABLE \`${settings.datasetId}.${settings.tableId}\` DROP COLUMN target_audience;
+            ALTER TABLE \`${settings.datasetId}.${settings.tableId}\` ADD COLUMN target_audience STRING`,
+          location: settings.location,
+        });
+        this.logger.log(`Changed target_audience column to STRING in ${settings.datasetId}.${settings.tableId}`);
+      }
+
+      // Rows exported before target-audience analytics existed have no label. They represent the
+      // aggregate snapshot, so keep the column consistent by identifying them as Overall.
+      await client.query({
+        query: `UPDATE \`${settings.datasetId}.${settings.tableId}\` SET target_audience = @overall WHERE target_audience IS NULL OR TRIM(target_audience) = ''`,
+        params: { overall: OVERALL_TARGET_AUDIENCE },
+        location: settings.location,
+      });
     }
     return table;
   }
@@ -273,61 +319,128 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     return this.readTimestamp(row, 'window_end');
   }
 
-  private async upsertRow(
+  private async upsertWindow(
     client: BigQuery,
     settings: BigQueryExportSettings,
     window: AnalyticsExportWindow,
     analytics: MessageStats,
+    targetAudience: TargetAudienceAnalytics[],
     exportedAt: Date,
   ): Promise<void> {
-    const row = this.toRow(window, analytics, exportedAt);
+    const rows = this.toRows(window, analytics, targetAudience, exportedAt);
     await client.query({
       query: `
         MERGE \`${settings.datasetId}.${settings.tableId}\` AS target
-        USING (SELECT @export_id AS export_id) AS source
+        USING UNNEST(@rows) AS source
         ON target.export_id = source.export_id
         WHEN MATCHED THEN UPDATE SET
-          exported_at = TIMESTAMP(@exported_at),
-          window_start = TIMESTAMP(@window_start),
-          window_end = TIMESTAMP(@window_end),
-          window_days = @window_days,
-          sent = @sent,
-          received = @received,
-          interactions = @interactions,
-          active_groups = @active_groups,
-          delivered_recipients = @delivered_recipients,
-          read_recipients = @read_recipients,
-          reacted_messages = @reacted_messages,
-          emoji_reactions = @emoji_reactions
+          exported_at = TIMESTAMP(source.exported_at),
+          window_start = TIMESTAMP(source.window_start),
+          window_end = TIMESTAMP(source.window_end),
+          window_days = source.window_days,
+          sent = source.sent,
+          received = source.received,
+          interactions = source.interactions,
+          active_groups = source.active_groups,
+          delivered_recipients = source.delivered_recipients,
+          read_recipients = source.read_recipients,
+          reacted_messages = source.reacted_messages,
+          emoji_reactions = source.emoji_reactions,
+          target_audience = source.target_audience
         WHEN NOT MATCHED THEN INSERT (
           export_id, exported_at, window_start, window_end, window_days, sent, received,
           interactions, active_groups, delivered_recipients, read_recipients, reacted_messages,
-          emoji_reactions
+          emoji_reactions, target_audience
         ) VALUES (
-          @export_id, TIMESTAMP(@exported_at), TIMESTAMP(@window_start), TIMESTAMP(@window_end),
-          @window_days, @sent, @received, @interactions, @active_groups, @delivered_recipients,
-          @read_recipients, @reacted_messages, @emoji_reactions
-        )`,
-      params: row,
+          source.export_id, TIMESTAMP(source.exported_at), TIMESTAMP(source.window_start), TIMESTAMP(source.window_end),
+          source.window_days, source.sent, source.received, source.interactions, source.active_groups,
+          source.delivered_recipients, source.read_recipients, source.reacted_messages,
+          source.emoji_reactions, source.target_audience
+        )
+        WHEN NOT MATCHED BY SOURCE
+          AND target.window_start = TIMESTAMP(@window_start)
+          AND target.window_end = TIMESTAMP(@window_end)
+        THEN DELETE`,
+      params: {
+        rows,
+        window_start: BigQuery.timestamp(window.start).value,
+        window_end: BigQuery.timestamp(window.end).value,
+      },
       location: settings.location,
     });
   }
 
-  private toRow(window: AnalyticsExportWindow, analytics: MessageStats, exportedAt: Date): Record<string, unknown> {
-    return {
-      export_id: window.exportId,
+  private async getTargetAudienceAnalytics(start: Date, end: Date): Promise<TargetAudienceAnalytics[]> {
+    const savedAudiences = await this.customGroupRepository.find({ order: { name: 'ASC' } });
+    const analytics = await Promise.all(
+      savedAudiences.map(async audience => ({
+        name: audience.name,
+        ...(await this.statsService.getTargetAudienceStatsForRange(start, end, audience.sessionId, audience.groupIds)),
+      })),
+    );
+
+    const byName = new Map<string, TargetAudienceAnalytics>();
+    for (const audience of analytics) {
+      const existing = byName.get(audience.name);
+      if (!existing) {
+        byName.set(audience.name, { ...audience });
+        continue;
+      }
+      existing.sent += audience.sent;
+      existing.received += audience.received;
+      existing.interactions += audience.interactions;
+      existing.activeGroups += audience.activeGroups;
+      existing.deliveredRecipients += audience.deliveredRecipients;
+      existing.readRecipients += audience.readRecipients;
+      existing.reactedMessages += audience.reactedMessages;
+      existing.emojiReactions += audience.emojiReactions;
+    }
+    return [...byName.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }
+
+  private toRows(
+    window: AnalyticsExportWindow,
+    analytics: MessageStats,
+    targetAudience: TargetAudienceAnalytics[],
+    exportedAt: Date,
+  ): Array<Record<string, unknown>> {
+    const base = {
       exported_at: BigQuery.timestamp(exportedAt).value,
       window_start: BigQuery.timestamp(window.start).value,
       window_end: BigQuery.timestamp(window.end).value,
       window_days: 7,
-      sent: analytics.summary.sent,
-      received: analytics.summary.received,
-      interactions: analytics.summary.interactions,
-      active_groups: analytics.groupBreakdown.length,
-      delivered_recipients: analytics.summary.deliveredRecipients,
-      read_recipients: analytics.summary.readRecipients,
-      reacted_messages: analytics.summary.reactedMessages,
-      emoji_reactions: analytics.summary.emojiReactions,
     };
+    const rows: Array<Record<string, unknown>> = [
+      {
+        ...base,
+        export_id: window.exportId,
+        target_audience: OVERALL_TARGET_AUDIENCE,
+        sent: analytics.summary.sent,
+        received: analytics.summary.received,
+        interactions: analytics.summary.interactions,
+        active_groups: analytics.groupBreakdown.length,
+        delivered_recipients: analytics.summary.deliveredRecipients,
+        read_recipients: analytics.summary.readRecipients,
+        reacted_messages: analytics.summary.reactedMessages,
+        emoji_reactions: analytics.summary.emojiReactions,
+      },
+    ];
+    for (const audience of targetAudience) {
+      const audienceKey = createHash('sha256').update(audience.name).digest('hex').slice(0, 16);
+      rows.push({
+        ...base,
+        export_id: `${window.exportId}-audience-${audienceKey}`,
+        target_audience: audience.name,
+        sent: audience.sent,
+        received: audience.received,
+        interactions: audience.interactions,
+        active_groups: audience.activeGroups,
+        delivered_recipients: audience.deliveredRecipients,
+        read_recipients: audience.readRecipients,
+        reacted_messages: audience.reactedMessages,
+        emoji_reactions: audience.emojiReactions,
+      });
+    }
+    return rows;
   }
 }

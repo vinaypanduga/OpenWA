@@ -29,6 +29,9 @@ const WEEKDAYS = [
   { value: 0, label: 'Sun' },
 ];
 
+const MIN_DELAY_SECONDS = 2;
+const MAX_DELAY_SECONDS = 10;
+
 const toLocalTime = (date: Date) =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
@@ -64,8 +67,8 @@ export function ScheduledMessages() {
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([new Date().getDay()]);
   const [recurrenceTime, setRecurrenceTime] = useState(() => toLocalTime(new Date(Date.now() + 5 * 60_000)));
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
-  const [minDelaySeconds, setMinDelaySeconds] = useState(2);
-  const [maxDelaySeconds, setMaxDelaySeconds] = useState(10);
+  const minDelaySeconds = MIN_DELAY_SECONDS;
+  const maxDelaySeconds = MAX_DELAY_SECONDS;
 
   useEffect(() => {
     if (!sessionId && sessions.length) setSessionId(sessions[0].id);
@@ -324,25 +327,11 @@ export function ScheduledMessages() {
               <div className="scheduled-two-columns">
                 <label className="form-group">
                   <span>Minimum jitter (seconds)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={3600}
-                    value={minDelaySeconds}
-                    onChange={event => setMinDelaySeconds(Number(event.target.value))}
-                    disabled={!canWrite}
-                  />
+                  <input type="number" min={1} max={3600} value={minDelaySeconds} readOnly disabled={!canWrite} />
                 </label>
                 <label className="form-group">
                   <span>Maximum jitter (seconds)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={3600}
-                    value={maxDelaySeconds}
-                    onChange={event => setMaxDelaySeconds(Number(event.target.value))}
-                    disabled={!canWrite}
-                  />
+                  <input type="number" min={1} max={3600} value={maxDelaySeconds} readOnly disabled={!canWrite} />
                 </label>
               </div>
               <p className="scheduled-hint">

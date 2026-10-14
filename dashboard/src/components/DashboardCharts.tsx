@@ -34,7 +34,11 @@ import type { Session, StatsPeriod } from '../services/api';
 import { WidgetTooltip } from './WidgetTooltip';
 import './DashboardCharts.css';
 
-const PERIODS: StatsPeriod[] = ['24h', '7d', '30d'];
+const PERIODS: StatsPeriod[] = [
+  '24h',
+  // '7d',
+  // '30d',
+];
 
 // Stable, distinct color per message type (recharts needs literal colors). Keyed by type name —
 // not array index — so two types can never share a color, and a slice keeps its color even when the

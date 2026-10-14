@@ -1,13 +1,14 @@
 # BigQuery Analytics Export
 
-OpenWA can export one minimal aggregate analytics snapshot every 7 days. By default, the first
-enabled run exports the 7 completed UTC days ending at the current `00:00:00 UTC`. Set an explicit
+OpenWA exports one minimal set of aggregate analytics rows every 7 days. Each window contains one
+`Overall` row plus one row for every saved target-audience name. By default, the first enabled run
+exports the 7 completed UTC days ending at the current `00:00:00 UTC`. Set an explicit
 start boundary when a new deployment must collect only future data. The open window is published
 immediately and refreshed hourly, then finalized after 7 days. Later windows begin at the latest
 `window_end` already present in BigQuery.
 
 The exporter is disabled by default. When enabled, it runs once at application startup and checks
-hourly afterward. This makes an EC2 restart catch up a missed interval. The latest BigQuery row
+hourly afterward. This makes an EC2 restart catch up a missed interval. The latest BigQuery Overall row
 preserves the schedule across restarts, while a deterministic `export_id` is also sent as BigQuery's
 `insertId` so retries do not intentionally create duplicate snapshots. If the service was offline
 for multiple intervals, it catches up one consecutive window per hourly check.
@@ -81,9 +82,31 @@ Each 7-day table row contains:
 | `read_recipients`      | Sum of distinct readers per chat                          |
 | `reacted_messages`     | Outgoing messages with at least one active emoji reaction |
 | `emoji_reactions`      | Total active emoji reactions on outgoing messages         |
+| `target_audience`      | `Overall` or the saved target-audience name               |
 
-The export deliberately excludes phone numbers, chat IDs, group IDs/names, session IDs/names,
-message bodies, time-series rows, and the former full `analytics_json` payload.
+Every metric column belongs to the audience named in that row. For example, three saved audiences
+produce four rows for a window:
+
+| target_audience        | sent | received | active_groups | read_recipients |
+| ---------------------- | ---: | -------: | ------------: | --------------: |
+| Overall                | 1174 |      565 |           392 |            3015 |
+| All gaziabad schools   | 1114 |      544 |           372 |            2903 |
+| Karnataka group        |   60 |       21 |            20 |             112 |
+| Another saved audience |    0 |        0 |             0 |               0 |
+
+Each saved audience is evaluated against its owning WhatsApp session and saved group IDs. If the
+same audience name exists in multiple sessions, its metrics are added into one name-wise object.
+Audiences with no activity in the window are retained with zero values. Overlapping saved audiences
+are intentionally independent, so one message can contribute to more than one audience row.
+
+Existing tables are upgraded automatically. The former JSON `target_audience` column is replaced
+with a nullable `STRING` column; its unwanted JSON values are discarded. Historical rows remain
+`NULL` until refreshed. New and refreshed windows contain one `Overall` row plus one row per saved
+audience name.
+
+The export deliberately excludes phone numbers, chat IDs, WhatsApp group IDs/names, session
+IDs/names, message bodies, time-series rows, and the former full `analytics_json` payload. Saved
+target-audience names are the only names included.
 
 ## Verification
 
@@ -94,6 +117,24 @@ SELECT export_id, window_start, window_end, sent, received, read_recipients
 FROM `my-google-cloud-project.openwa_analytics.message_analytics_7d`
 ORDER BY window_end DESC
 LIMIT 12;
+```
+
+To read the name-wise audience analytics:
+
+```sql
+SELECT
+  export_id,
+  target_audience,
+  sent,
+  received,
+  active_groups,
+  read_recipients
+FROM `my-google-cloud-project.openwa_analytics.message_analytics_7d`
+WHERE window_end = (
+  SELECT MAX(window_end)
+  FROM `my-google-cloud-project.openwa_analytics.message_analytics_7d`
+)
+ORDER BY target_audience;
 ```
 
 Authentication, permission, and transient BigQuery errors are logged and retried on the next hourly

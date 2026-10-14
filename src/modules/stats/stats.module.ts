@@ -5,6 +5,7 @@ import { StatsService } from './stats.service';
 import { Session } from '../session/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
 import { BigQuery } from '@google-cloud/bigquery';
+import { CustomGroup } from '../custom-group/entities/custom-group.entity';
 import {
   BIGQUERY_CLIENT_FACTORY,
   BigQueryAnalyticsExportService,
@@ -12,7 +13,7 @@ import {
 } from './bigquery-analytics-export.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Session, Message], 'data')],
+  imports: [TypeOrmModule.forFeature([Session, Message, CustomGroup], 'data')],
   controllers: [StatsController],
   providers: [
     StatsService,

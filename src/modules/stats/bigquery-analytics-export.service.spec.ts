@@ -58,6 +58,22 @@ describe('sevenDayAnalyticsWindow', () => {
 });
 
 describe('BigQueryAnalyticsExportService', () => {
+  interface QueryRequest {
+    query: string;
+    params?: { rows?: Array<Record<string, unknown>>; [key: string]: unknown };
+    location?: string;
+  }
+
+  const targetAudienceStats = {
+    sent: 8,
+    received: 3,
+    interactions: 2,
+    activeGroups: 2,
+    deliveredRecipients: 18,
+    readRecipients: 11,
+    reactedMessages: 2,
+    emojiReactions: 4,
+  };
   const enabledConfig = {
     'stats.bigQueryExport.enabled': true,
     'stats.bigQueryExport.projectId': 'example-project',
@@ -74,6 +90,8 @@ describe('BigQueryAnalyticsExportService', () => {
     const table = {
       exists: jest.fn().mockResolvedValue([destinationExists]),
       insert: jest.fn().mockResolvedValue([{}]),
+      getMetadata: jest.fn().mockResolvedValue([{ schema: { fields: [{ name: 'target_audience', type: 'STRING' }] } }]),
+      setMetadata: jest.fn().mockResolvedValue([{}]),
     };
     const createTable = jest
       .fn<
@@ -86,22 +104,31 @@ describe('BigQueryAnalyticsExportService', () => {
       table: jest.fn().mockReturnValue(table),
       createTable,
     };
+    const query = jest.fn<Promise<[unknown[]]>, [QueryRequest]>().mockResolvedValue([existingRows]);
     const client = {
       dataset: jest.fn().mockReturnValue(dataset),
       createDataset: jest.fn().mockResolvedValue([dataset, {}]),
-      query: jest.fn().mockResolvedValue([existingRows]),
+      query,
     };
     return { client, dataset, table };
   };
 
+  const makeCustomGroupRepository = () => ({
+    find: jest.fn().mockResolvedValue([{ name: 'Teachers', sessionId: 's1', groupIds: ['team@g.us', 'staff@g.us'] }]),
+  });
+
   it('creates the destination and exports only aggregate analytics fields', async () => {
-    const stats = { getMessageStatsForRange: jest.fn().mockResolvedValue(analytics) };
-    const { client, dataset, table } = makeBigQuery([], false);
+    const stats = {
+      getMessageStatsForRange: jest.fn().mockResolvedValue(analytics),
+      getTargetAudienceStatsForRange: jest.fn().mockResolvedValue(targetAudienceStats),
+    };
+    const { client, dataset } = makeBigQuery([], false);
     const factory = jest.fn().mockReturnValue(client);
     const service = new BigQueryAnalyticsExportService(
       stats as unknown as StatsService,
       makeConfig(enabledConfig) as never,
       factory,
+      makeCustomGroupRepository() as never,
     );
 
     await expect(service.exportDueWindow(new Date('2026-09-23T12:00:00.000Z'))).resolves.toBe('exported');
@@ -117,52 +144,132 @@ describe('BigQueryAnalyticsExportService', () => {
     );
     const createOptions = dataset.createTable.mock.calls[0][1];
     expect(createOptions.schema.map(field => field.name)).not.toContain('analytics_json');
+    expect(createOptions.schema).toContainEqual({ name: 'target_audience', type: 'STRING', mode: 'NULLABLE' });
     expect(stats.getMessageStatsForRange).toHaveBeenCalledWith(
       new Date('2026-09-16T00:00:00.000Z'),
       new Date('2026-09-23T00:00:00.000Z'),
     );
-    expect(table.insert).toHaveBeenCalledWith(
-      {
-        insertId: 'openwa-7d-20260923T000000Z',
-        json: expect.objectContaining({
-          export_id: 'openwa-7d-20260923T000000Z',
-          window_days: 7,
-          sent: 12,
-          received: 7,
-          active_groups: 1,
-          delivered_recipients: 30,
-          read_recipients: 21,
-        }) as unknown,
-      },
-      { raw: true },
+    const mergeCall = client.query.mock.calls.find(call => String(call[0].query).includes('MERGE'));
+    expect(mergeCall).toBeDefined();
+    const rows = mergeCall?.[0].params?.rows;
+    expect(rows).toHaveLength(2);
+    expect(rows?.[0]).toEqual(
+      expect.objectContaining({
+        export_id: 'openwa-7d-20260923T000000Z',
+        target_audience: 'Overall',
+        window_days: 7,
+        sent: 12,
+        received: 7,
+        active_groups: 1,
+        delivered_recipients: 30,
+        read_recipients: 21,
+      }),
     );
+    expect(rows?.[1]).toEqual(
+      expect.objectContaining({
+        target_audience: 'Teachers',
+        sent: 8,
+        received: 3,
+        active_groups: 2,
+      }),
+    );
+    expect(rows?.[1]?.export_id).toMatch(/^openwa-7d-20260923T000000Z-audience-[a-f0-9]{16}$/);
   });
 
   it('does not export until 7 days after the latest BigQuery window', async () => {
     const stats = { getMessageStatsForRange: jest.fn() };
-    const { client, table } = makeBigQuery([
+    const { client } = makeBigQuery([
       { export_id: 'openwa-15d-20260923T000000Z', window_end: { value: '2026-09-23T00:00:00.000Z' } },
     ]);
     const service = new BigQueryAnalyticsExportService(
       stats as unknown as StatsService,
       makeConfig(enabledConfig) as never,
       jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
     );
 
     await expect(service.exportDueWindow(new Date('2026-09-23T12:00:00.000Z'))).resolves.toBe('already-exported');
     expect(stats.getMessageStatsForRange).not.toHaveBeenCalled();
-    expect(table.insert).not.toHaveBeenCalled();
+  });
+
+  it('adds target_audience to an existing destination table', async () => {
+    const stats = { getMessageStatsForRange: jest.fn() };
+    const { client, table } = makeBigQuery([
+      { export_id: 'openwa-7d-20260923T000000Z', window_end: '2026-09-23T00:00:00.000Z' },
+    ]);
+    table.getMetadata.mockResolvedValueOnce([{ schema: { fields: [{ name: 'export_id', type: 'STRING' }] } }]);
+    const service = new BigQueryAnalyticsExportService(
+      stats as unknown as StatsService,
+      makeConfig(enabledConfig) as never,
+      jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
+    );
+
+    await expect(service.exportDueWindow(new Date('2026-09-24T00:00:00.000Z'))).resolves.toBe('already-exported');
+    expect(table.setMetadata).toHaveBeenCalledWith({
+      schema: {
+        fields: [
+          { name: 'export_id', type: 'STRING' },
+          { name: 'target_audience', type: 'STRING', mode: 'NULLABLE' },
+        ],
+      },
+    });
+  });
+
+  it('replaces the former JSON target_audience column with STRING', async () => {
+    const stats = { getMessageStatsForRange: jest.fn() };
+    const { client, table } = makeBigQuery([
+      { export_id: 'openwa-7d-20260923T000000Z', window_end: '2026-09-23T00:00:00.000Z' },
+    ]);
+    table.getMetadata.mockResolvedValueOnce([{ schema: { fields: [{ name: 'target_audience', type: 'JSON' }] } }]);
+    const service = new BigQueryAnalyticsExportService(
+      stats as unknown as StatsService,
+      makeConfig(enabledConfig) as never,
+      jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
+    );
+
+    await expect(service.exportDueWindow(new Date('2026-09-24T00:00:00.000Z'))).resolves.toBe('already-exported');
+    expect(client.query.mock.calls.some(([options]) => options.query.includes('DROP COLUMN target_audience'))).toBe(
+      true,
+    );
+  });
+
+  it('labels historical rows without a target audience as Overall', async () => {
+    const stats = { getMessageStatsForRange: jest.fn() };
+    const { client } = makeBigQuery([
+      { export_id: 'openwa-7d-20260923T000000Z', window_end: '2026-09-23T00:00:00.000Z' },
+    ]);
+    const service = new BigQueryAnalyticsExportService(
+      stats as unknown as StatsService,
+      makeConfig(enabledConfig) as never,
+      jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
+    );
+
+    await expect(service.exportDueWindow(new Date('2026-09-24T00:00:00.000Z'))).resolves.toBe('already-exported');
+
+    expect(
+      client.query.mock.calls.some(
+        ([options]) =>
+          options.query.includes('SET target_audience = @overall') && options.params?.overall === 'Overall',
+      ),
+    ).toBe(true);
   });
 
   it('continues with the next consecutive 7-day window when it is due, including after a legacy 15-day row', async () => {
-    const stats = { getMessageStatsForRange: jest.fn().mockResolvedValue(analytics) };
-    const { client, table } = makeBigQuery([
+    const stats = {
+      getMessageStatsForRange: jest.fn().mockResolvedValue(analytics),
+      getTargetAudienceStatsForRange: jest.fn().mockResolvedValue(targetAudienceStats),
+    };
+    const { client } = makeBigQuery([
       { export_id: 'openwa-15d-20260923T000000Z', window_end: '2026-09-23T00:00:00.000Z' },
     ]);
     const service = new BigQueryAnalyticsExportService(
       stats as unknown as StatsService,
       makeConfig(enabledConfig) as never,
       jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
     );
 
     await expect(service.exportDueWindow(new Date('2026-09-30T12:00:00.000Z'))).resolves.toBe('exported');
@@ -170,14 +277,18 @@ describe('BigQueryAnalyticsExportService', () => {
       new Date('2026-09-23T00:00:00.000Z'),
       new Date('2026-09-30T00:00:00.000Z'),
     );
-    expect(table.insert).toHaveBeenCalledWith(expect.objectContaining({ insertId: 'openwa-7d-20260930T000000Z' }), {
-      raw: true,
-    });
+    const mergeCall = client.query.mock.calls.find(call => String(call[0].query).includes('MERGE'));
+    expect(mergeCall?.[0].params?.rows?.[0]).toEqual(
+      expect.objectContaining({ export_id: 'openwa-7d-20260930T000000Z', target_audience: 'Overall' }),
+    );
   });
 
   it('publishes an in-progress first window immediately from the explicit start boundary', async () => {
-    const stats = { getMessageStatsForRange: jest.fn().mockResolvedValue(analytics) };
-    const { client, table } = makeBigQuery([]);
+    const stats = {
+      getMessageStatsForRange: jest.fn().mockResolvedValue(analytics),
+      getTargetAudienceStatsForRange: jest.fn().mockResolvedValue(targetAudienceStats),
+    };
+    const { client } = makeBigQuery([]);
     const service = new BigQueryAnalyticsExportService(
       stats as unknown as StatsService,
       makeConfig({
@@ -185,6 +296,7 @@ describe('BigQueryAnalyticsExportService', () => {
         'stats.bigQueryExport.startAt': '2026-09-28T00:00:00.000Z',
       }) as never,
       jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
     );
 
     await expect(service.exportDueWindow(new Date('2026-10-01T00:00:00.000Z'))).resolves.toBe('exported');
@@ -192,13 +304,15 @@ describe('BigQueryAnalyticsExportService', () => {
       new Date('2026-09-28T00:00:00.000Z'),
       new Date('2026-10-01T00:00:00.000Z'),
     );
-    expect(client.query).toHaveBeenCalledTimes(2);
-    expect(table.insert).not.toHaveBeenCalled();
+    expect(client.query.mock.calls.filter(([options]) => options.query.includes('MERGE'))).toHaveLength(1);
   });
 
   it('exports the first complete window from the explicit start boundary when due', async () => {
-    const stats = { getMessageStatsForRange: jest.fn().mockResolvedValue(analytics) };
-    const { client, table } = makeBigQuery([]);
+    const stats = {
+      getMessageStatsForRange: jest.fn().mockResolvedValue(analytics),
+      getTargetAudienceStatsForRange: jest.fn().mockResolvedValue(targetAudienceStats),
+    };
+    const { client } = makeBigQuery([]);
     const service = new BigQueryAnalyticsExportService(
       stats as unknown as StatsService,
       makeConfig({
@@ -206,6 +320,7 @@ describe('BigQueryAnalyticsExportService', () => {
         'stats.bigQueryExport.startAt': '2026-09-28T00:00:00.000Z',
       }) as never,
       jest.fn().mockReturnValue(client),
+      makeCustomGroupRepository() as never,
     );
 
     await expect(service.exportDueWindow(new Date('2026-10-05T00:00:00.000Z'))).resolves.toBe('exported');
@@ -213,8 +328,7 @@ describe('BigQueryAnalyticsExportService', () => {
       new Date('2026-09-28T00:00:00.000Z'),
       new Date('2026-10-05T00:00:00.000Z'),
     );
-    expect(client.query).toHaveBeenCalledTimes(2);
-    expect(table.insert).not.toHaveBeenCalled();
+    expect(client.query.mock.calls.filter(([options]) => options.query.includes('MERGE'))).toHaveLength(1);
   });
 
   it('does not create a client or query analytics when the exporter is disabled', async () => {
@@ -224,6 +338,7 @@ describe('BigQueryAnalyticsExportService', () => {
       stats as unknown as StatsService,
       makeConfig({ 'stats.bigQueryExport.enabled': false }) as never,
       factory,
+      makeCustomGroupRepository() as never,
     );
 
     await expect(service.exportDueWindow()).resolves.toBe('disabled');

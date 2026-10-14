@@ -72,6 +72,10 @@ export interface MessageAnalyticsSummary {
   emojiReactions: number;
 }
 
+export interface TargetAudienceAnalyticsSummary extends MessageAnalyticsSummary {
+  activeGroups: number;
+}
+
 export interface MessageStats {
   summary: MessageAnalyticsSummary;
   timeSeries: TimeSeriesPoint[];
@@ -266,6 +270,65 @@ export class StatsService {
       throw new RangeError('Analytics range must have valid dates with since before until');
     }
     return this.loadMessageStatsRange(since, until, 'day', [...new Set(groupIds)]);
+  }
+
+  /** Minimal session-scoped aggregate used for each saved target audience in BigQuery exports. */
+  async getTargetAudienceStatsForRange(
+    since: Date,
+    until: Date,
+    sessionId: string,
+    groupIds: readonly string[],
+  ): Promise<TargetAudienceAnalyticsSummary> {
+    if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || since >= until) {
+      throw new RangeError('Analytics range must have valid dates with since before until');
+    }
+    const normalizedGroupIds = [...new Set(groupIds.map(id => id.trim()).filter(Boolean))];
+    if (!normalizedGroupIds.length) {
+      return {
+        sent: 0,
+        received: 0,
+        interactions: 0,
+        activeGroups: 0,
+        deliveredRecipients: 0,
+        readRecipients: 0,
+        reactedMessages: 0,
+        emojiReactions: 0,
+      };
+    }
+
+    const raw = await this.messageRepo
+      .createQueryBuilder('m')
+      .select(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
+      .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
+      .addSelect(`COUNT(DISTINCT m.chatId)`, 'interactions')
+      .addSelect(`COUNT(DISTINCT m.chatId)`, 'activeGroups')
+      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' AND m.reactionCount > 0 THEN 1 ELSE 0 END)`, 'reactedMessages')
+      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.reactionCount ELSE 0 END)`, 'emojiReactions')
+      .where('m.createdAt >= :since', { since })
+      .andWhere('m.createdAt < :until', { until })
+      .andWhere('m.sessionId = :sessionId', { sessionId })
+      .andWhere('m.chatId IN (:...groupIds)', { groupIds: normalizedGroupIds })
+      .getRawOne<{
+        sent: string;
+        received: string;
+        interactions: string;
+        activeGroups: string;
+        reactedMessages: string;
+        emojiReactions: string;
+      }>();
+    const receipts = await this.getReceiptAudiences(since, until, normalizedGroupIds, sessionId);
+    const receiptTotals = this.sumReceiptAudiences(receipts.byChat.values());
+
+    return {
+      sent: parseInt(raw?.sent || '0'),
+      received: parseInt(raw?.received || '0'),
+      interactions: parseInt(raw?.interactions || '0'),
+      activeGroups: parseInt(raw?.activeGroups || '0'),
+      deliveredRecipients: receiptTotals.delivered,
+      readRecipients: receiptTotals.read,
+      reactedMessages: parseInt(raw?.reactedMessages || '0'),
+      emojiReactions: parseInt(raw?.emojiReactions || '0'),
+    };
   }
 
   private async loadMessageStats(
@@ -497,7 +560,12 @@ export class StatsService {
    * recipient sets instead; the SQL content flag keeps type analytics aligned without loading
    * message bodies or media metadata.
    */
-  private async getReceiptAudiences(since: Date, until?: Date): Promise<ReceiptAudiences> {
+  private async getReceiptAudiences(
+    since: Date,
+    until?: Date,
+    groupIds: readonly string[] = [],
+    sessionId?: string,
+  ): Promise<ReceiptAudiences> {
     const query = this.messageRepo
       .createQueryBuilder('m')
       .select('m.chatId', 'chatId')
@@ -515,6 +583,8 @@ export class StatsService {
       .andWhere('m.direction = :direction', { direction: MessageDirection.OUTGOING })
       .andWhere('(m.deliveryCount > 0 OR m.readCount > 0)');
     if (until) query.andWhere('m.createdAt < :until', { until });
+    if (groupIds.length) query.andWhere('m.chatId IN (:...receiptGroupIds)', { receiptGroupIds: groupIds });
+    if (sessionId) query.andWhere('m.sessionId = :receiptSessionId', { receiptSessionId: sessionId });
 
     const rows = await query.getRawMany<{
       chatId: string;

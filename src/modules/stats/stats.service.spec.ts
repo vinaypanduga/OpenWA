@@ -114,6 +114,56 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     await expect(service.getMessageStatsForRange(new Date('invalid'), boundary)).rejects.toThrow(RangeError);
   });
 
+  it('aggregates a saved target audience within its owning session only', async () => {
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's1', name: 'primary', status: SessionStatus.READY, config: {} }));
+    await ds
+      .getRepository(Session)
+      .save(ds.getRepository(Session).create({ id: 's2', name: 'secondary', status: SessionStatus.READY, config: {} }));
+    const since = new Date('2026-10-01T00:00:00.000Z');
+    const until = new Date('2026-10-08T00:00:00.000Z');
+    await seedMessage({
+      createdAt: new Date('2026-10-02T00:00:00.000Z'),
+      chatId: 'alpha@g.us',
+      deliveryCount: 2,
+      readCount: 1,
+      deliveredTo: ['a@c.us', 'b@c.us'],
+      readBy: ['a@c.us'],
+      reactionCount: 2,
+    });
+    await seedMessage({
+      createdAt: new Date('2026-10-03T00:00:00.000Z'),
+      chatId: 'beta@g.us',
+      direction: MessageDirection.INCOMING,
+    });
+    // Same WhatsApp group in another session must not leak into s1's saved audience analytics.
+    await seedMessage({
+      createdAt: new Date('2026-10-04T00:00:00.000Z'),
+      sessionId: 's2',
+      chatId: 'alpha@g.us',
+      direction: MessageDirection.OUTGOING,
+      deliveryCount: 5,
+      readCount: 5,
+      deliveredTo: ['x@c.us'],
+      readBy: ['x@c.us'],
+      reactionCount: 4,
+    });
+
+    await expect(
+      service.getTargetAudienceStatsForRange(since, until, 's1', ['alpha@g.us', 'beta@g.us', 'alpha@g.us']),
+    ).resolves.toEqual({
+      sent: 1,
+      received: 1,
+      interactions: 2,
+      activeGroups: 2,
+      deliveredRecipients: 2,
+      readRecipients: 1,
+      reactedMessages: 1,
+      emojiReactions: 2,
+    });
+  });
+
   it('returns sent, received, and distinct-chat interaction analytics for the period', async () => {
     await ds
       .getRepository(Session)
