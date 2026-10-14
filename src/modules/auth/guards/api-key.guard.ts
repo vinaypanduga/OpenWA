@@ -100,7 +100,7 @@ export class ApiKeyGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (requireUnscoped && (apiKey.allowedSessions?.length ?? 0) > 0) {
+    if (requireUnscoped && (apiKey.allowedSessions?.length ?? 0) > 0 && !apiKey.dashboardSession) {
       throw new ForbiddenException('Session-scoped API keys are not permitted on this route');
     }
 

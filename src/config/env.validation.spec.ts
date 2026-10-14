@@ -464,4 +464,23 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ MEDIA_CONVERSION_TIMEOUT_MS: 'abc' })).toThrow(/positive integer/);
     expect(() => validateEnv({ MEDIA_CONVERSION_MAX_OUTPUT_BYTES: '52428800' })).not.toThrow();
   });
+
+  it('requires a complete and distinct secondary dashboard login', () => {
+    expect(() => validateEnv({ DASHBOARD_SECONDARY_LOGIN_EMAIL: 'api@example.com' })).toThrow(/configured together/);
+    expect(() => validateEnv({ DASHBOARD_SECONDARY_LOGIN_PASSWORD: 'secret-password' })).toThrow(/configured together/);
+    expect(() =>
+      validateEnv({
+        DASHBOARD_LOGIN_EMAIL: 'admin@example.com',
+        DASHBOARD_SECONDARY_LOGIN_EMAIL: ' ADMIN@example.com ',
+        DASHBOARD_SECONDARY_LOGIN_PASSWORD: 'secret-password',
+      }),
+    ).toThrow(/must differ/);
+    expect(() =>
+      validateEnv({
+        DASHBOARD_LOGIN_EMAIL: 'admin@example.com',
+        DASHBOARD_SECONDARY_LOGIN_EMAIL: 'api@example.com',
+        DASHBOARD_SECONDARY_LOGIN_PASSWORD: 'secret-password',
+      }),
+    ).not.toThrow();
+  });
 });

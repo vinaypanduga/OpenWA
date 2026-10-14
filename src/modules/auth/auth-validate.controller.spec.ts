@@ -15,7 +15,8 @@ describe('AuthValidateController', () => {
     restoreDashboardSession,
   } as unknown as AuthService);
   const responseCookie = jest.fn();
-  const response = { cookie: responseCookie, clearCookie: jest.fn() } as unknown as Response;
+  const responseClearCookie = jest.fn();
+  const response = { cookie: responseCookie, clearCookie: responseClearCookie } as unknown as Response;
 
   const makeKey = (over: Partial<ApiKey> = {}): ApiKey =>
     ({ id: 'k1', role: ApiKeyRole.OPERATOR, isActive: true, allowedIps: null, ...over }) as ApiKey;
@@ -23,7 +24,7 @@ describe('AuthValidateController', () => {
   it('revokes the browser token and clears its cookie on logout', async () => {
     await controller.dashboardLogout(response, 'owa_ds_example');
     expect(logoutDashboard).toHaveBeenCalledWith('owa_ds_example');
-    expect(response.clearCookie).toHaveBeenCalledWith('openwa_dashboard_session', expect.any(Object));
+    expect(responseClearCookie).toHaveBeenCalledWith('openwa_dashboard_session', expect.any(Object));
   });
 
   it('reports the guard-validated key as valid, echoing its role', () => {

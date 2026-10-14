@@ -4,6 +4,8 @@ import { SessionStatus } from './entities/session.entity';
 import type { Session } from './entities/session.entity';
 import type { SessionService } from './session.service';
 import type { AuditService } from '../audit/audit.service';
+import type { AuthService } from '../auth/auth.service';
+import type { ApiKey } from '../auth/entities/api-key.entity';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { BadGatewayException, BadRequestException, ConflictException } from '@nestjs/common';
 
@@ -92,6 +94,23 @@ describe('SessionController — create() response contract', () => {
       'session_created',
       expect.objectContaining({ sessionId: entity.id, sessionName: entity.name }),
     );
+  });
+
+  it('adds a new session to the scoped dashboard login that created it', async () => {
+    const authService = { appendAllowedSession: jest.fn().mockResolvedValue(undefined) };
+    const scopedController = new SessionControllerClass(
+      sessionService as unknown as SessionService,
+      auditService as unknown as AuditService,
+      authService as unknown as AuthService,
+    );
+
+    await scopedController.create({ name: 'test-session' }, {
+      id: 'dashboard-key',
+      allowedSessions: ['existing-session'],
+      dashboardSession: true,
+    } as ApiKey);
+
+    expect(authService.appendAllowedSession).toHaveBeenCalledWith('dashboard-key', entity.id);
   });
 });
 

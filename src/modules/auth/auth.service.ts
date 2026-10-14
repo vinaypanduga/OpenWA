@@ -20,7 +20,31 @@ import { createLogger } from '../../common/services/logger.service';
 import { readBootstrapKey, removeBootstrapKey, writeBootstrapKey } from './bootstrap-key-file';
 import { ApiKeyUsageTracker } from './api-key-usage-tracker.service';
 import { EventsGateway, type ApiKeyEvictionReason } from '../events/events.gateway';
-import { DashboardSessionService, DASHBOARD_SESSION_PREFIX, dashboardTokenHash } from './dashboard-session.service';
+import {
+  DashboardSessionService,
+  DASHBOARD_SESSION_PREFIX,
+  dashboardCredentialVersion,
+  dashboardTokenHash,
+} from './dashboard-session.service';
+
+const SECONDARY_DASHBOARD_KEY_PREFIX = 'dash_login_2';
+const PRIMARY_DASHBOARD_KEY_PREFIX = 'dash_login_1';
+
+function dashboardSessionScope(
+  name: 'DASHBOARD_PRIMARY_ALLOWED_SESSIONS' | 'DASHBOARD_SECONDARY_ALLOWED_SESSIONS',
+): string[] | null {
+  const value = process.env[name]?.trim();
+  if (!value) return null;
+  const ids = [
+    ...new Set(
+      value
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean),
+    ),
+  ];
+  return ids.length ? ids : null;
+}
 
 /**
  * Resolves the API key to seed on first boot (when no keys exist yet).
@@ -56,6 +80,7 @@ export function bannerKeyLine(displayKey: string, isNewKey: boolean): string {
 export class AuthService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = createLogger('AuthService');
   private dashboardKeyRecovery: Promise<{ apiKey: string; role: ApiKeyRole }> | null = null;
+  private readonly dashboardKeyProvisioning = new Map<string, Promise<ApiKey>>();
 
   constructor(
     @InjectRepository(ApiKey, 'main')
@@ -154,12 +179,103 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
   }
 
   async loginDashboard(email: string, password: string): Promise<{ apiKey: string; role: ApiKeyRole }> {
-    const verified = await this.authenticateDashboard(email, password);
-    const key = await this.validateApiKey(verified.apiKey);
+    const secondaryEmail = process.env.DASHBOARD_SECONDARY_LOGIN_EMAIL?.trim().toLowerCase();
+    const secondaryPassword = process.env.DASHBOARD_SECONDARY_LOGIN_PASSWORD;
+    const suppliedEmail = email.trim().toLowerCase();
+    const isSecondary = Boolean(
+      secondaryEmail &&
+      secondaryPassword &&
+      this.constantTimeMatches(suppliedEmail, secondaryEmail) &&
+      this.constantTimeMatches(password, secondaryPassword),
+    );
+
+    let key: ApiKey;
+    let credentialVersion: string;
+    if (isSecondary && secondaryEmail && secondaryPassword) {
+      key = await this.getOrCreateDashboardIdentity(
+        SECONDARY_DASHBOARD_KEY_PREFIX,
+        'Secondary Dashboard Login',
+        ApiKeyRole.OPERATOR,
+        dashboardSessionScope('DASHBOARD_SECONDARY_ALLOWED_SESSIONS'),
+      );
+      credentialVersion = dashboardCredentialVersion(secondaryEmail, secondaryPassword);
+    } else {
+      const verified = await this.authenticateDashboard(email, password);
+      const primaryScope = dashboardSessionScope('DASHBOARD_PRIMARY_ALLOWED_SESSIONS');
+      key = primaryScope
+        ? await this.getOrCreateDashboardIdentity(
+            PRIMARY_DASHBOARD_KEY_PREFIX,
+            'Primary Dashboard Login',
+            ApiKeyRole.ADMIN,
+            primaryScope,
+          )
+        : await this.validateApiKey(verified.apiKey);
+      credentialVersion = dashboardCredentialVersion(
+        process.env.DASHBOARD_LOGIN_EMAIL,
+        process.env.DASHBOARD_LOGIN_PASSWORD,
+      );
+    }
+
     if (!this.dashboardSessions) throw new ServiceUnavailableException('Dashboard sessions unavailable');
-    const issued = await this.dashboardSessions.issue(key.id);
+    const issued = await this.dashboardSessions.issue(key.id, credentialVersion);
     for (const hash of issued.evicted) this.evictDashboardSockets(hash);
     return { apiKey: issued.token, role: key.role };
+  }
+
+  /** Provision a dashboard-only principal; its opaque key is never returned as an API credential. */
+  private async getOrCreateDashboardIdentity(
+    keyPrefix: string,
+    name: string,
+    role: ApiKeyRole,
+    allowedSessions: string[] | null,
+  ): Promise<ApiKey> {
+    const existing = await this.apiKeyRepository.findOne({ where: { keyPrefix } });
+    if (existing) {
+      if (!existing.isActive || (existing.expiresAt && existing.expiresAt <= new Date())) {
+        throw new UnauthorizedException('Dashboard login is disabled');
+      }
+      const current = [...(existing.allowedSessions ?? [])].sort();
+      const configured = [...(allowedSessions ?? [])].sort();
+      if (existing.role !== role || JSON.stringify(current) !== JSON.stringify(configured)) {
+        await this.apiKeyRepository.update(existing.id, { role, allowedSessions });
+        existing.role = role;
+        existing.allowedSessions = allowedSessions;
+      }
+      return existing;
+    }
+
+    if (!this.dashboardKeyProvisioning.has(keyPrefix)) {
+      this.dashboardKeyProvisioning.set(
+        keyPrefix,
+        (async () => {
+          const opaqueSecret = `owa_k1_${randomBytes(32).toString('hex')}`;
+          const key = this.apiKeyRepository.create({
+            name,
+            keyHash: this.hashKey(opaqueSecret),
+            keyPrefix,
+            role,
+            allowedIps: null,
+            allowedSessions,
+            expiresAt: null,
+          });
+          const saved = await this.apiKeyRepository.save(key);
+          this.logger.log('Dashboard login identity created', {
+            keyId: saved.id,
+            role: saved.role,
+            action: 'secondary_dashboard_identity_created',
+          });
+          return saved;
+        })(),
+      );
+    }
+
+    const provisioning = this.dashboardKeyProvisioning.get(keyPrefix)!;
+    try {
+      return await provisioning;
+    } finally {
+      if (this.dashboardKeyProvisioning.get(keyPrefix) === provisioning)
+        this.dashboardKeyProvisioning.delete(keyPrefix);
+    }
   }
 
   async logoutDashboard(token?: string): Promise<void> {
@@ -584,7 +700,8 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     // session looks permanently disconnected. Whitespace is never part of a key.
     const token = rawKey?.trim();
     let apiKey: ApiKey | null;
-    if (token?.startsWith(DASHBOARD_SESSION_PREFIX)) {
+    const isDashboardSession = Boolean(token?.startsWith(DASHBOARD_SESSION_PREFIX));
+    if (isDashboardSession) {
       if (!this.dashboardSessions) throw new UnauthorizedException('Dashboard sessions unavailable');
       const id = await this.dashboardSessions.resolve(token);
       apiKey = await this.apiKeyRepository.findOne({ where: { id } });
@@ -630,7 +747,17 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     // Advisory stats only; the tracker coalesces the write and never throws.
     await this.usageTracker.record(apiKey);
 
+    // Request-only marker: scoped dashboard identities may create sessions which are then appended
+    // to their own allowlist. Raw scoped API keys remain fenced from global creation routes.
+    apiKey.dashboardSession = isDashboardSession;
+
     return apiKey;
+  }
+
+  async appendAllowedSession(apiKeyId: string, sessionId: string): Promise<void> {
+    const apiKey = await this.findOne(apiKeyId);
+    const allowedSessions = [...new Set([...(apiKey.allowedSessions ?? []), sessionId])];
+    await this.apiKeyRepository.update(apiKeyId, { allowedSessions });
   }
 
   private hashKey(rawKey: string): string {

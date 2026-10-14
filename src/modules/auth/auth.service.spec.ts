@@ -95,6 +95,7 @@ describe('bannerKeyLine (startup banner key masking)', () => {
 describe('AuthService', () => {
   let service: AuthService;
   let repository: jest.Mocked<Partial<Repository<ApiKey>>>;
+  let dashboardSessions: { issue: jest.Mock; revoke: jest.Mock };
   /** In-memory stand-in for the api_keys table, shared by the findOne/remove mocks and the
    * statement double below. */
   let keys: Map<string, ApiKey>;
@@ -103,6 +104,10 @@ describe('AuthService', () => {
   let committedWrites: Array<{ mode: 'update' | 'delete'; patch?: Record<string, unknown>; guarded: boolean }>;
 
   beforeEach(async () => {
+    dashboardSessions = {
+      issue: jest.fn().mockResolvedValue({ token: 'owa_ds_secondary_session', evicted: [] }),
+      revoke: jest.fn(),
+    };
     repository = {
       count: jest.fn(),
       find: jest.fn(),
@@ -224,6 +229,10 @@ describe('AuthService', () => {
     afterEach(() => {
       delete process.env.DASHBOARD_LOGIN_EMAIL;
       delete process.env.DASHBOARD_LOGIN_PASSWORD;
+      delete process.env.DASHBOARD_SECONDARY_LOGIN_EMAIL;
+      delete process.env.DASHBOARD_SECONDARY_LOGIN_PASSWORD;
+      delete process.env.DASHBOARD_PRIMARY_ALLOWED_SESSIONS;
+      delete process.env.DASHBOARD_SECONDARY_ALLOWED_SESSIONS;
       jest.restoreAllMocks();
     });
 
@@ -252,6 +261,38 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(repository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('creates an independent operator identity for the second dashboard login', async () => {
+      process.env.DASHBOARD_LOGIN_EMAIL = 'admin@example.com';
+      process.env.DASHBOARD_LOGIN_PASSWORD = 'existing-password';
+      process.env.DASHBOARD_SECONDARY_LOGIN_EMAIL = 'api@example.com';
+      process.env.DASHBOARD_SECONDARY_LOGIN_PASSWORD = 'secondary-password';
+      process.env.DASHBOARD_SECONDARY_ALLOWED_SESSIONS = 'api-session-1, api-session-2';
+      const secondaryKey = createMockApiKey({
+        id: 'secondary-dashboard-key',
+        name: 'Secondary Dashboard Login',
+        keyPrefix: 'dash_login_2',
+        role: ApiKeyRole.OPERATOR,
+      });
+      (repository.findOne as jest.Mock).mockResolvedValueOnce(null);
+      (repository.create as jest.Mock).mockReturnValue(secondaryKey);
+      (repository.save as jest.Mock).mockResolvedValue(secondaryKey);
+      Object.assign(service, { dashboardSessions });
+
+      await expect(service.loginDashboard(' API@example.com ', 'secondary-password')).resolves.toEqual({
+        apiKey: 'owa_ds_secondary_session',
+        role: ApiKeyRole.OPERATOR,
+      });
+
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          keyPrefix: 'dash_login_2',
+          role: ApiKeyRole.OPERATOR,
+          allowedSessions: ['api-session-1', 'api-session-2'],
+        }),
+      );
+      expect(dashboardSessions.issue).toHaveBeenCalledWith('secondary-dashboard-key', expect.any(String));
     });
 
     it('creates and persists exactly one replacement when the bootstrap file is missing', async () => {

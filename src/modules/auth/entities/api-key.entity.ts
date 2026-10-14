@@ -53,4 +53,7 @@ export class ApiKey {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  /** Set only while authenticating an opaque dashboard session token; never persisted. */
+  dashboardSession?: boolean;
 }

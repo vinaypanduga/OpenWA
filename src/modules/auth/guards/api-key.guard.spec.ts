@@ -288,6 +288,26 @@ describe('ApiKeyGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
+  it('admits a scoped dashboard identity on a global creation route', async () => {
+    reflector.getAllAndOverride
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(ApiKeyRole.OPERATOR)
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce(true);
+
+    const apiKey = createMockApiKey({
+      role: ApiKeyRole.OPERATOR,
+      allowedSessions: ['sess-A'],
+      dashboardSession: true,
+    });
+    (authService.validateApiKey as jest.Mock).mockResolvedValue(apiKey);
+    (authService.hasPermission as jest.Mock).mockReturnValue(true);
+
+    const context = createMockContext({ 'x-api-key': 'owa_ds_dashboard-token' });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
   it('admits a session-scoped key on routes WITHOUT the @RequireUnscopedKey marker', async () => {
     reflector.getAllAndOverride
       .mockReturnValueOnce(false) // not public

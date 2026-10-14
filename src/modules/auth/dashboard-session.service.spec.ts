@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { DashboardSessionService } from './dashboard-session.service';
+import { dashboardCredentialVersion, DashboardSessionService } from './dashboard-session.service';
 import { DashboardSession } from './entities/dashboard-session.entity';
 
 describe('DashboardSessionService', () => {
@@ -16,6 +16,10 @@ describe('DashboardSessionService', () => {
     service = new DashboardSessionService(db.getRepository(DashboardSession));
   });
   afterEach(async () => {
+    delete process.env.DASHBOARD_LOGIN_EMAIL;
+    delete process.env.DASHBOARD_LOGIN_PASSWORD;
+    delete process.env.DASHBOARD_SECONDARY_LOGIN_EMAIL;
+    delete process.env.DASHBOARD_SECONDARY_LOGIN_PASSWORD;
     await db.destroy();
   });
 
@@ -49,5 +53,24 @@ describe('DashboardSessionService', () => {
       .execute();
     await expect(service.resolve(second.token)).rejects.toThrow();
     expect((await service.issue('admin')).evicted).toHaveLength(1);
+  });
+
+  it('keeps both login accounts independent and invalidates only the changed credentials', async () => {
+    process.env.DASHBOARD_LOGIN_EMAIL = 'admin@example.com';
+    process.env.DASHBOARD_LOGIN_PASSWORD = 'existing-password';
+    process.env.DASHBOARD_SECONDARY_LOGIN_EMAIL = 'api@example.com';
+    process.env.DASHBOARD_SECONDARY_LOGIN_PASSWORD = 'secondary-password';
+    const primary = await service.issue('admin', dashboardCredentialVersion('admin@example.com', 'existing-password'));
+    const secondary = await service.issue(
+      'operator',
+      dashboardCredentialVersion('api@example.com', 'secondary-password'),
+    );
+
+    await expect(service.resolve(primary.token)).resolves.toBe('admin');
+    await expect(service.resolve(secondary.token)).resolves.toBe('operator');
+
+    process.env.DASHBOARD_SECONDARY_LOGIN_PASSWORD = 'changed-password';
+    await expect(service.resolve(primary.token)).resolves.toBe('admin');
+    await expect(service.resolve(secondary.token)).rejects.toThrow('session ended');
   });
 });

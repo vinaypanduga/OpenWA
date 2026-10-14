@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { SessionService } from './session.service';
@@ -43,6 +44,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { RequireRole, CurrentApiKey, SessionScoped, RequireUnscopedKey } from '../auth/decorators/auth.decorators';
 import { ApiKey, ApiKeyRole } from '../auth/entities/api-key.entity';
+import { AuthService } from '../auth/auth.service';
 import { ENGINE_NOT_READY_409, PAIRING_NOT_READY_409 } from '../../common/openapi/engine-status-responses';
 
 @ApiTags('sessions')
@@ -54,6 +56,7 @@ export class SessionController {
   constructor(
     private readonly sessionService: SessionService,
     private readonly auditService: AuditService,
+    @Optional() private readonly authService?: AuthService,
   ) {}
 
   private transformSession(session: Session): SessionResponseDto {
@@ -75,8 +78,11 @@ export class SessionController {
     type: SessionResponseDto,
   })
   @ApiResponse({ status: 409, description: 'Session name already exists' })
-  async create(@Body() dto: CreateSessionDto): Promise<SessionResponseDto> {
+  async create(@Body() dto: CreateSessionDto, @CurrentApiKey() apiKey?: ApiKey): Promise<SessionResponseDto> {
     const session = await this.sessionService.create(dto);
+    if (apiKey?.dashboardSession && (apiKey.allowedSessions?.length ?? 0) > 0) {
+      await this.authService?.appendAllowedSession(apiKey.id, session.id);
+    }
     await this.auditService.logInfo(AuditAction.SESSION_CREATED, {
       sessionId: session.id,
       sessionName: session.name,

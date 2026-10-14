@@ -440,6 +440,16 @@ export function validateEnv(config: EnvConfig): EnvConfig {
     errors.push('BIGQUERY_ANALYTICS_EXPORT_START_AT must be a valid ISO-8601 timestamp');
   }
 
+  const primaryDashboardEmail = str('DASHBOARD_LOGIN_EMAIL')?.toLowerCase();
+  const secondaryDashboardEmail = str('DASHBOARD_SECONDARY_LOGIN_EMAIL')?.toLowerCase();
+  const secondaryDashboardPassword = str('DASHBOARD_SECONDARY_LOGIN_PASSWORD');
+  if (Boolean(secondaryDashboardEmail) !== Boolean(secondaryDashboardPassword)) {
+    errors.push('DASHBOARD_SECONDARY_LOGIN_EMAIL and DASHBOARD_SECONDARY_LOGIN_PASSWORD must be configured together');
+  }
+  if (primaryDashboardEmail && secondaryDashboardEmail === primaryDashboardEmail) {
+    errors.push('DASHBOARD_SECONDARY_LOGIN_EMAIL must differ from DASHBOARD_LOGIN_EMAIL');
+  }
+
   // The Custom Groups Supabase importer is enabled by supplying URL + service-role key. Reject partial
   // configuration at boot: otherwise the dashboard shows a configured-looking tab that can never
   // load. The source table, schema, selected columns, and row limit are defined in code.
