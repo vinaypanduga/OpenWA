@@ -190,6 +190,33 @@ export class SendBulkMessageDto {
   options?: BulkMessageOptionsDto;
 }
 
+/** A ready-to-run example for sending one text message to each of two groups with 2–10s jitter. */
+export const SEND_BULK_BODY_EXAMPLES = {
+  groupsWithJitter: {
+    summary: 'Send a text message to multiple groups with random pacing',
+    value: {
+      messages: [
+        {
+          chatId: '120363000000000001@g.us',
+          type: 'text',
+          content: { text: 'Hello group one' },
+        },
+        {
+          chatId: '120363000000000002@g.us',
+          type: 'text',
+          content: { text: 'Hello group two' },
+        },
+      ],
+      options: {
+        randomizeDelay: true,
+        minDelayBetweenMessages: 2000,
+        maxDelayBetweenMessages: 10000,
+        stopOnError: false,
+      },
+    },
+  },
+};
+
 export class BulkMessageResponseDto {
   @ApiProperty()
   batchId!: string;

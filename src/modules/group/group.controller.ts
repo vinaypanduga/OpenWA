@@ -63,16 +63,20 @@ export class GroupController {
   // declared after a parameter route is shadowed by it — `join-info` would arrive as a group id.
   @Get('join-info')
   @ApiOperation({
-    summary: 'Preview a group from its invite code, without joining',
+    summary: 'Preview a group from its invite link or code, without joining',
     description:
-      'Read-only: nothing about the account changes, which is what makes it safe to call on a code ' +
+      'Read-only: nothing about the account changes, which is what makes it safe to call on a link ' +
       'from an untrusted source. Supported on both engines.\n\n' +
       'There is no participant LIST — the account is not a member — only a count, and only when ' +
       'WhatsApp discloses one. Fields the engine does not report are omitted rather than defaulted, ' +
       'because whatsapp-web.js returns an untyped object with no guaranteed shape.',
   })
   @ApiParam({ name: 'sessionId', description: 'Session ID' })
-  @ApiQuery({ name: 'code', description: 'Group invite code (the part after the invite link)' })
+  @ApiQuery({
+    name: 'code',
+    description: 'Complete WhatsApp invite link (https://chat.whatsapp.com/...) or its invite code',
+    example: 'https://chat.whatsapp.com/AbCdEfGhIjKlMnOpQrStUv',
+  })
   @ApiResponse({ status: 200, description: 'What the invite discloses about the group', type: GroupJoinInfoDto })
   @ApiResponse({
     status: 503,
@@ -80,7 +84,7 @@ export class GroupController {
       'WhatsApp did not answer within the request budget. Deliberately not folded into the 404 above — ' +
       'a query that never came back is not the same claim as a group that does not exist.',
   })
-  @ApiResponse({ status: 400, description: 'Session not started, or no code supplied' })
+  @ApiResponse({ status: 400, description: 'Session not started, or no invite link/code supplied' })
   @ApiResponse({ status: 404, description: 'No such invite — invalid, expired or revoked' })
   @ApiResponse({ status: 409, description: ENGINE_NOT_READY_409 })
   async joinInfo(@Param('sessionId') sessionId: string, @Query('code') code: string) {

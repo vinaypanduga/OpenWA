@@ -21,6 +21,7 @@ import {
 import { SendTemplateMessageDto } from './dto/send-template.dto';
 import {
   SendBulkMessageDto,
+  SEND_BULK_BODY_EXAMPLES,
   BulkMessageResponseDto,
   BatchStatusResponseDto,
   BatchCancelResponseDto,
@@ -626,6 +627,7 @@ export class MessageController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send messages to multiple recipients (async batch processing)' })
   @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @ApiBody({ type: SendBulkMessageDto, examples: SEND_BULK_BODY_EXAMPLES })
   @ApiResponse({
     status: 202,
     description: 'Batch created and processing started',

@@ -21,6 +21,14 @@ const validateDto = (cls: new () => object, obj: unknown) =>
   validate(plainToInstance(cls, obj), { whitelist: true, forbidNonWhitelisted: true });
 
 describe('SendTextMessageDto mentions', () => {
+  it('accepts Kannada, Hindi, English, and emoji as UTF-8 text', async () => {
+    const errors = await validateDto(SendTextMessageDto, {
+      chatId: 'g@g.us',
+      text: 'ನಮಸ್ಕಾರ! नमस्ते! Hello! 👋',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
   it('accepts an optional array of mention WIDs', async () => {
     const errors = await validateDto(SendTextMessageDto, {
       chatId: 'g@g.us',

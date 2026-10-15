@@ -332,6 +332,18 @@ describe('GroupService join-info preview', () => {
     expect(getGroupJoinInfo).toHaveBeenCalledWith('ABC123');
   });
 
+  it.each([
+    'https://chat.whatsapp.com/ABC123',
+    'http://chat.whatsapp.com/ABC123?utm_source=share#invite',
+    'chat.whatsapp.com/ABC123/',
+  ])('extracts the invite code from a complete invite link (%s)', async link => {
+    const getGroupJoinInfo = jest.fn().mockResolvedValue({ id: 'g@g.us', name: 'Team' });
+
+    await makeService({ getGroupJoinInfo }).getGroupJoinInfo('s1', link);
+
+    expect(getGroupJoinInfo).toHaveBeenCalledWith('ABC123');
+  });
+
   // An empty code would otherwise reach the engine and come back as a confusing not-found rather
   // than the client error it plainly is.
   it.each(['', '   ', undefined])('rejects a missing code (%p) before reaching the engine', code => {

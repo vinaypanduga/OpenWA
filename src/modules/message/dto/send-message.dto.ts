@@ -90,8 +90,8 @@ export class SendTextMessageDto {
   chatId!: string;
 
   @ApiProperty({
-    description: 'Text message content',
-    example: 'Hello from OpenWA!',
+    description: 'UTF-8 text message content. Unicode scripts such as Kannada and Hindi are supported.',
+    example: 'ನಮಸ್ಕಾರ! नमस्ते! Hello!',
     maxLength: MESSAGE_TEXT_MAX_LENGTH,
   })
   @IsString()
@@ -163,6 +163,10 @@ export class SendTextMessageDto {
  * reintroduce an unusable default.
  */
 export const SEND_TEXT_BODY_EXAMPLES = {
+  multilingual: {
+    summary: 'Kannada, Hindi, and English text',
+    value: { chatId: '120363000000000000@g.us', text: 'ನಮಸ್ಕಾರ! नमस्ते! Hello!' },
+  },
   minimal: {
     summary: 'Plain text message',
     value: { chatId: '628123456789@c.us', text: 'Hello from OpenWA!' },
@@ -270,10 +274,13 @@ const mediaBodyExample = (url: string, extra: Record<string, unknown> = {}) => (
 export const SEND_IMAGE_BODY_EXAMPLES = mediaBodyExample('https://example.com/image.jpg', {
   caption: 'Check out this image!',
 });
-export const SEND_VIDEO_BODY_EXAMPLES = mediaBodyExample('https://example.com/video.mp4');
+export const SEND_VIDEO_BODY_EXAMPLES = mediaBodyExample('https://example.com/video.mp4', {
+  caption: 'Text shown with the video',
+});
 export const SEND_AUDIO_BODY_EXAMPLES = mediaBodyExample('https://example.com/audio.ogg', { ptt: true });
 export const SEND_DOCUMENT_BODY_EXAMPLES = mediaBodyExample('https://example.com/report.pdf', {
   filename: 'report.pdf',
+  caption: 'Text shown with the file',
 });
 export const SEND_STICKER_BODY_EXAMPLES = mediaBodyExample('https://example.com/sticker.webp');
 

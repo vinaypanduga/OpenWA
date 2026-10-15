@@ -23,6 +23,7 @@ import {
   Languages,
   UsersRound,
   CalendarClock,
+  BookOpen,
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { type UserRole } from '../hooks/useRole';
@@ -37,21 +38,37 @@ interface LayoutProps {
 }
 
 const allNavItems = [
-  { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false },
-  { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false },
-  { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false },
+  { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false, operatorOnly: false },
+  { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false, operatorOnly: false },
+  { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false, operatorOnly: false },
   // { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
   // { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
-  { to: '/custom-groups', icon: UsersRound, key: 'customGroups' as const, adminOnly: true, label: 'Custom Groups' },
+  {
+    to: '/custom-groups',
+    icon: UsersRound,
+    key: 'customGroups' as const,
+    adminOnly: true,
+    operatorOnly: false,
+    label: 'Custom Groups',
+  },
   {
     to: '/scheduled-messages',
     icon: CalendarClock,
     key: 'scheduledMessages' as const,
     adminOnly: true,
+    operatorOnly: false,
     label: 'Scheduled Messages',
   },
-  { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true },
-  { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: true },
+  { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true, operatorOnly: false },
+  {
+    to: '/api-documentation',
+    icon: BookOpen,
+    key: 'apiDocumentation' as const,
+    adminOnly: false,
+    operatorOnly: true,
+    label: 'API Documentation',
+  },
+  { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: true, operatorOnly: false },
   // Backend /infra/* is ADMIN-only; hide the nav item from non-admins (UX + defense-in-depth).
   // { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true },
   // { to: '/plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true },
@@ -66,7 +83,9 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
   const ThemeIcon = themeIcons[theme];
   const themeLabel = t(`theme.${theme}`);
 
-  const navItems = allNavItems.filter(item => !item.adminOnly || userRole === 'admin');
+  const navItems = allNavItems.filter(
+    item => (!item.adminOnly || userRole === 'admin') && (!item.operatorOnly || userRole === 'operator'),
+  );
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);

@@ -10,9 +10,7 @@ import react from '@vitejs/plugin-react';
 // gateway moved on. The sidebar hid the drift by replacing the build-time value with the live
 // version from the API (see Layout.tsx); the Login screen has no session yet, so it shows this
 // constant verbatim. APP_VERSION env still overrides if explicitly provided.
-const { version: pkgVersion } = JSON.parse(
-  readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
-) as {
+const { version: pkgVersion } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as {
   version: string;
 };
 
@@ -22,11 +20,20 @@ const { version: pkgVersion } = JSON.parse(
 // runtime source of truth for the router, API client and Socket.IO path.
 const rawBasePath = (process.env.VITE_BASE_PATH || '/').trim();
 const dashboardBasePath = rawBasePath === '/' ? '/' : `/${rawBasePath.replace(/^\/+|\/+$/g, '')}/`;
+const openApiDocument = readFileSync(new URL('../openapi.json', import.meta.url), 'utf-8');
 
 // https://vite.dev/config/
 export default defineConfig({
   base: dashboardBasePath,
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'emit-openapi-document',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'openapi.json', source: openApiDocument });
+      },
+    },
+  ],
   appType: 'spa', // Enable SPA fallback for client-side routing
   define: {
     __APP_VERSION__: JSON.stringify(process.env.APP_VERSION || pkgVersion),

@@ -142,16 +142,17 @@ export class GroupService {
     return this.getEngine(sessionId).revokeGroupInviteCode(groupId);
   }
 
-  /**
-   * Preview a group from an invite code. The code is required rather than optional-with-a-default:
-   * an empty one would reach the engine and come back as a confusing not-found instead of the
-   * client error it is.
-   */
-  getGroupJoinInfo(sessionId: string, inviteCode: string) {
-    if (!inviteCode?.trim()) {
-      throw new BadRequestException('An invite code is required');
+  /** Preview a group from either its bare invite code or a complete WhatsApp invite link. */
+  getGroupJoinInfo(sessionId: string, inviteCodeOrLink: string) {
+    const value = inviteCodeOrLink?.trim();
+    if (!value) {
+      throw new BadRequestException('An invite code or link is required');
     }
-    return this.getEngine(sessionId).getGroupJoinInfo(inviteCode.trim());
+
+    // Let API users paste the value WhatsApp gives them. Query strings/fragments are deliberately
+    // excluded from the code passed to the engine; a bare code remains supported for compatibility.
+    const inviteLink = value.match(/^(?:https?:\/\/)?chat\.whatsapp\.com\/([^/?#]+)/i);
+    return this.getEngine(sessionId).getGroupJoinInfo(inviteLink?.[1] ?? value);
   }
 
   joinGroupViaInviteCode(sessionId: string, inviteCode: string) {

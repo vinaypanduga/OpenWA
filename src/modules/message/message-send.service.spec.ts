@@ -134,6 +134,15 @@ describe('MessageSendService', () => {
   });
 
   describe('sendText', () => {
+    it('preserves multilingual Unicode text through persistence and the engine send', async () => {
+      const text = 'ನಮಸ್ಕಾರ! नमस्ते! Hello! 👋';
+
+      await service.sendText('sess-1', { chatId: '120@g.us', text });
+
+      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ body: text }));
+      expect(mockEngine.sendTextMessage).toHaveBeenCalledWith('120@g.us', text);
+    });
+
     it('should send text message and return messageId + timestamp', async () => {
       const result = await service.sendText('sess-1', {
         chatId: '628123456789@c.us',

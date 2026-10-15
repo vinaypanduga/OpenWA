@@ -23,6 +23,7 @@ const CustomGroups = lazy(() => import('./pages/CustomGroups').then(m => ({ defa
 const ScheduledMessages = lazy(() => import('./pages/ScheduledMessages').then(m => ({ default: m.ScheduledMessages })));
 const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
 const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
+const ApiDocumentation = lazy(() => import('./pages/ApiDocumentation').then(m => ({ default: m.ApiDocumentation })));
 const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
 // const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
 // const Plugins = lazy(() => import('./pages/Plugins'));
@@ -190,6 +191,7 @@ function AppContent() {
               {role === 'admin' && <Route path="custom-groups" element={<CustomGroups />} />}
               {role === 'admin' && <Route path="scheduled-messages" element={<ScheduledMessages />} />}
               {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
+              {role === 'operator' && <Route path="api-documentation" element={<ApiDocumentation />} />}
               <Route path="logs" element={<Logs />} />
               {role === 'admin' && <Route path="message-tester" element={<MessageTester />} />}
               {/* {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />} */}
