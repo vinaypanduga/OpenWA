@@ -548,7 +548,9 @@ export class BulkMessageService implements OnApplicationBootstrap {
       // this the breaker was blind to bulk, the highest-volume path it exists to protect.
       let messageResult;
       try {
-        messageResult = await this.sendMessage(engine, msg.chatId, msg.type, content);
+        messageResult = await this.pacing.runWithSessionJitter(batch.sessionId, () =>
+          this.sendMessage(engine, msg.chatId, msg.type, content),
+        );
       } catch (engineError) {
         // Same filter the single-send path applies: adapters also raise client-fault and
         // engine-state errors from inside this call, and those say nothing about the account.

@@ -108,7 +108,7 @@ export class StatusService {
    */
   private async recordedPost(sessionId: string, post: () => Promise<StatusResult>): Promise<StatusResult> {
     try {
-      const result = await post();
+      const result = await this.pacing.runWithSessionJitter(sessionId, post);
       this.pacing.recordSendSuccess(sessionId);
       return result;
     } catch (error) {

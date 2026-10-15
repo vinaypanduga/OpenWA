@@ -78,6 +78,7 @@ describe('BulkMessageService.onApplicationBootstrap', () => {
           provide: SendPacingService,
           useValue: {
             assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+            runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
             recordSendFailure: jest.fn(),
             recordSendSuccess: jest.fn(),
           },
@@ -153,6 +154,7 @@ describe('BulkMessageService.onApplicationBootstrap', () => {
             provide: SendPacingService,
             useValue: {
               assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+              runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
               recordSendFailure: jest.fn(),
               recordSendSuccess: jest.fn(),
             },
@@ -247,7 +249,12 @@ describe('BulkMessageService.processBatch', () => {
   };
   let engines: EngineRegistry;
   let hookManager: { execute: jest.Mock };
-  let pacing: { assertSendAllowed: jest.Mock; recordSendFailure: jest.Mock; recordSendSuccess: jest.Mock };
+  let pacing: {
+    assertSendAllowed: jest.Mock;
+    runWithSessionJitter: jest.Mock;
+    recordSendFailure: jest.Mock;
+    recordSendSuccess: jest.Mock;
+  };
 
   const makeBatch = (messageCount: number): MessageBatch =>
     ({
@@ -280,6 +287,7 @@ describe('BulkMessageService.processBatch', () => {
     };
     pacing = {
       assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+      runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
       recordSendFailure: jest.fn(),
       recordSendSuccess: jest.fn(),
     };
@@ -974,6 +982,7 @@ describe('BulkMessageService.cancelBatch', () => {
           provide: SendPacingService,
           useValue: {
             assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+            runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
             recordSendFailure: jest.fn(),
             recordSendSuccess: jest.fn(),
           },
@@ -1057,6 +1066,7 @@ describe('BulkMessageService.createBatch base64 media cap', () => {
           provide: SendPacingService,
           useValue: {
             assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+            runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
             recordSendFailure: jest.fn(),
             recordSendSuccess: jest.fn(),
           },

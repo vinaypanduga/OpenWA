@@ -1,50 +1,61 @@
-import { Reflector } from '@nestjs/core';
 import { StatsController } from './stats.controller';
-import { REQUIRED_ROLE_KEY } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { StatsQueryDto } from './dto/stats-query.dto';
 import { validate } from 'class-validator';
 
-// the global stats routes aggregate across EVERY session and carry no scope param, so the
-// ApiKeyGuard's allowedSessions fence doesn't apply. They must require ADMIN so a VIEWER / a
-// session-restricted key can't read cross-tenant activity. The per-session route is left ungated:
-// it carries :sessionId, so the guard already scopes a restricted key to its own sessions.
+// Admins see installation-wide analytics; restricted dashboard identities see only assigned sessions.
 describe('StatsController access control', () => {
-  const reflector = new Reflector();
-  // Opaque-object view of the prototype so the lint unbound-method rule doesn't fire on a
-  // metadata-only handler lookup.
-  const proto = StatsController.prototype as unknown as Record<string, (...args: unknown[]) => unknown>;
+  it('passes a restricted login session scope into overview analytics', async () => {
+    const getOverview = jest.fn().mockResolvedValue({});
+    const controller = new StatsController({ getOverview } as never);
 
-  it.each(['getOverview', 'getMessageStats'] as const)('global stats route %s requires ADMIN', method => {
-    const role = reflector.get<ApiKeyRole | undefined>(REQUIRED_ROLE_KEY, proto[method]);
-    expect(role).toBe(ApiKeyRole.ADMIN);
-  });
+    await controller.getOverview({ role: ApiKeyRole.OPERATOR, allowedSessions: ['api-session'] } as never);
 
-  it('per-session stats is not globally ADMIN-gated (scope-enforced by its :sessionId param)', () => {
-    const role = reflector.get<ApiKeyRole | undefined>(REQUIRED_ROLE_KEY, proto.getSessionStats);
-    expect(role).toBeUndefined();
+    expect(getOverview).toHaveBeenCalledWith(['api-session']);
   });
 
   it('forwards the optional group filter to the statistics service', async () => {
     const getMessageStats = jest.fn().mockResolvedValue({});
     const controller = new StatsController({ getMessageStats } as never);
 
-    await controller.getMessageStats({ period: '7d', groupId: 'alpha@g.us' });
+    await controller.getMessageStats({ period: '7d', groupId: 'alpha@g.us' }, { role: ApiKeyRole.ADMIN } as never);
 
-    expect(getMessageStats).toHaveBeenCalledWith('7d', ['alpha@g.us']);
+    expect(getMessageStats).toHaveBeenCalledWith('7d', ['alpha@g.us'], undefined);
   });
 
   it('combines the legacy single-group filter with multiple group filters', async () => {
     const getMessageStats = jest.fn().mockResolvedValue({});
     const controller = new StatsController({ getMessageStats } as never);
 
-    await controller.getMessageStats({
-      period: '30d',
-      groupId: 'alpha@g.us',
-      groupIds: ['beta@g.us', 'gamma@g.us'],
-    });
+    await controller.getMessageStats(
+      {
+        period: '30d',
+        groupId: 'alpha@g.us',
+        groupIds: ['beta@g.us', 'gamma@g.us'],
+      },
+      { role: ApiKeyRole.ADMIN } as never,
+    );
 
-    expect(getMessageStats).toHaveBeenCalledWith('30d', ['beta@g.us', 'gamma@g.us', 'alpha@g.us']);
+    expect(getMessageStats).toHaveBeenCalledWith('30d', ['beta@g.us', 'gamma@g.us', 'alpha@g.us'], undefined);
+  });
+
+  it('passes a restricted login session scope into every message analytics query', async () => {
+    const getMessageStats = jest.fn().mockResolvedValue({});
+    const controller = new StatsController({ getMessageStats } as never);
+
+    await controller.getMessageStats({ period: '24h' }, {
+      role: ApiKeyRole.OPERATOR,
+      allowedSessions: ['api-session'],
+    } as never);
+
+    expect(getMessageStats).toHaveBeenCalledWith('24h', undefined, ['api-session']);
+  });
+
+  it('rejects an unscoped non-admin instead of exposing installation-wide analytics', async () => {
+    const controller = new StatsController({ getMessageStats: jest.fn() } as never);
+    await expect(
+      controller.getMessageStats({ period: '24h' }, { role: ApiKeyRole.OPERATOR, allowedSessions: null } as never),
+    ).rejects.toThrow('Analytics require an administrator or a session-scoped key');
   });
 });
 

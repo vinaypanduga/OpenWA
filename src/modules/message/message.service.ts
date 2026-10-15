@@ -320,7 +320,9 @@ export class MessageService implements PluginMessagePort {
 
   async reactToMessage(sessionId: string, dto: { chatId: string; messageId: string; emoji: string }): Promise<void> {
     const engine = this.getEngine(sessionId);
-    await engine.reactToMessage(dto.chatId, dto.messageId, dto.emoji);
+    await this.pacing.runWithSessionJitter(sessionId, () =>
+      engine.reactToMessage(dto.chatId, dto.messageId, dto.emoji),
+    );
   }
 
   async getMessageReactions(sessionId: string, chatId: string, messageId: string) {
@@ -460,7 +462,9 @@ export class MessageService implements PluginMessagePort {
    */
   async votePoll(sessionId: string, dto: { chatId: string; pollMessageId: string; options: string[] }) {
     const engine = this.getEngine(sessionId);
-    await engine.votePoll(dto.chatId, dto.pollMessageId, dto.options);
+    await this.pacing.runWithSessionJitter(sessionId, () =>
+      engine.votePoll(dto.chatId, dto.pollMessageId, dto.options),
+    );
     return { success: true };
   }
 
@@ -491,9 +495,11 @@ export class MessageService implements PluginMessagePort {
     // through the same moderation chokepoint as every other sender. A plugin can rewrite `body`
     // here exactly as it can for a first send.
     const finalDto = await this.applySendingGate(sessionId, 'edit', dto);
-    const result = finalDto.mentions?.length
-      ? await engine.editMessage(finalDto.chatId, finalDto.messageId, finalDto.body, finalDto.mentions)
-      : await engine.editMessage(finalDto.chatId, finalDto.messageId, finalDto.body);
+    const result = await this.pacing.runWithSessionJitter(sessionId, () =>
+      finalDto.mentions?.length
+        ? engine.editMessage(finalDto.chatId, finalDto.messageId, finalDto.body, finalDto.mentions)
+        : engine.editMessage(finalDto.chatId, finalDto.messageId, finalDto.body),
+    );
 
     // Best-effort: reflect the new body in the stored copy (mirrors deleteMessage's revoked flag),
     // serialized with the inbound edit/reaction writers through the session's per-message mutation

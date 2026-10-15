@@ -51,7 +51,7 @@ export class CatalogService {
       sessionId,
       () => new NotFoundException(`Session ${sessionId} not found or not connected`),
     );
-    return engine.sendProduct(chatId, productId, body);
+    return this.pacing.runWithSessionJitter(sessionId, () => engine.sendProduct(chatId, productId, body));
   }
 
   /**
@@ -65,6 +65,6 @@ export class CatalogService {
       sessionId,
       () => new NotFoundException(`Session ${sessionId} not found or not connected`),
     );
-    return engine.sendCatalog(chatId, body);
+    return this.pacing.runWithSessionJitter(sessionId, () => engine.sendCatalog(chatId, body));
   }
 }

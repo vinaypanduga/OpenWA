@@ -457,7 +457,7 @@ export function useCurrentEngineQuery() {
 }
 
 // ── Stats Queries ─────────────────────────────────────────────────────
-// /stats/* is ADMIN-only; a non-admin key gets 403 → don't retry, let the UI fall back gracefully.
+// /stats/* is installation-wide for admins and restricted to allowedSessions for scoped logins.
 
 export function useStatsOverviewQuery() {
   return useQuery({

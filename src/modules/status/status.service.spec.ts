@@ -32,6 +32,7 @@ describe('StatusService media validation and selection', () => {
   const storageService = { getFile: jest.fn() };
   const pacing = {
     assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+    runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
     recordSendFailure: jest.fn(),
     recordSendSuccess: jest.fn(),
   };

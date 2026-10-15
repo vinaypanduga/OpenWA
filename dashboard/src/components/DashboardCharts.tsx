@@ -94,9 +94,10 @@ export function DashboardCharts({ sessions = [] }: DashboardChartsProps) {
   const groupListQueries = useSessionGroupListsQueries(analyticsVisible ? readySessionIds : []);
   const customGroupQueries = useSessionCustomGroupListsQueries(analyticsVisible ? allSessionIds : []);
 
-  // Non-admin keys 403 on /stats/messages → hide the section entirely. Any OTHER error (e.g. a
-  // server 500) is a real fault: surface a small notice below instead of silently vanishing, which
-  // is what masked the #488 stats crash and made the whole chart "disappear" with no explanation.
+  // Unscoped non-admin API keys still 403 on /stats/messages; a session-scoped dashboard login is
+  // allowed and receives only its assigned sessions. Any OTHER error (e.g. a server 500) is a real
+  // fault: surface a small notice below instead of silently vanishing, which is what masked the
+  // #488 stats crash and made the whole chart "disappear" with no explanation.
   const forbidden = (error as (Error & { status?: number }) | null)?.status === 403;
   if (isError && forbidden) return null;
 

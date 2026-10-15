@@ -88,10 +88,15 @@ curl -X POST 'https://mcp.chimple.net/openwa/api/sessions/SESSION_ID/messages/se
 Equivalent endpoints exist for `send-video`, `send-audio`, `send-document`, `send-location`,
 `send-contact`, `send-poll`, `reply`, `forward`, and message reactions.
 
+All outbound send endpoints use a server-side FIFO queue per WhatsApp session. If several API calls
+arrive together with the same `SESSION_ID`, only one engine send runs at a time and each following
+send starts after a random 2–10 second gap. Calls for different session ids can run independently.
+The HTTP request stays open while its send is queued.
+
 ## Send a paced batch
 
-The batch endpoint accepts at most 100 messages per request and processes them asynchronously. Use
-random pacing rather than issuing concurrent send requests from the calling server.
+The batch endpoint accepts at most 100 messages per request and processes them asynchronously. Its
+individual messages pass through the same per-session queue and 2–10 second jitter.
 
 ```bash
 curl -X POST 'https://mcp.chimple.net/openwa/api/sessions/SESSION_ID/messages/send-bulk' \

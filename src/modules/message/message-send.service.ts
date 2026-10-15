@@ -117,17 +117,19 @@ export class MessageSendService {
       // three — trailing `undefined`s would be harmless to the engines but would rewrite the call
       // shape of every existing send for no behavioural gain.
       const { linkPreview, customLinkPreview, quotedMessageId } = finalDto;
-      if (linkPreview !== undefined || customLinkPreview || quotedMessageId) {
-        result = await engine.sendTextMessage(finalDto.chatId, finalDto.text, finalDto.mentions, {
-          ...(linkPreview === undefined ? {} : { linkPreview }),
-          ...(customLinkPreview ? { customPreview: customLinkPreview } : {}),
-          ...(quotedMessageId ? { quotedMessageId } : {}),
-        });
-      } else if (finalDto.mentions?.length) {
-        result = await engine.sendTextMessage(finalDto.chatId, finalDto.text, finalDto.mentions);
-      } else {
-        result = await engine.sendTextMessage(finalDto.chatId, finalDto.text);
-      }
+      result = await this.pacing.runWithSessionJitter(sessionId, () => {
+        if (linkPreview !== undefined || customLinkPreview || quotedMessageId) {
+          return engine.sendTextMessage(finalDto.chatId, finalDto.text, finalDto.mentions, {
+            ...(linkPreview === undefined ? {} : { linkPreview }),
+            ...(customLinkPreview ? { customPreview: customLinkPreview } : {}),
+            ...(quotedMessageId ? { quotedMessageId } : {}),
+          });
+        }
+        if (finalDto.mentions?.length) {
+          return engine.sendTextMessage(finalDto.chatId, finalDto.text, finalDto.mentions);
+        }
+        return engine.sendTextMessage(finalDto.chatId, finalDto.text);
+      });
     } catch (error) {
       // The SEND itself failed — mark FAILED + fire message:failed (a post-send persistence fault is
       // handled separately by persistSentState and must NOT land here).
@@ -264,7 +266,7 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendImageMessage(finalDto.chatId, media);
+      result = await this.pacing.runWithSessionJitter(sessionId, () => engine.sendImageMessage(finalDto.chatId, media));
     } catch (error) {
       return this.failSend(sessionId, 'image', message, finalDto, error);
     }
@@ -289,7 +291,7 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendVideoMessage(finalDto.chatId, media);
+      result = await this.pacing.runWithSessionJitter(sessionId, () => engine.sendVideoMessage(finalDto.chatId, media));
     } catch (error) {
       return this.failSend(sessionId, 'video', message, finalDto, error);
     }
@@ -323,7 +325,7 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendAudioMessage(finalDto.chatId, media);
+      result = await this.pacing.runWithSessionJitter(sessionId, () => engine.sendAudioMessage(finalDto.chatId, media));
     } catch (error) {
       return this.failSend(sessionId, finalDto.ptt ? 'voice' : 'audio', message, finalDto, error);
     }
@@ -348,7 +350,9 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendDocumentMessage(finalDto.chatId, media);
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        engine.sendDocumentMessage(finalDto.chatId, media),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'document', message, finalDto, error);
     }
@@ -379,13 +383,15 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendLocationMessage(finalDto.chatId, {
-        latitude: finalDto.latitude,
-        longitude: finalDto.longitude,
-        description: finalDto.description,
-        address: finalDto.address,
-        quotedMessageId: finalDto.quotedMessageId,
-      });
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        engine.sendLocationMessage(finalDto.chatId, {
+          latitude: finalDto.latitude,
+          longitude: finalDto.longitude,
+          description: finalDto.description,
+          address: finalDto.address,
+          quotedMessageId: finalDto.quotedMessageId,
+        }),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'location', message, finalDto, error);
     }
@@ -409,11 +415,13 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendContactMessage(finalDto.chatId, {
-        name: finalDto.contactName,
-        number: finalDto.contactNumber,
-        quotedMessageId: finalDto.quotedMessageId,
-      });
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        engine.sendContactMessage(finalDto.chatId, {
+          name: finalDto.contactName,
+          number: finalDto.contactNumber,
+          quotedMessageId: finalDto.quotedMessageId,
+        }),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'contact', message, finalDto, error);
     }
@@ -438,12 +446,14 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendPollMessage(finalDto.chatId, {
-        name: finalDto.name,
-        options: finalDto.options,
-        allowMultipleAnswers: finalDto.allowMultipleAnswers === true,
-        quotedMessageId: finalDto.quotedMessageId,
-      });
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        engine.sendPollMessage(finalDto.chatId, {
+          name: finalDto.name,
+          options: finalDto.options,
+          allowMultipleAnswers: finalDto.allowMultipleAnswers === true,
+          quotedMessageId: finalDto.quotedMessageId,
+        }),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'poll', message, finalDto, error);
     }
@@ -467,7 +477,9 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.sendStickerMessage(finalDto.chatId, media);
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        engine.sendStickerMessage(finalDto.chatId, media),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'sticker', message, finalDto, error);
     }
@@ -506,9 +518,11 @@ export class MessageSendService {
     try {
       // Widened only as far as the caller asked, exactly like the send path: a reply with no tags
       // keeps its three-argument shape.
-      result = finalDto.mentions?.length
-        ? await engine.replyToMessage(finalDto.chatId, finalDto.quotedMessageId, finalDto.text, finalDto.mentions)
-        : await engine.replyToMessage(finalDto.chatId, finalDto.quotedMessageId, finalDto.text);
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        finalDto.mentions?.length
+          ? engine.replyToMessage(finalDto.chatId, finalDto.quotedMessageId, finalDto.text, finalDto.mentions)
+          : engine.replyToMessage(finalDto.chatId, finalDto.quotedMessageId, finalDto.text),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'reply', message, finalDto, error);
     }
@@ -531,7 +545,9 @@ export class MessageSendService {
 
     let result: MessageResult;
     try {
-      result = await engine.forwardMessage(finalDto.fromChatId, finalDto.toChatId, finalDto.messageId);
+      result = await this.pacing.runWithSessionJitter(sessionId, () =>
+        engine.forwardMessage(finalDto.fromChatId, finalDto.toChatId, finalDto.messageId),
+      );
     } catch (error) {
       return this.failSend(sessionId, 'forward', message, finalDto, error);
     }

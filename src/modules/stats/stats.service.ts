@@ -185,13 +185,17 @@ export class StatsService {
     return value;
   }
 
-  async getOverview(): Promise<OverviewStats> {
+  async getOverview(sessionIds?: readonly string[]): Promise<OverviewStats> {
+    const normalizedSessionIds = [...new Set(sessionIds ?? [])];
+    if (normalizedSessionIds.length) return this.loadOverview(normalizedSessionIds);
     return this.memoized('overview', () => this.loadOverview());
   }
 
-  private async loadOverview(): Promise<OverviewStats> {
+  private async loadOverview(sessionIds: readonly string[] = []): Promise<OverviewStats> {
     // Get session stats
-    const sessions = await this.sessionRepo.find();
+    const sessions = sessionIds.length
+      ? await this.sessionRepo.createQueryBuilder('s').where('s.id IN (:...sessionIds)', { sessionIds }).getMany()
+      : await this.sessionRepo.find();
     const byStatus: Record<string, number> = {};
     let active = 0;
 
@@ -204,20 +208,26 @@ export class StatsService {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const messageStats = await this.messageRepo
+    const messageStatsQuery = this.messageRepo
       .createQueryBuilder('m')
       .select('m.direction', 'direction')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('m.direction')
-      .getRawMany<{ direction: string; count: string }>();
+      .groupBy('m.direction');
+    if (sessionIds.length) {
+      messageStatsQuery.where('m.sessionId IN (:...messageSessionIds)', { messageSessionIds: sessionIds });
+    }
+    const messageStats = await messageStatsQuery.getRawMany<{ direction: string; count: string }>();
 
-    const todayStats = await this.messageRepo
+    const todayStatsQuery = this.messageRepo
       .createQueryBuilder('m')
       .select('m.direction', 'direction')
       .addSelect('COUNT(*)', 'count')
       .where('m.createdAt >= :todayStart', { todayStart })
-      .groupBy('m.direction')
-      .getRawMany<{ direction: string; count: string }>();
+      .groupBy('m.direction');
+    if (sessionIds.length) {
+      todayStatsQuery.andWhere('m.sessionId IN (:...todaySessionIds)', { todaySessionIds: sessionIds });
+    }
+    const todayStats = await todayStatsQuery.getRawMany<{ direction: string; count: string }>();
 
     const sent = parseInt(messageStats.find(m => m.direction === 'outgoing')?.count || '0');
     const received = parseInt(messageStats.find(m => m.direction === 'incoming')?.count || '0');
@@ -225,16 +235,23 @@ export class StatsService {
     const todayReceived = parseInt(todayStats.find(m => m.direction === 'incoming')?.count || '0');
 
     // Count failed messages
-    const failed = await this.messageRepo.count({
-      where: { status: MessageStatus.FAILED },
-    });
+    const failedQuery = this.messageRepo
+      .createQueryBuilder('m')
+      .where('m.status = :failedStatus', { failedStatus: MessageStatus.FAILED });
+    if (sessionIds.length) {
+      failedQuery.andWhere('m.sessionId IN (:...failedSessionIds)', { failedSessionIds: sessionIds });
+    }
+    const failed = await failedQuery.getCount();
 
-    // Cache session stats
-    await this.cacheService.setSessionsStats({
-      active,
-      total: sessions.length,
-      byStatus,
-    });
+    // This shared cache is installation-wide; a scoped request must never replace it with a
+    // tenant/login-specific subset.
+    if (!sessionIds.length) {
+      await this.cacheService.setSessionsStats({
+        active,
+        total: sessions.length,
+        byStatus,
+      });
+    }
 
     return {
       sessions: {
@@ -251,12 +268,19 @@ export class StatsService {
     };
   }
 
-  async getMessageStats(period: '24h' | '7d' | '30d', groupIds?: readonly string[]): Promise<MessageStats> {
+  async getMessageStats(
+    period: '24h' | '7d' | '30d',
+    groupIds?: readonly string[],
+    sessionIds?: readonly string[],
+  ): Promise<MessageStats> {
     const normalizedGroupIds = [...new Set(groupIds ?? [])];
+    const normalizedSessionIds = [...new Set(sessionIds ?? [])];
     // Filter values are user-controlled and have effectively unbounded cardinality. Keep the
     // bounded all-conversations shapes memoized, while React Query caches each selected group set in
     // the dashboard for the same 30-second window.
-    if (normalizedGroupIds.length) return this.loadMessageStats(period, normalizedGroupIds);
+    if (normalizedGroupIds.length || normalizedSessionIds.length) {
+      return this.loadMessageStats(period, normalizedGroupIds, normalizedSessionIds);
+    }
     return this.memoized(`messages:${period}`, () => this.loadMessageStats(period));
   }
 
@@ -334,10 +358,11 @@ export class StatsService {
   private async loadMessageStats(
     period: '24h' | '7d' | '30d',
     groupIds: readonly string[] = [],
+    sessionIds: readonly string[] = [],
   ): Promise<MessageStats> {
     const since = this.getPeriodStart(period);
     const interval = period === '24h' ? 'hour' : 'day';
-    return this.loadMessageStatsRange(since, undefined, interval, groupIds);
+    return this.loadMessageStatsRange(since, undefined, interval, groupIds, sessionIds);
   }
 
   private async loadMessageStatsRange(
@@ -345,6 +370,7 @@ export class StatsService {
     until: Date | undefined,
     interval: 'hour' | 'day',
     groupIds: readonly string[],
+    sessionIds: readonly string[] = [],
   ): Promise<MessageStats> {
     // One bounded aggregate supplies the analytics KPI cards. An interaction is one distinct
     // session-and-chat pair with recorded inbound or outbound activity in the period; unlike raw
@@ -362,6 +388,8 @@ export class StatsService {
       .where('m.createdAt >= :since', { since });
     if (until) summaryQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) summaryQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
+    if (sessionIds.length)
+      summaryQuery.andWhere('m.sessionId IN (:...summarySessionIds)', { summarySessionIds: sessionIds });
     const summaryRaw = await summaryQuery.getRawOne<{
       sent: string;
       received: string;
@@ -372,7 +400,7 @@ export class StatsService {
 
     // Load all chats once because groupBreakdown intentionally remains unfiltered. Headline metrics
     // are then reduced to the selected chat set without erasing receipt totals for comparison rows.
-    const receiptAudiences = await this.getReceiptAudiences(since, until);
+    const receiptAudiences = await this.getReceiptAudiences(since, until, [], undefined, sessionIds);
     const receiptAudienceByChat = receiptAudiences.byChat;
     const summaryReceiptTotals = this.sumReceiptAudiences(
       groupIds.length ? groupIds.map(groupId => receiptAudienceByChat.get(groupId)) : receiptAudienceByChat.values(),
@@ -389,7 +417,7 @@ export class StatsService {
     };
 
     // Time series - using raw query for SQLite compatibility
-    const timeSeries = await this.getTimeSeries(since, until, interval, groupIds);
+    const timeSeries = await this.getTimeSeries(since, until, interval, groupIds, sessionIds);
 
     // By type. Rows with no body AND no metadata are content-less system/event rows (e.g. @lid
     // privacy-user events the engine maps to `unknown`) — counting them would put a misleading
@@ -405,6 +433,7 @@ export class StatsService {
       .andWhere("((m.body IS NOT NULL AND m.body != '') OR m.metadata IS NOT NULL)");
     if (until) byTypeQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) byTypeQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
+    if (sessionIds.length) byTypeQuery.andWhere('m.sessionId IN (:...typeSessionIds)', { typeSessionIds: sessionIds });
     const byTypeRaw = await byTypeQuery
       .groupBy('m.type')
       .addGroupBy('m.direction')
@@ -444,6 +473,7 @@ export class StatsService {
       .where('m.createdAt >= :since', { since });
     if (until) bySessionQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) bySessionQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
+    if (sessionIds.length) bySessionQuery.andWhere('m.sessionId IN (:...bySessionIds)', { bySessionIds: sessionIds });
     const bySessionRaw = await bySessionQuery
       .groupBy('m.sessionId')
       .addGroupBy('m.direction')
@@ -459,7 +489,9 @@ export class StatsService {
       else entry.received = parseInt(row.count);
     }
 
-    const sessions = await this.sessionRepo.find();
+    const sessions = sessionIds.length
+      ? await this.sessionRepo.createQueryBuilder('s').where('s.id IN (:...sessionIds)', { sessionIds }).getMany()
+      : await this.sessionRepo.find();
     const sessionNames = new Map(sessions.map(s => [s.id, s.name]));
 
     const bySession = Array.from(sessionMap.entries()).map(([sessionId, stats]) => ({
@@ -480,6 +512,8 @@ export class StatsService {
       .where('m.createdAt >= :since', { since });
     if (until) topChatsQuery.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) topChatsQuery.andWhere('m.chatId IN (:...groupIds)', { groupIds });
+    if (sessionIds.length)
+      topChatsQuery.andWhere('m.sessionId IN (:...topChatSessionIds)', { topChatSessionIds: sessionIds });
     const topChats = await topChatsQuery
       .groupBy('m.chatId')
       // Order by the aggregate expression, not the "messageCount" alias: Postgres folds an unquoted
@@ -511,6 +545,9 @@ export class StatsService {
       .andWhere('m.chatId LIKE :groupSuffix', { groupSuffix: '%@g.us' })
       .groupBy('m.chatId');
     if (until) groupBreakdownQuery.andWhere('m.createdAt < :until', { until });
+    if (sessionIds.length) {
+      groupBreakdownQuery.andWhere('m.sessionId IN (:...groupSessionIds)', { groupSessionIds: sessionIds });
+    }
     const groupBreakdownRaw = await groupBreakdownQuery.orderBy('COUNT(*)', 'DESC').getRawMany<{
       groupId: string;
       groupName: string | null;
@@ -565,6 +602,7 @@ export class StatsService {
     until?: Date,
     groupIds: readonly string[] = [],
     sessionId?: string,
+    sessionIds: readonly string[] = [],
   ): Promise<ReceiptAudiences> {
     const query = this.messageRepo
       .createQueryBuilder('m')
@@ -585,6 +623,9 @@ export class StatsService {
     if (until) query.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) query.andWhere('m.chatId IN (:...receiptGroupIds)', { receiptGroupIds: groupIds });
     if (sessionId) query.andWhere('m.sessionId = :receiptSessionId', { receiptSessionId: sessionId });
+    if (sessionIds.length) {
+      query.andWhere('m.sessionId IN (:...receiptSessionIds)', { receiptSessionIds: sessionIds });
+    }
 
     const rows = await query.getRawMany<{
       chatId: string;
@@ -737,6 +778,7 @@ export class StatsService {
     until: Date | undefined,
     interval: 'hour' | 'day',
     groupIds: readonly string[] = [],
+    sessionIds: readonly string[] = [],
   ): Promise<TimeSeriesPoint[]> {
     // Alias the bucket as `bucket`, not `timestamp`: `timestamp` is a reserved type keyword in
     // PostgreSQL, so `GROUP BY timestamp` is not read as the output alias and the query 500s
@@ -750,6 +792,8 @@ export class StatsService {
       .where('m.createdAt >= :since', { since });
     if (until) query.andWhere('m.createdAt < :until', { until });
     if (groupIds.length) query.andWhere('m.chatId IN (:...groupIds)', { groupIds });
+    if (sessionIds.length)
+      query.andWhere('m.sessionId IN (:...timeSeriesSessionIds)', { timeSeriesSessionIds: sessionIds });
     const raw = await query
       .groupBy('bucket')
       .orderBy('bucket', 'ASC')

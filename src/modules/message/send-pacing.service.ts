@@ -75,6 +75,17 @@ const REFUSAL_AUDIT_WINDOW_MS = 60_000;
 /** Bound on the sampling map, so a churn of session ids cannot grow it without limit. */
 const MAX_REFUSAL_KEYS = 1000;
 
+/** Fixed server-side gap for consecutive outbound engine calls on one WhatsApp session. */
+export const API_SEND_JITTER_MIN_MS = 2_000;
+export const API_SEND_JITTER_MAX_MS = 10_000;
+
+interface SessionSendQueue {
+  /** FIFO hand-off. This promise always resolves, even when the preceding send failed. */
+  tail: Promise<void>;
+  /** Earliest time the next send may begin; set when the preceding engine call finishes. */
+  nextEligibleAt: number;
+}
+
 /**
  * Refuses outbound sends that a young or misbehaving session should not be making.
  *
@@ -109,6 +120,7 @@ const MAX_REFUSAL_KEYS = 1000;
 export class SendPacingService {
   private readonly logger = createLogger('SendPacingService');
   private readonly breakers = new Map<string, BreakerState>();
+  private readonly sendQueues = new Map<string, SessionSendQueue>();
   /**
    * Per-session count of cold GROUP-ADD reachouts used today. Group adds (createGroup/
    * addParticipants) persist no message row, so `countColdReachoutsToday` — which reads the messages
@@ -148,6 +160,41 @@ export class SendPacingService {
     this.assertBreakerClosed(sessionId, config);
     await this.assertUnderDailyCap(sessionId, config);
     await this.assertUnderColdCap(sessionId, chatId, config);
+  }
+
+  /**
+   * Run one outbound WhatsApp engine call in the session's FIFO queue.
+   *
+   * This is deliberately independent of `SEND_PACING_ENABLED`: daily caps are opt-in policy, while
+   * serializing a single session's engine and spacing back-to-back automation is a safety invariant.
+   * The first send starts immediately. After it settles (success or failure), the next queued send
+   * waits a fresh random 2–10 seconds. Time already elapsed before the next call arrives counts
+   * toward that gap, so ordinary human-paced traffic is not delayed.
+   */
+  async runWithSessionJitter<T>(sessionId: string, operation: () => Promise<T>): Promise<T> {
+    let queue = this.sendQueues.get(sessionId);
+    if (!queue) {
+      queue = { tail: Promise.resolve(), nextEligibleAt: 0 };
+      this.sendQueues.set(sessionId, queue);
+    }
+
+    const previous = queue.tail;
+    let release!: () => void;
+    queue.tail = new Promise<void>(resolve => {
+      release = resolve;
+    });
+
+    await previous;
+    const waitMs = Math.max(0, queue.nextEligibleAt - Date.now());
+    if (waitMs > 0) await new Promise(resolve => setTimeout(resolve, waitMs));
+
+    try {
+      return await operation();
+    } finally {
+      const jitterRange = API_SEND_JITTER_MAX_MS - API_SEND_JITTER_MIN_MS;
+      queue.nextEligibleAt = Date.now() + API_SEND_JITTER_MIN_MS + Math.floor(Math.random() * (jitterRange + 1));
+      release();
+    }
   }
 
   /**

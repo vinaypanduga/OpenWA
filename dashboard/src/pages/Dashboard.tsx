@@ -24,8 +24,8 @@ export function Dashboard() {
   const { data: stats } = useSessionStatsQuery();
   const readySessionIds = sessions.filter(session => session.status === 'ready').map(session => session.id);
   const groupListQueries = useSessionGroupListsQueries(readySessionIds);
-  // /stats/overview is ADMIN-only; for a non-admin key it 403s → overview stays undefined and the
-  // message cards fall back to '—' without breaking the (un-gated) session cards.
+  // Administrators receive the installation-wide overview; a session-scoped API login receives
+  // the same cards reduced to its assigned WhatsApp sessions.
   const { data: overview } = useStatsOverviewQuery();
   const messagesToday = overview ? overview.messages.today.sent + overview.messages.today.received : '—';
   const totalMessages = overview ? overview.messages.sent + overview.messages.received : '—';

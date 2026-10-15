@@ -88,6 +88,30 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
     expect(stats.timeSeries[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:00:00$/);
   });
 
+  it('scopes overview cards to the login assigned sessions', async () => {
+    await ds
+      .getRepository(Session)
+      .save([
+        ds.getRepository(Session).create({ id: 's1', name: 'API session', status: SessionStatus.READY, config: {} }),
+        ds
+          .getRepository(Session)
+          .create({ id: 's2', name: 'Existing session', status: SessionStatus.DISCONNECTED, config: {} }),
+      ]);
+    await seedMessage({ sessionId: 's1', direction: MessageDirection.OUTGOING });
+    await seedMessage({ sessionId: 's1', direction: MessageDirection.INCOMING });
+    await seedMessage({ sessionId: 's2', direction: MessageDirection.OUTGOING, status: MessageStatus.FAILED });
+
+    await expect(service.getOverview(['s1'])).resolves.toEqual({
+      sessions: { active: 1, total: 1, byStatus: { ready: 1 } },
+      messages: {
+        sent: 1,
+        received: 1,
+        failed: 0,
+        today: { sent: 1, received: 1 },
+      },
+    });
+  });
+
   it('getMessageStatsForRange uses an exact half-open window for repeatable exports', async () => {
     await ds
       .getRepository(Session)
@@ -207,6 +231,70 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
       reactedMessages: 1,
       emojiReactions: 2,
     });
+  });
+
+  it('scopes every dashboard message-analytics metric to the login assigned sessions', async () => {
+    await ds
+      .getRepository(Session)
+      .save([
+        ds.getRepository(Session).create({ id: 's1', name: 'API session', status: SessionStatus.READY, config: {} }),
+        ds
+          .getRepository(Session)
+          .create({ id: 's2', name: 'Existing session', status: SessionStatus.READY, config: {} }),
+      ]);
+    await seedMessage({
+      sessionId: 's1',
+      chatId: 'api-group@g.us',
+      chatName: 'API Group',
+      body: 'sent through API',
+      direction: MessageDirection.OUTGOING,
+      deliveryCount: 2,
+      readCount: 1,
+      deliveredTo: ['one@c.us', 'two@c.us'],
+      readBy: ['one@c.us'],
+      reactionCount: 1,
+    });
+    await seedMessage({
+      sessionId: 's1',
+      chatId: 'api-group@g.us',
+      chatName: 'API Group',
+      body: 'reply',
+      direction: MessageDirection.INCOMING,
+    });
+    await seedMessage({
+      sessionId: 's2',
+      chatId: 'private-group@g.us',
+      chatName: 'Private Group',
+      body: 'must not leak',
+      direction: MessageDirection.OUTGOING,
+      deliveryCount: 3,
+      readCount: 3,
+      deliveredTo: ['x@c.us', 'y@c.us', 'z@c.us'],
+      readBy: ['x@c.us', 'y@c.us', 'z@c.us'],
+    });
+
+    const stats = await service.getMessageStats('24h', undefined, ['s1']);
+
+    expect(stats.summary).toEqual({
+      sent: 1,
+      received: 1,
+      interactions: 1,
+      deliveredRecipients: 2,
+      readRecipients: 1,
+      reactedMessages: 1,
+      emojiReactions: 1,
+    });
+    expect(stats.timeSeries.reduce((total, point) => total + point.sent + point.received, 0)).toBe(2);
+    expect(stats.byTypeBreakdown).toEqual([
+      { type: 'text', sent: 1, received: 1, total: 2, deliveredRecipients: 2, readRecipients: 1 },
+    ]);
+    expect(stats.bySession).toEqual([{ sessionId: 's1', name: 'API session', sent: 1, received: 1 }]);
+    expect(stats.topChats).toEqual([
+      expect.objectContaining({ chatId: 'api-group@g.us', sent: 1, received: 1, messageCount: 2 }),
+    ]);
+    expect(stats.groupBreakdown).toEqual([
+      expect.objectContaining({ groupId: 'api-group@g.us', sent: 1, received: 1, total: 2 }),
+    ]);
   });
 
   it('filters every message metric to multiple groups while retaining the all-group breakdown', async () => {

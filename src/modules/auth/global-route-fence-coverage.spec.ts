@@ -23,6 +23,8 @@ const ALLOWLIST = new Map<string, string>([
   ['search.controller.ts :: search', 'scope-filters results via the calling key'],
   ['session.controller.ts :: findAll', 'scope-filters sessions to the key allowlist'],
   ['session.controller.ts :: getStats', 'scope-filters the aggregate to apiKey.allowedSessions in the service'],
+  ['stats.controller.ts :: getOverview', 'scope-filters session and message totals to apiKey.allowedSessions'],
+  ['stats.controller.ts :: getMessageStats', 'scope-filters every message metric to apiKey.allowedSessions'],
   // Integration instances live under :pluginId/:instanceId (not a session param), so the guard's
   // route-param fence cannot reach them. Every handler below re-scopes itself against the calling
   // key: reads resolve via sessionScopeVisible (out-of-scope ⇒ 404), writes via assertScopeWritable.

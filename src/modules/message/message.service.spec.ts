@@ -16,6 +16,7 @@ import { SendPacingService } from './send-pacing.service';
 const inertPacing = (): SendPacingService =>
   ({
     assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+    runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
     recordSendFailure: jest.fn(),
     recordSendSuccess: jest.fn(),
   }) as unknown as SendPacingService;
@@ -80,6 +81,7 @@ describe('MessageService', () => {
           provide: SendPacingService,
           useValue: {
             assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+            runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
             recordSendFailure: jest.fn(),
             recordSendSuccess: jest.fn(),
           },

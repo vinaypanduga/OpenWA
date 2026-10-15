@@ -25,10 +25,16 @@ const page: PaginatedProducts = { products: [product], pagination: { page: 1, li
 const sent: MessageResult = { id: 'wamid.product', timestamp: 1_706_868_000 };
 
 describe('CatalogService', () => {
-  const makeService = (engine: Partial<IWhatsAppEngine> | undefined, pacing?: { assertSendAllowed: jest.Mock }) => {
+  const makeService = (
+    engine: Partial<IWhatsAppEngine> | undefined,
+    pacing?: { assertSendAllowed: jest.Mock; runWithSessionJitter: jest.Mock },
+  ) => {
     const engines = new EngineRegistry();
     if (engine) engines.set('s1', engine as IWhatsAppEngine);
-    const sendPacing = pacing ?? { assertSendAllowed: jest.fn().mockResolvedValue(undefined) };
+    const sendPacing = pacing ?? {
+      assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+      runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
+    };
     return { svc: new CatalogService(engines, sendPacing as unknown as SendPacingService), pacing: sendPacing };
   };
 
@@ -102,6 +108,7 @@ describe('CatalogService', () => {
           order.push('pace');
           return Promise.resolve();
         }),
+        runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
       };
       const sendProduct = jest.fn().mockImplementation(() => {
         order.push('send');
@@ -119,7 +126,10 @@ describe('CatalogService', () => {
     // gains support the send is not unpaced, but until then the adapter's 501 must reach the
     // caller unchanged. Pin the refusal; do not "fix" it into a success.
     it('sendCatalog surfaces the engine’s deliberate 501 unchanged', async () => {
-      const pacing = { assertSendAllowed: jest.fn().mockResolvedValue(undefined) };
+      const pacing = {
+        assertSendAllowed: jest.fn().mockResolvedValue(undefined),
+        runWithSessionJitter: jest.fn((_sessionId: string, operation: () => Promise<unknown>) => operation()),
+      };
       const unsupported = new EngineNotSupportedError('sendCatalog');
       const sendCatalog = jest.fn().mockRejectedValue(unsupported);
       const { svc } = makeService({ sendCatalog }, pacing);

@@ -5,7 +5,13 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { SendPacingService, SEND_PACING_LIMITED, countsTowardSendBreaker } from './send-pacing.service';
+import {
+  API_SEND_JITTER_MAX_MS,
+  API_SEND_JITTER_MIN_MS,
+  SendPacingService,
+  SEND_PACING_LIMITED,
+  countsTowardSendBreaker,
+} from './send-pacing.service';
 import { EngineRefusedError } from '../../common/errors/engine-refused.error';
 import { EngineNotSupportedError } from '../../common/errors/engine-not-supported.error';
 import { SsrfBlockedError } from '../../common/security/ssrf-guard';
@@ -83,6 +89,91 @@ const expectPacingRefusal = async (promise: Promise<unknown>): Promise<Record<st
 
 describe('SendPacingService', () => {
   beforeEach(() => resetSendPacingRefusals());
+
+  describe('per-session outbound queue', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    });
+
+    it('serializes one session and waits a random 2–10 seconds before the next operation', async () => {
+      jest.useFakeTimers();
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const { service } = build({ enabled: false });
+      const order: string[] = [];
+      let releaseFirst!: () => void;
+
+      const first = service.runWithSessionJitter('s1', async () => {
+        order.push('first:start');
+        await new Promise<void>(resolve => {
+          releaseFirst = resolve;
+        });
+        order.push('first:end');
+        return 'first';
+      });
+      await Promise.resolve();
+
+      const second = service.runWithSessionJitter('s1', () => {
+        order.push('second:start');
+        return Promise.resolve('second');
+      });
+      expect(order).toEqual(['first:start']);
+
+      releaseFirst();
+      await first;
+      await Promise.resolve();
+      expect(order).toEqual(['first:start', 'first:end']);
+
+      await jest.advanceTimersByTimeAsync(API_SEND_JITTER_MIN_MS - 1);
+      expect(order).toEqual(['first:start', 'first:end']);
+      await jest.advanceTimersByTimeAsync(1);
+
+      await expect(second).resolves.toBe('second');
+      expect(order).toEqual(['first:start', 'first:end', 'second:start']);
+    });
+
+    it('uses independent queues for different session ids', async () => {
+      const { service } = build({ enabled: false });
+      const started: string[] = [];
+      let releaseFirst!: () => void;
+
+      const first = service.runWithSessionJitter('s1', async () => {
+        started.push('s1');
+        await new Promise<void>(resolve => {
+          releaseFirst = resolve;
+        });
+      });
+      const other = service.runWithSessionJitter('s2', () => {
+        started.push('s2');
+        return Promise.resolve();
+      });
+
+      await Promise.resolve();
+      expect(started).toEqual(['s1', 's2']);
+      releaseFirst();
+      await Promise.all([first, other]);
+    });
+
+    it('releases the queue after an operation fails and never exceeds the 10-second jitter', async () => {
+      jest.useFakeTimers();
+      jest.spyOn(Math, 'random').mockReturnValue(0.999999);
+      const { service } = build({ enabled: false });
+      const failed = service.runWithSessionJitter('s1', () => Promise.reject(new Error('engine send failed')));
+      const next = service.runWithSessionJitter('s1', () => Promise.resolve('recovered'));
+
+      await expect(failed).rejects.toThrow('engine send failed');
+      await jest.advanceTimersByTimeAsync(API_SEND_JITTER_MAX_MS - 1);
+      let settled = false;
+      void next.then(() => {
+        settled = true;
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      await jest.advanceTimersByTimeAsync(1);
+      await expect(next).resolves.toBe('recovered');
+    });
+  });
 
   describe('when disabled', () => {
     // The disabled path must cost nothing and change nothing — a deployment that has not opted in
