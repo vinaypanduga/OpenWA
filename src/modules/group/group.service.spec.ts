@@ -117,6 +117,26 @@ describe('GroupService', () => {
     await expect(svc.getGroupInfo('s1', 'g1')).resolves.toEqual({ id: 'g1', name: 'G' });
   });
 
+  it('never makes read-only group APIs wait in the outbound send queue', async () => {
+    const pacing = {
+      runWithSessionJitter: jest.fn(() => Promise.reject(new Error('read entered the send queue'))),
+      assertSendAllowed: jest.fn(() => Promise.reject(new Error('read entered the send gate'))),
+      assertReachoutAllowed: jest.fn(() => Promise.reject(new Error('read entered the reachout gate'))),
+    };
+    const getGroups = jest.fn().mockResolvedValue([{ id: 'g1' }]);
+    const getGroupInfo = jest.fn().mockResolvedValue({ id: 'g1', name: 'Group one' });
+    const getGroupJoinInfo = jest.fn().mockResolvedValue({ id: 'g1', name: 'Group one' });
+    const { svc } = makeServiceWithPacing({ getGroups, getGroupInfo, getGroupJoinInfo }, pacing);
+
+    await expect(svc.getGroups('s1')).resolves.toEqual([{ id: 'g1' }]);
+    await expect(svc.getGroupInfo('s1', 'g1')).resolves.toEqual({ id: 'g1', name: 'Group one' });
+    await expect(svc.getGroupJoinInfo('s1', 'ABC123')).resolves.toEqual({ id: 'g1', name: 'Group one' });
+
+    expect(pacing.runWithSessionJitter).not.toHaveBeenCalled();
+    expect(pacing.assertSendAllowed).not.toHaveBeenCalled();
+    expect(pacing.assertReachoutAllowed).not.toHaveBeenCalled();
+  });
+
   it('charges the cold-reachout budget only after the engine call resolves', async () => {
     const addParticipants = jest.fn().mockResolvedValue(undefined);
     const { svc, pacing } = makeServiceWithPacing(

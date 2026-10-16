@@ -272,6 +272,10 @@ describe('configuration stats namespace', () => {
     'BIGQUERY_TABLE_ID',
     'BIGQUERY_LOCATION',
     'BIGQUERY_ANALYTICS_EXPORT_START_AT',
+    'BIGQUERY_NORMAL_SESSION_IDS',
+    'BIGQUERY_API_SESSION_IDS',
+    'DASHBOARD_PRIMARY_ALLOWED_SESSIONS',
+    'DASHBOARD_SECONDARY_ALLOWED_SESSIONS',
   ] as const;
   const orig: Record<string, string | undefined> = {};
   beforeEach(() => keys.forEach(key => (orig[key] = process.env[key])));
@@ -300,6 +304,8 @@ describe('configuration stats namespace', () => {
       tableId: 'message_analytics_15d',
       location: 'US',
       startAt: '',
+      normalSessionIds: '',
+      apiSessionIds: '',
     });
 
     process.env.BIGQUERY_ANALYTICS_EXPORT_ENABLED = 'true';
@@ -308,6 +314,8 @@ describe('configuration stats namespace', () => {
     process.env.BIGQUERY_TABLE_ID = 'message_analytics_custom';
     process.env.BIGQUERY_LOCATION = 'australia-southeast1';
     process.env.BIGQUERY_ANALYTICS_EXPORT_START_AT = '2026-09-28T00:00:00.000Z';
+    process.env.BIGQUERY_NORMAL_SESSION_IDS = 'normal-1,normal-2';
+    process.env.BIGQUERY_API_SESSION_IDS = 'api-1';
     expect(configuration().stats.bigQueryExport).toEqual({
       enabled: true,
       projectId: 'openwa-prod',
@@ -315,6 +323,8 @@ describe('configuration stats namespace', () => {
       tableId: 'message_analytics_custom',
       location: 'australia-southeast1',
       startAt: '2026-09-28T00:00:00.000Z',
+      normalSessionIds: 'normal-1,normal-2',
+      apiSessionIds: 'api-1',
     });
   });
 });

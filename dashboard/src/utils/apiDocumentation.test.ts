@@ -125,6 +125,7 @@ test('the integration page exposes only the requested APIs in product order', ()
       'Get group data by group ID',
       'Get all groups',
       'Get group data by invite link',
+      'Get analytics for multiple groups',
       'Send messages to multiple groups with jitter',
     ],
   );

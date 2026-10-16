@@ -419,6 +419,8 @@ export function validateEnv(config: EnvConfig): EnvConfig {
   const bigQueryTableId = str('BIGQUERY_TABLE_ID');
   const bigQueryLocation = str('BIGQUERY_LOCATION');
   const bigQueryStartAt = str('BIGQUERY_ANALYTICS_EXPORT_START_AT');
+  const bigQueryNormalSessionIds = str('BIGQUERY_NORMAL_SESSION_IDS') || str('DASHBOARD_PRIMARY_ALLOWED_SESSIONS');
+  const bigQueryApiSessionIds = str('BIGQUERY_API_SESSION_IDS') || str('DASHBOARD_SECONDARY_ALLOWED_SESSIONS');
   if (bigQueryEnabled && !bigQueryProjectId) {
     errors.push('BIGQUERY_PROJECT_ID is required when BIGQUERY_ANALYTICS_EXPORT_ENABLED=true');
   }
@@ -438,6 +440,27 @@ export function validateEnv(config: EnvConfig): EnvConfig {
   }
   if (bigQueryStartAt && !Number.isFinite(Date.parse(bigQueryStartAt))) {
     errors.push('BIGQUERY_ANALYTICS_EXPORT_START_AT must be a valid ISO-8601 timestamp');
+  }
+  const parseSessionIds = (key: string, value: string | undefined): string[] => {
+    if (!value) return [];
+    const ids = value.split(',').map(id => id.trim());
+    if (ids.some(id => !id || id.length > 255 || /\s/.test(id))) {
+      errors.push(`${key} must be a comma-separated list of non-empty session IDs without whitespace`);
+    }
+    if (new Set(ids).size !== ids.length) errors.push(`${key} must not contain duplicate session IDs`);
+    return ids;
+  };
+  const normalSessionIds = parseSessionIds('BIGQUERY_NORMAL_SESSION_IDS', bigQueryNormalSessionIds);
+  const apiSessionIds = parseSessionIds('BIGQUERY_API_SESSION_IDS', bigQueryApiSessionIds);
+  if (bigQueryEnabled && (normalSessionIds.length > 0 || apiSessionIds.length > 0)) {
+    if (!normalSessionIds.length || !apiSessionIds.length) {
+      errors.push(
+        'BIGQUERY_NORMAL_SESSION_IDS and BIGQUERY_API_SESSION_IDS must both be configured for split analytics',
+      );
+    }
+    if (normalSessionIds.some(id => apiSessionIds.includes(id))) {
+      errors.push('BigQuery normal and API session ID lists must not overlap');
+    }
   }
 
   const primaryDashboardEmail = str('DASHBOARD_LOGIN_EMAIL')?.toLowerCase();

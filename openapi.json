@@ -7885,6 +7885,62 @@
         ]
       }
     },
+    "/api/sessions/{sessionId}/stats/groups": {
+      "post": {
+        "description": "Returns combined and per-group analytics for the supplied WhatsApp group IDs. Results are restricted to the session in the URL.",
+        "operationId": "SessionStatsController_getGroupAnalytics",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "description": "WhatsApp session UUID whose stored message analytics should be queried.",
+            "schema": {
+              "example": "57c032a1-a20d-4849-aa6a-eaeac756883a",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupAnalyticsRequestDto"
+              },
+              "examples": {
+                "sevenDays": {
+                  "summary": "Last seven days for two groups",
+                  "value": {
+                    "groupIds": [
+                      "120363000000000001@g.us",
+                      "120363000000000002@g.us"
+                    ],
+                    "days": 7
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Analytics for the requested session, groups, and rolling day window.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupAnalyticsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get analytics for multiple groups and a rolling day range",
+        "tags": [
+          "statistics"
+        ]
+      }
+    },
     "/api/metrics": {
       "get": {
         "operationId": "MetricsController_scrape",
@@ -16568,6 +16624,16 @@
             "type": "number",
             "description": "Distinct members who read an outgoing message in this group.",
             "example": 190
+          },
+          "reactedMessages": {
+            "type": "number",
+            "description": "Outgoing messages in this group with at least one active emoji reaction.",
+            "example": 12
+          },
+          "emojiReactions": {
+            "type": "number",
+            "description": "Active emoji reactions on outgoing messages in this group.",
+            "example": 18
           }
         },
         "required": [
@@ -16577,7 +16643,9 @@
           "received",
           "total",
           "deliveredRecipients",
-          "readRecipients"
+          "readRecipients",
+          "reactedMessages",
+          "emojiReactions"
         ]
       },
       "MessageStatsResponseDto": {
@@ -16774,6 +16842,80 @@
           "messages",
           "topChats",
           "hourlyActivity"
+        ]
+      },
+      "GroupAnalyticsRequestDto": {
+        "type": "object",
+        "properties": {
+          "groupIds": {
+            "description": "WhatsApp group IDs to include. Each ID must end in @g.us.",
+            "minItems": 1,
+            "maxItems": 200,
+            "example": [
+              "120363000000000001@g.us",
+              "120363000000000002@g.us"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "days": {
+            "type": "number",
+            "description": "Rolling number of 24-hour days to include, ending when the request is processed.",
+            "minimum": 1,
+            "maximum": 90,
+            "default": 7,
+            "example": 7
+          }
+        },
+        "required": [
+          "groupIds",
+          "days"
+        ]
+      },
+      "GroupAnalyticsResponseDto": {
+        "type": "object",
+        "properties": {
+          "windowStart": {
+            "type": "string",
+            "description": "Inclusive start of the rolling analytics window.",
+            "format": "date-time"
+          },
+          "windowEnd": {
+            "type": "string",
+            "description": "Exclusive end of the rolling analytics window.",
+            "format": "date-time"
+          },
+          "days": {
+            "type": "number",
+            "example": 7
+          },
+          "groupIds": {
+            "example": [
+              "120363000000000001@g.us",
+              "120363000000000002@g.us"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "analytics": {
+            "description": "Combined and per-group analytics. All fields are limited to the requested session, groups, and date window.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageStatsResponseDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "windowStart",
+          "windowEnd",
+          "days",
+          "groupIds",
+          "analytics"
         ]
       },
       "StatusContactDto": {

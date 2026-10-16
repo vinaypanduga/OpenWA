@@ -107,7 +107,17 @@ export interface MessageStats {
     total: number;
     deliveredRecipients: number;
     readRecipients: number;
+    reactedMessages: number;
+    emojiReactions: number;
   }>;
+}
+
+export interface GroupAnalytics {
+  windowStart: string;
+  windowEnd: string;
+  days: number;
+  groupIds: string[];
+  analytics: MessageStats;
 }
 
 export interface SessionStats {
@@ -289,11 +299,45 @@ export class StatsService {
    * this instead of the dashboard's rolling range so a retry always produces the same snapshot and
    * a message on the window boundary cannot be exported twice.
    */
-  async getMessageStatsForRange(since: Date, until: Date, groupIds: readonly string[] = []): Promise<MessageStats> {
+  async getMessageStatsForRange(
+    since: Date,
+    until: Date,
+    groupIds: readonly string[] = [],
+    sessionIds: readonly string[] = [],
+  ): Promise<MessageStats> {
     if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || since >= until) {
       throw new RangeError('Analytics range must have valid dates with since before until');
     }
-    return this.loadMessageStatsRange(since, until, 'day', [...new Set(groupIds)]);
+    return this.loadMessageStatsRange(since, until, 'day', [...new Set(groupIds)], [...new Set(sessionIds)]);
+  }
+
+  async getGroupAnalytics(sessionId: string, groupIds: readonly string[], days: number): Promise<GroupAnalytics> {
+    if (!Number.isInteger(days) || days < 1 || days > 90) {
+      throw new RangeError('Analytics days must be an integer from 1 to 90');
+    }
+    if ((await this.sessionRepo.count({ where: { id: sessionId } })) === 0) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const normalizedGroupIds = [...new Set(groupIds)];
+    const until = new Date();
+    const since = new Date(until.getTime() - days * 24 * 60 * 60 * 1000);
+    const analytics = await this.loadMessageStatsRange(
+      since,
+      until,
+      days === 1 ? 'hour' : 'day',
+      normalizedGroupIds,
+      [sessionId],
+      true,
+    );
+
+    return {
+      windowStart: since.toISOString(),
+      windowEnd: until.toISOString(),
+      days,
+      groupIds: normalizedGroupIds,
+      analytics,
+    };
   }
 
   /** Minimal session-scoped aggregate used for each saved target audience in BigQuery exports. */
@@ -371,6 +415,7 @@ export class StatsService {
     interval: 'hour' | 'day',
     groupIds: readonly string[],
     sessionIds: readonly string[] = [],
+    restrictBreakdownToGroupIds = false,
   ): Promise<MessageStats> {
     // One bounded aggregate supplies the analytics KPI cards. An interaction is one distinct
     // session-and-chat pair with recorded inbound or outbound activity in the period; unlike raw
@@ -400,7 +445,13 @@ export class StatsService {
 
     // Load all chats once because groupBreakdown intentionally remains unfiltered. Headline metrics
     // are then reduced to the selected chat set without erasing receipt totals for comparison rows.
-    const receiptAudiences = await this.getReceiptAudiences(since, until, [], undefined, sessionIds);
+    const receiptAudiences = await this.getReceiptAudiences(
+      since,
+      until,
+      restrictBreakdownToGroupIds ? groupIds : [],
+      undefined,
+      sessionIds,
+    );
     const receiptAudienceByChat = receiptAudiences.byChat;
     const summaryReceiptTotals = this.sumReceiptAudiences(
       groupIds.length ? groupIds.map(groupId => receiptAudienceByChat.get(groupId)) : receiptAudienceByChat.values(),
@@ -540,11 +591,16 @@ export class StatsService {
       .addSelect('MAX(m.chatName)', 'groupName')
       .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN 1 ELSE 0 END)`, 'sent')
       .addSelect(`SUM(CASE WHEN m.direction = 'incoming' THEN 1 ELSE 0 END)`, 'received')
+      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' AND m.reactionCount > 0 THEN 1 ELSE 0 END)`, 'reactedMessages')
+      .addSelect(`SUM(CASE WHEN m.direction = 'outgoing' THEN m.reactionCount ELSE 0 END)`, 'emojiReactions')
       .addSelect('COUNT(*)', 'total')
       .where('m.createdAt >= :since', { since })
       .andWhere('m.chatId LIKE :groupSuffix', { groupSuffix: '%@g.us' })
       .groupBy('m.chatId');
     if (until) groupBreakdownQuery.andWhere('m.createdAt < :until', { until });
+    if (restrictBreakdownToGroupIds && groupIds.length) {
+      groupBreakdownQuery.andWhere('m.chatId IN (:...breakdownGroupIds)', { breakdownGroupIds: groupIds });
+    }
     if (sessionIds.length) {
       groupBreakdownQuery.andWhere('m.sessionId IN (:...groupSessionIds)', { groupSessionIds: sessionIds });
     }
@@ -554,6 +610,8 @@ export class StatsService {
       sent: string;
       received: string;
       total: string;
+      reactedMessages: string;
+      emojiReactions: string;
     }>();
 
     return {
@@ -585,6 +643,8 @@ export class StatsService {
           total: parseInt(group.total || '0'),
           deliveredRecipients: audience?.delivered.size ?? 0,
           readRecipients: audience?.read.size ?? 0,
+          reactedMessages: parseInt(group.reactedMessages || '0'),
+          emojiReactions: parseInt(group.emojiReactions || '0'),
         };
       }),
     };

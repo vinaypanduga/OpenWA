@@ -9,6 +9,7 @@ const INTEGRATION_OPERATIONS = [
   ['GroupController_findOne', 'Get group data by group ID'],
   ['SessionController_getGroups', 'Get all groups'],
   ['GroupController_joinInfo', 'Get group data by invite link'],
+  ['SessionStatsController_getGroupAnalytics', 'Get analytics for multiple groups'],
   ['MessageController_sendBulk', 'Send messages to multiple groups with jitter'],
 ] as const;
 

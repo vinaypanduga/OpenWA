@@ -53,19 +53,14 @@ export interface SaveOutgoingMessageData {
 }
 
 /**
- * Outbound sends are executed directly against the WhatsApp engine, not via a BullMQ queue.
+ * Outbound engine calls pass through {@link SendPacingService}'s in-process FIFO queue. Sends for
+ * one WhatsApp session run one at a time, with a random 2–10 second gap before each queued send;
+ * different sessions remain independent. Read-only APIs never enter this queue, so group and
+ * analytics requests are not delayed by waiting messages.
  *
- * The engine is single-threaded per session (a Puppeteer page for the whatsapp-web.js adapter, a
- * single socket for Baileys) and is therefore itself the serialization point for that session's
- * outbound traffic. Routing sends through a queue would add request latency and a Redis hard
- * dependency to the hot path for no throughput benefit — the engine cannot go faster than it
- * already does. BullMQ is reserved for genuine side-effects that benefit from durable
- * retry/back-pressure (webhook delivery, integration ingress); see `QUEUE_NAMES` in
- * `queue-names.ts`, which intentionally defines no MESSAGE queue.
- *
- * Backpressure is applied at the edges instead: bulk sends self-throttle via
- * `delayBetweenMessages` (default 3s) and a per-process concurrent-batch cap (see
- * `BulkMessageService`), and the global throttler enforces per-key rate limits.
+ * This is deliberately not a BullMQ queue: BullMQ remains reserved for durable side-effects such
+ * as webhook delivery and integration ingress. See `QUEUE_NAMES` in `queue-names.ts`, which
+ * intentionally defines no durable MESSAGE queue.
  */
 @Injectable()
 export class MessageSendService {

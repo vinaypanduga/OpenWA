@@ -431,6 +431,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
           total: 3,
           deliveredRecipients: 7,
           readRecipients: 4,
+          reactedMessages: 2,
+          emojiReactions: 4,
         },
         {
           groupId: 'gamma@g.us',
@@ -440,6 +442,8 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
           total: 2,
           deliveredRecipients: 1,
           readRecipients: 1,
+          reactedMessages: 0,
+          emojiReactions: 0,
         },
         {
           groupId: 'beta@g.us',
@@ -449,8 +453,76 @@ describe('StatsService time-series + hourly activity on SQLite (end-to-end regre
           total: 1,
           deliveredRecipients: 2,
           readRecipients: 1,
+          reactedMessages: 0,
+          emojiReactions: 0,
         },
       ]),
+    );
+  });
+
+  it('returns rolling analytics only for the requested groups and session', async () => {
+    await ds
+      .getRepository(Session)
+      .save([
+        ds.getRepository(Session).create({ id: 's1', name: 'API session', status: SessionStatus.READY, config: {} }),
+        ds.getRepository(Session).create({ id: 's2', name: 'Other session', status: SessionStatus.READY, config: {} }),
+      ]);
+    await seedMessage({
+      sessionId: 's1',
+      chatId: 'alpha@g.us',
+      chatName: 'Alpha',
+      body: 'selected',
+      deliveryCount: 2,
+      readCount: 1,
+      deliveredTo: ['a@c.us', 'b@c.us'],
+      readBy: ['a@c.us'],
+      reactionCount: 2,
+    });
+    await seedMessage({
+      sessionId: 's1',
+      chatId: 'beta@g.us',
+      chatName: 'Beta',
+      body: 'selected too',
+      direction: MessageDirection.INCOMING,
+    });
+    await seedMessage({ sessionId: 's1', chatId: 'ignored@g.us', body: 'not requested' });
+    await seedMessage({ sessionId: 's2', chatId: 'alpha@g.us', body: 'wrong session' });
+
+    const result = await service.getGroupAnalytics('s1', ['alpha@g.us', 'beta@g.us'], 7);
+
+    expect(result.days).toBe(7);
+    expect(result.groupIds).toEqual(['alpha@g.us', 'beta@g.us']);
+    expect(new Date(result.windowEnd).getTime() - new Date(result.windowStart).getTime()).toBe(7 * 24 * 60 * 60 * 1000);
+    expect(result.analytics.summary).toEqual({
+      sent: 1,
+      received: 1,
+      interactions: 2,
+      deliveredRecipients: 2,
+      readRecipients: 1,
+      reactedMessages: 1,
+      emojiReactions: 2,
+    });
+    expect(result.analytics.groupBreakdown).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          groupId: 'alpha@g.us',
+          sent: 1,
+          deliveredRecipients: 2,
+          readRecipients: 1,
+          reactedMessages: 1,
+          emojiReactions: 2,
+        }),
+        expect.objectContaining({ groupId: 'beta@g.us', received: 1 }),
+      ]),
+    );
+    expect(result.analytics.groupBreakdown).toHaveLength(2);
+    expect(result.analytics.topChats.map(chat => chat.chatId).sort()).toEqual(['alpha@g.us', 'beta@g.us']);
+  });
+
+  it('rejects group analytics for a missing session or invalid day range', async () => {
+    await expect(service.getGroupAnalytics('missing', ['alpha@g.us'], 7)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getGroupAnalytics('missing', ['alpha@g.us'], 0)).rejects.toThrow(
+      'Analytics days must be an integer from 1 to 90',
     );
   });
 

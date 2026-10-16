@@ -1,7 +1,9 @@
-import { StatsController } from './stats.controller';
+import { SessionStatsController, StatsController } from './stats.controller';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { StatsQueryDto } from './dto/stats-query.dto';
 import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { GroupAnalyticsRequestDto } from './dto/group-analytics.dto';
 
 // Admins see installation-wide analytics; restricted dashboard identities see only assigned sessions.
 describe('StatsController access control', () => {
@@ -56,6 +58,43 @@ describe('StatsController access control', () => {
     await expect(
       controller.getMessageStats({ period: '24h' }, { role: ApiKeyRole.OPERATOR, allowedSessions: null } as never),
     ).rejects.toThrow('Analytics require an administrator or a session-scoped key');
+  });
+});
+
+describe('SessionStatsController group analytics', () => {
+  it('passes the URL session, group array, and days to the service', async () => {
+    const getGroupAnalytics = jest.fn().mockResolvedValue({});
+    const controller = new SessionStatsController({ getGroupAnalytics } as never);
+
+    await controller.getGroupAnalytics('api-session', {
+      groupIds: ['alpha@g.us', 'beta@g.us'],
+      days: 7,
+    });
+
+    expect(getGroupAnalytics).toHaveBeenCalledWith('api-session', ['alpha@g.us', 'beta@g.us'], 7);
+  });
+});
+
+describe('GroupAnalyticsRequestDto validation', () => {
+  const errorsFor = (value: unknown) => validate(plainToInstance(GroupAnalyticsRequestDto, value));
+
+  it('accepts an array of WhatsApp group IDs and an integer day range', async () => {
+    await expect(errorsFor({ groupIds: ['alpha@g.us', 'beta@g.us'], days: 7 })).resolves.toHaveLength(0);
+  });
+
+  it.each([
+    [{ groupIds: [], days: 7 }],
+    [{ groupIds: ['person@c.us'], days: 7 }],
+    [{ groupIds: ['alpha@g.us', 'alpha@g.us'], days: 7 }],
+    [{ groupIds: ['alpha@g.us'], days: 0 }],
+    [{ groupIds: ['alpha@g.us'], days: 91 }],
+    [{ groupIds: ['alpha@g.us'], days: 1.5 }],
+  ])('rejects invalid request %j', async value => {
+    await expect(errorsFor(value)).resolves.not.toHaveLength(0);
+  });
+
+  it('converts a JSON-compatible numeric string to an integer', async () => {
+    await expect(errorsFor({ groupIds: ['alpha@g.us'], days: '30' })).resolves.toHaveLength(0);
   });
 });
 

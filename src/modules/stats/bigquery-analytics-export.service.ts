@@ -12,6 +12,7 @@ const EXPORT_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const BIGQUERY_ID = /^[A-Za-z_][A-Za-z0-9_]{0,1023}$/;
 const TARGET_AUDIENCE_FIELD = { name: 'target_audience', type: 'STRING', mode: 'NULLABLE' } as const;
 const OVERALL_TARGET_AUDIENCE = 'Overall';
+const API_TARGET_AUDIENCE = 'API';
 
 export const BIGQUERY_CLIENT_FACTORY = Symbol('BIGQUERY_CLIENT_FACTORY');
 export type BigQueryClientFactory = (projectId: string) => BigQuery;
@@ -23,6 +24,8 @@ interface BigQueryExportSettings {
   tableId: string;
   location: string;
   startAt?: Date;
+  normalSessionIds: string[];
+  apiSessionIds: string[];
 }
 
 export interface AnalyticsExportWindow {
@@ -54,7 +57,6 @@ const ANALYTICS_SCHEMA = [
   { name: 'window_days', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'sent', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'received', type: 'INTEGER', mode: 'REQUIRED' },
-  { name: 'interactions', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'active_groups', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'delivered_recipients', type: 'INTEGER', mode: 'REQUIRED' },
   { name: 'read_recipients', type: 'INTEGER', mode: 'REQUIRED' },
@@ -73,7 +75,8 @@ export interface TargetAudienceAnalytics extends TargetAudienceAnalyticsSummary 
  * continue from the latest BigQuery window_end, so restarts do not reset the cadence. The
  * deterministic export_id and insertId make retries idempotent without exporting chat IDs, phone
  * numbers, WhatsApp group names/IDs, message bodies, or the former full analytics JSON. The
- * target_audience column identifies either the Overall row or one saved audience name.
+ * target_audience column identifies the normal-login Overall row, the API-session row, or one
+ * saved audience name.
  */
 @Injectable()
 export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDestroy {
@@ -110,7 +113,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     const settings = this.settings();
     if (!settings.enabled) return 'disabled';
     if (!Number.isFinite(now.getTime())) throw new RangeError('A valid date is required');
-    if (!settings.startAt && this.nextExportDueAt !== undefined && now.getTime() < this.nextExportDueAt) {
+    if (this.nextExportDueAt !== undefined && now.getTime() < this.nextExportDueAt) {
       return 'already-exported';
     }
 
@@ -137,11 +140,8 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       return 'already-exported';
     }
 
-    const [analytics, targetAudience] = await Promise.all([
-      this.statsService.getMessageStatsForRange(window.start, window.end),
-      this.getTargetAudienceAnalytics(window.start, window.end),
-    ]);
-    await this.upsertWindow(client, settings, window, analytics, targetAudience, now);
+    const snapshot = await this.loadWindowAnalytics(settings, window.start, window.end);
+    await this.upsertWindow(client, settings, window, snapshot.normal, snapshot.api, snapshot.targetAudience, now);
     this.nextExportDueAt = window.end.getTime() + SEVEN_DAYS_MS;
     this.logger.log(
       `Exported 7-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
@@ -151,9 +151,9 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
 
   /**
    * An explicit start boundary represents an operator asking to collect from that point forward.
-   * Publish the open window immediately, refresh its rows hourly, and finalize elapsed windows
-   * before moving to the next one. Each refresh replaces that window's Overall and saved-audience
-   * rows, so renamed or deleted audiences do not leave stale rows behind.
+   * A row is published only after its complete 7-day window has elapsed. The latest completed
+   * window_end becomes the next window_start, so restarts preserve the cadence without repeatedly
+   * refreshing a completed row or exposing a future window_end.
    */
   private async publishConfiguredWindow(
     client: BigQuery,
@@ -169,18 +169,13 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       location: settings.location,
     });
 
-    let window =
-      existing.length > 0
-        ? sevenDayWindowEndingAt(this.readTimestamp(existing[0], 'window_end'))
-        : sevenDayWindowEndingAt(new Date(startAt.getTime() + SEVEN_DAYS_MS));
+    const nextStart = existing.length > 0 ? this.readTimestamp(existing[0], 'window_end') : startAt;
+    let window = sevenDayWindowEndingAt(new Date(nextStart.getTime() + SEVEN_DAYS_MS));
     let published = false;
 
     while (now.getTime() >= window.end.getTime()) {
-      const [analytics, targetAudience] = await Promise.all([
-        this.statsService.getMessageStatsForRange(window.start, window.end),
-        this.getTargetAudienceAnalytics(window.start, window.end),
-      ]);
-      await this.upsertWindow(client, settings, window, analytics, targetAudience, now);
+      const snapshot = await this.loadWindowAnalytics(settings, window.start, window.end);
+      await this.upsertWindow(client, settings, window, snapshot.normal, snapshot.api, snapshot.targetAudience, now);
       this.logger.log(
         `Finalized 7-day analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
       );
@@ -188,17 +183,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       window = sevenDayWindowEndingAt(new Date(window.end.getTime() + SEVEN_DAYS_MS));
     }
 
-    if (now.getTime() > window.start.getTime()) {
-      const [analytics, targetAudience] = await Promise.all([
-        this.statsService.getMessageStatsForRange(window.start, now),
-        this.getTargetAudienceAnalytics(window.start, now),
-      ]);
-      await this.upsertWindow(client, settings, window, analytics, targetAudience, now);
-      this.logger.log(
-        `Refreshed in-progress analytics window ${window.start.toISOString()} to ${window.end.toISOString()} (${window.exportId})`,
-      );
-      published = true;
-    }
+    this.nextExportDueAt = window.end.getTime();
 
     return published ? 'exported' : 'already-exported';
   }
@@ -227,11 +212,23 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       tableId: this.configService.get<string>('stats.bigQueryExport.tableId', 'message_analytics_15d'),
       location: this.configService.get<string>('stats.bigQueryExport.location', 'US'),
       startAt: startAtRaw ? new Date(startAtRaw) : undefined,
+      normalSessionIds: this.parseSessionIds(
+        this.configService.get<string>('stats.bigQueryExport.normalSessionIds', ''),
+      ),
+      apiSessionIds: this.parseSessionIds(this.configService.get<string>('stats.bigQueryExport.apiSessionIds', '')),
     };
     if (!settings.enabled) return settings;
     if (!settings.projectId) throw new Error('BIGQUERY_PROJECT_ID is required when BigQuery export is enabled');
     if (settings.startAt && !Number.isFinite(settings.startAt.getTime())) {
       throw new Error('BIGQUERY_ANALYTICS_EXPORT_START_AT must be a valid ISO-8601 timestamp');
+    }
+    if (settings.normalSessionIds.length > 0 !== settings.apiSessionIds.length > 0) {
+      throw new Error(
+        'BIGQUERY_NORMAL_SESSION_IDS and BIGQUERY_API_SESSION_IDS must both be configured for split analytics',
+      );
+    }
+    if (settings.normalSessionIds.some(id => settings.apiSessionIds.includes(id))) {
+      throw new Error('BigQuery normal and API session ID lists must not overlap');
     }
     for (const [key, value] of [
       ['BIGQUERY_DATASET_ID', settings.datasetId],
@@ -240,6 +237,41 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
       if (!BIGQUERY_ID.test(value)) throw new Error(`${key} must be a valid BigQuery identifier`);
     }
     return settings;
+  }
+
+  private parseSessionIds(value: string): string[] {
+    return [
+      ...new Set(
+        value
+          .split(',')
+          .map(id => id.trim())
+          .filter(Boolean),
+      ),
+    ];
+  }
+
+  private async loadWindowAnalytics(
+    settings: BigQueryExportSettings,
+    start: Date,
+    end: Date,
+  ): Promise<{
+    normal: MessageStats;
+    api?: MessageStats;
+    targetAudience: TargetAudienceAnalytics[];
+  }> {
+    const splitByLogin = settings.normalSessionIds.length > 0 && settings.apiSessionIds.length > 0;
+    const normalAnalytics = splitByLogin
+      ? this.statsService.getMessageStatsForRange(start, end, [], settings.normalSessionIds)
+      : this.statsService.getMessageStatsForRange(start, end);
+    const apiAnalytics = splitByLogin
+      ? this.statsService.getMessageStatsForRange(start, end, [], settings.apiSessionIds)
+      : undefined;
+    const [normal, api, targetAudience] = await Promise.all([
+      normalAnalytics,
+      apiAnalytics,
+      this.getTargetAudienceAnalytics(start, end, splitByLogin ? settings.normalSessionIds : []),
+    ]);
+    return { normal, api, targetAudience };
   }
 
   private async ensureDestination(client: BigQuery, settings: BigQueryExportSettings): Promise<Table> {
@@ -292,6 +324,14 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
         this.logger.log(`Changed target_audience column to STRING in ${settings.datasetId}.${settings.tableId}`);
       }
 
+      if (fields.some(field => field.name === 'interactions')) {
+        await client.query({
+          query: `ALTER TABLE \`${settings.datasetId}.${settings.tableId}\` DROP COLUMN interactions`,
+          location: settings.location,
+        });
+        this.logger.log(`Removed interactions column from ${settings.datasetId}.${settings.tableId}`);
+      }
+
       // Rows exported before target-audience analytics existed have no label. They represent the
       // aggregate snapshot, so keep the column consistent by identifying them as Overall.
       await client.query({
@@ -324,10 +364,11 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     settings: BigQueryExportSettings,
     window: AnalyticsExportWindow,
     analytics: MessageStats,
+    apiAnalytics: MessageStats | undefined,
     targetAudience: TargetAudienceAnalytics[],
     exportedAt: Date,
   ): Promise<void> {
-    const rows = this.toRows(window, analytics, targetAudience, exportedAt);
+    const rows = this.toRows(window, analytics, apiAnalytics, targetAudience, exportedAt);
     await client.query({
       query: `
         MERGE \`${settings.datasetId}.${settings.tableId}\` AS target
@@ -340,7 +381,6 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
           window_days = source.window_days,
           sent = source.sent,
           received = source.received,
-          interactions = source.interactions,
           active_groups = source.active_groups,
           delivered_recipients = source.delivered_recipients,
           read_recipients = source.read_recipients,
@@ -349,11 +389,11 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
           target_audience = source.target_audience
         WHEN NOT MATCHED THEN INSERT (
           export_id, exported_at, window_start, window_end, window_days, sent, received,
-          interactions, active_groups, delivered_recipients, read_recipients, reacted_messages,
+          active_groups, delivered_recipients, read_recipients, reacted_messages,
           emoji_reactions, target_audience
         ) VALUES (
           source.export_id, TIMESTAMP(source.exported_at), TIMESTAMP(source.window_start), TIMESTAMP(source.window_end),
-          source.window_days, source.sent, source.received, source.interactions, source.active_groups,
+          source.window_days, source.sent, source.received, source.active_groups,
           source.delivered_recipients, source.read_recipients, source.reacted_messages,
           source.emoji_reactions, source.target_audience
         )
@@ -370,8 +410,15 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
     });
   }
 
-  private async getTargetAudienceAnalytics(start: Date, end: Date): Promise<TargetAudienceAnalytics[]> {
-    const savedAudiences = await this.customGroupRepository.find({ order: { name: 'ASC' } });
+  private async getTargetAudienceAnalytics(
+    start: Date,
+    end: Date,
+    normalSessionIds: readonly string[] = [],
+  ): Promise<TargetAudienceAnalytics[]> {
+    const allSavedAudiences = await this.customGroupRepository.find({ order: { name: 'ASC' } });
+    const savedAudiences = normalSessionIds.length
+      ? allSavedAudiences.filter(audience => normalSessionIds.includes(audience.sessionId))
+      : allSavedAudiences;
     const analytics = await Promise.all(
       savedAudiences.map(async audience => ({
         name: audience.name,
@@ -381,6 +428,13 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
 
     const byName = new Map<string, TargetAudienceAnalytics>();
     for (const audience of analytics) {
+      const normalizedName = audience.name.trim().toLowerCase();
+      if ([OVERALL_TARGET_AUDIENCE.toLowerCase(), API_TARGET_AUDIENCE.toLowerCase()].includes(normalizedName)) {
+        this.logger.warn(
+          `Skipping saved target audience "${audience.name}" because that name is reserved for BigQuery login analytics`,
+        );
+        continue;
+      }
       const existing = byName.get(audience.name);
       if (!existing) {
         byName.set(audience.name, { ...audience });
@@ -401,6 +455,7 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
   private toRows(
     window: AnalyticsExportWindow,
     analytics: MessageStats,
+    apiAnalytics: MessageStats | undefined,
     targetAudience: TargetAudienceAnalytics[],
     exportedAt: Date,
   ): Array<Record<string, unknown>> {
@@ -417,7 +472,6 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
         target_audience: OVERALL_TARGET_AUDIENCE,
         sent: analytics.summary.sent,
         received: analytics.summary.received,
-        interactions: analytics.summary.interactions,
         active_groups: analytics.groupBreakdown.length,
         delivered_recipients: analytics.summary.deliveredRecipients,
         read_recipients: analytics.summary.readRecipients,
@@ -425,6 +479,20 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
         emoji_reactions: analytics.summary.emojiReactions,
       },
     ];
+    if (apiAnalytics) {
+      rows.push({
+        ...base,
+        export_id: `${window.exportId}-scope-api`,
+        target_audience: API_TARGET_AUDIENCE,
+        sent: apiAnalytics.summary.sent,
+        received: apiAnalytics.summary.received,
+        active_groups: apiAnalytics.groupBreakdown.length,
+        delivered_recipients: apiAnalytics.summary.deliveredRecipients,
+        read_recipients: apiAnalytics.summary.readRecipients,
+        reacted_messages: apiAnalytics.summary.reactedMessages,
+        emoji_reactions: apiAnalytics.summary.emojiReactions,
+      });
+    }
     for (const audience of targetAudience) {
       const audienceKey = createHash('sha256').update(audience.name).digest('hex').slice(0, 16);
       rows.push({
@@ -433,7 +501,6 @@ export class BigQueryAnalyticsExportService implements OnModuleInit, OnModuleDes
         target_audience: audience.name,
         sent: audience.sent,
         received: audience.received,
-        interactions: audience.interactions,
         active_groups: audience.activeGroups,
         delivered_recipients: audience.deliveredRecipients,
         read_recipients: audience.readRecipients,

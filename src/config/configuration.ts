@@ -123,6 +123,8 @@ export default () => ({
       tableId: process.env.BIGQUERY_TABLE_ID || 'message_analytics_15d',
       location: process.env.BIGQUERY_LOCATION || 'US',
       startAt: process.env.BIGQUERY_ANALYTICS_EXPORT_START_AT || '',
+      normalSessionIds: process.env.BIGQUERY_NORMAL_SESSION_IDS || process.env.DASHBOARD_PRIMARY_ALLOWED_SESSIONS || '',
+      apiSessionIds: process.env.BIGQUERY_API_SESSION_IDS || process.env.DASHBOARD_SECONDARY_ALLOWED_SESSIONS || '',
     },
   },
 

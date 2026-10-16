@@ -73,7 +73,7 @@ https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a
 | -------------- | --------- | ----------- | -------- | ------------------------------------------------------------------- |
 | `sessionId`    | URL path  | UUID string | Yes      | Already included in the production URL above.                       |
 | `X-API-Key`    | Header    | String      | Yes      | Active operator API key.                                            |
-| `Content-Type` | Header    | String      | Yes      | Use `application/json; charset=utf-8`.                               |
+| `Content-Type` | Header    | String      | Yes      | Use `application/json; charset=utf-8`.                              |
 | `chatId`       | JSON body | String      | Yes      | Target group ID ending in `@g.us`, or individual ending in `@c.us`. |
 | `text`         | JSON body | String      | Yes      | Message text, maximum 4,096 characters.                             |
 
@@ -382,7 +382,53 @@ curl --get 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-
 The successful response includes at least `id` and `name`. It may also include `description`,
 `owner`, `createdAt`, and `participantCount` when WhatsApp discloses them.
 
-## 8. Send messages to multiple groups with jitter
+## 8. Get analytics for multiple groups
+
+**Method:** `POST`
+
+**Production URL:**
+
+```text
+https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a/stats/groups
+```
+
+### Required parameters
+
+| Parameter      | Location  | Type         | Required | Description                                                      |
+| -------------- | --------- | ------------ | -------- | ---------------------------------------------------------------- |
+| `X-API-Key`    | Header    | String       | Yes      | Active operator API key allowed to access the session.           |
+| `Content-Type` | Header    | String       | Yes      | Must be `application/json`.                                      |
+| `groupIds`     | JSON body | String array | Yes      | 1–200 unique WhatsApp group IDs ending in `@g.us`.               |
+| `days`         | JSON body | Integer      | Yes      | Rolling analytics window from 1–90 days, ending at request time. |
+
+### cURL example
+
+```bash
+curl -X POST 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a/stats/groups' \
+  -H 'X-API-Key: YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "groupIds": [
+      "120363406850971874@g.us",
+      "120363000000000002@g.us"
+    ],
+    "days": 7
+  }'
+```
+
+The response includes:
+
+- `windowStart`, `windowEnd`, and `days`;
+- the normalized `groupIds` used by the query;
+- combined sent, received, interaction, delivery, read, and reaction counts;
+- hourly time-series data for one day, or daily data for longer ranges;
+- message-type analytics; and
+- per-group message, delivery, read, and reaction analytics.
+
+The result is restricted to the session UUID in the URL. A session-scoped API key cannot use this
+endpoint to read analytics from another login's WhatsApp session.
+
+## 9. Send messages to multiple groups with jitter
 
 The bulk API accepts up to 100 messages per request and starts asynchronous processing. Messages for
 the same WhatsApp session are processed sequentially, with random pacing between sends.
@@ -477,6 +523,11 @@ requests and individual messages inside a bulk request.
 
 Requests using different session IDs have independent queues.
 
+Read-only data APIs do not enter the send queue. Getting all groups, getting group data by ID or
+invite link, reading analytics, and reading message history return independently even when outbound
+messages for the same session are waiting. The first send starts immediately; only subsequent
+back-to-back sends for that session wait for the randomized gap.
+
 ## JavaScript example
 
 ```javascript
@@ -530,4 +581,4 @@ long-lived operator API key in a browser bundle; call OpenWA through your own au
 
 Sign in using the dedicated API/operator dashboard login and open **API Documentation**. The page is
 available only to that login and provides editable parameters, generated cURL, response details, and
-a **Check API** button for these eight supported operations.
+a **Check API** button for these nine supported operations.

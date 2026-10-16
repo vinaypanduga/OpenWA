@@ -135,6 +135,10 @@ export class StatsGroupBreakdownDto {
   deliveredRecipients!: number;
   @ApiProperty({ description: 'Distinct members who read an outgoing message in this group.', example: 190 })
   readRecipients!: number;
+  @ApiProperty({ description: 'Outgoing messages in this group with at least one active emoji reaction.', example: 12 })
+  reactedMessages!: number;
+  @ApiProperty({ description: 'Active emoji reactions on outgoing messages in this group.', example: 18 })
+  emojiReactions!: number;
 }
 
 export class MessageStatsResponseDto {

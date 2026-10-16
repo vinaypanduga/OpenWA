@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { StatsController } from './stats.controller';
+import { SessionStatsController, StatsController } from './stats.controller';
 import { StatsService } from './stats.service';
 import { Session } from '../session/entities/session.entity';
 import { Message } from '../message/entities/message.entity';
@@ -14,7 +14,7 @@ import {
 
 @Module({
   imports: [TypeOrmModule.forFeature([Session, Message, CustomGroup], 'data')],
-  controllers: [StatsController],
+  controllers: [StatsController, SessionStatsController],
   providers: [
     StatsService,
     BigQueryAnalyticsExportService,

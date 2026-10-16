@@ -3,9 +3,9 @@
 OpenWA exports one minimal set of aggregate analytics rows every 7 days. Each window contains one
 `Overall` row plus one row for every saved target-audience name. By default, the first enabled run
 exports the 7 completed UTC days ending at the current `00:00:00 UTC`. Set an explicit
-start boundary when a new deployment must collect only future data. The open window is published
-immediately and refreshed hourly, then finalized after 7 days. Later windows begin at the latest
-`window_end` already present in BigQuery.
+start boundary when a new deployment must collect only future data. A window is published only
+after all 7 days have elapsed. Later windows begin at the latest completed `window_end` already
+present in BigQuery.
 
 The exporter is disabled by default. When enabled, it runs once at application startup and checks
 hourly afterward. This makes an EC2 restart catch up a missed interval. The latest BigQuery Overall row
@@ -47,13 +47,22 @@ BIGQUERY_DATASET_ID=openwa_analytics
 BIGQUERY_TABLE_ID=message_analytics_7d
 BIGQUERY_LOCATION=australia-southeast1
 BIGQUERY_ANALYTICS_EXPORT_START_AT=2026-09-28T00:00:00.000Z
+BIGQUERY_NORMAL_SESSION_IDS=normal-session-uuid
+BIGQUERY_API_SESSION_IDS=api-session-uuid
 GOOGLE_APPLICATION_CREDENTIALS=/app/data/bigquery-service-account.json
 ```
 
 `BIGQUERY_ANALYTICS_EXPORT_START_AT` is optional. Use it only with an empty destination table. It
-prevents historical backfill, establishes the first 7-day window, and makes that in-progress row
-visible immediately. Each hourly refresh updates the same `export_id`; it does not add duplicate
-rows.
+prevents historical backfill and establishes the first 7-day window. No partial row is written.
+The exporter inserts the window only after its complete seven-day period has elapsed.
+
+Set both session lists to separate dashboard activity from external API activity. `Overall` contains
+only the sessions in `BIGQUERY_NORMAL_SESSION_IDS`, while `API` contains only the sessions in
+`BIGQUERY_API_SESSION_IDS`. Multiple UUIDs are comma-separated. When these values are omitted, they
+fall back to `DASHBOARD_PRIMARY_ALLOWED_SESSIONS` and `DASHBOARD_SECONDARY_ALLOWED_SESSIONS`.
+The two lists must both be present and cannot overlap. API sessions produce only the `API` row;
+they are excluded from `Overall` and saved-audience rows. `Overall` and saved audiences are emitted
+once from the normal-login scope.
 
 When upgrading from the former 15-day exporter, keep `BIGQUERY_TABLE_ID` pointed at the existing
 table. Historical rows keep `window_days = 15`; the next row starts at the latest existing
@@ -76,20 +85,20 @@ Each 7-day table row contains:
 | `window_start` / `end` | Exact half-open UTC analytics window                      |
 | `window_days`          | Always `7`                                                |
 | `sent` / `received`    | Message totals                                            |
-| `interactions`         | Distinct session-and-chat conversations                   |
 | `active_groups`        | Groups with activity in the window                        |
 | `delivered_recipients` | Sum of distinct delivered recipients per chat             |
 | `read_recipients`      | Sum of distinct readers per chat                          |
 | `reacted_messages`     | Outgoing messages with at least one active emoji reaction |
 | `emoji_reactions`      | Total active emoji reactions on outgoing messages         |
-| `target_audience`      | `Overall` or the saved target-audience name               |
+| `target_audience`      | `Overall`, `API`, or the saved target-audience name       |
 
-Every metric column belongs to the audience named in that row. For example, three saved audiences
-produce four rows for a window:
+Every metric column belongs to the scope named in that row. For example, API analytics plus three
+saved audiences produce five rows for a window:
 
 | target_audience        | sent | received | active_groups | read_recipients |
 | ---------------------- | ---: | -------: | ------------: | --------------: |
 | Overall                | 1174 |      565 |           392 |            3015 |
+| API                    |   84 |       17 |            14 |             128 |
 | All gaziabad schools   | 1114 |      544 |           372 |            2903 |
 | Karnataka group        |   60 |       21 |            20 |             112 |
 | Another saved audience |    0 |        0 |             0 |               0 |
@@ -101,8 +110,9 @@ are intentionally independent, so one message can contribute to more than one au
 
 Existing tables are upgraded automatically. The former JSON `target_audience` column is replaced
 with a nullable `STRING` column; its unwanted JSON values are discarded. Historical rows remain
-`NULL` until refreshed. New and refreshed windows contain one `Overall` row plus one row per saved
-audience name.
+`NULL` until re-exported. With split session lists configured, new completed windows contain one
+`Overall` row, one `API` row, and one row per saved audience name. `Overall` and `API` are reserved
+audience labels.
 
 The export deliberately excludes phone numbers, chat IDs, WhatsApp group IDs/names, session
 IDs/names, message bodies, time-series rows, and the former full `analytics_json` payload. Saved

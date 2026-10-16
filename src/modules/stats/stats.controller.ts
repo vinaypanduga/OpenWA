@@ -1,10 +1,11 @@
-import { Controller, ForbiddenException, Get, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { ApiBody, ApiParam, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MessageStatsResponseDto, OverviewStatsResponseDto, SessionStatsResponseDto } from './dto/stats-response.dto';
 import { StatsService } from './stats.service';
 import { StatsQueryDto } from './dto/stats-query.dto';
 import { CurrentApiKey } from '../auth/decorators/auth.decorators';
 import { ApiKey, ApiKeyRole } from '../auth/entities/api-key.entity';
+import { GroupAnalyticsRequestDto, GroupAnalyticsResponseDto } from './dto/group-analytics.dto';
 
 @ApiTags('statistics')
 @Controller('stats')
@@ -55,5 +56,47 @@ export class StatsController {
   })
   async getSessionStats(@Param('sessionId') sessionId: string) {
     return this.statsService.getSessionStats(sessionId);
+  }
+}
+
+@ApiTags('statistics')
+@Controller('sessions/:sessionId/stats')
+export class SessionStatsController {
+  constructor(private readonly statsService: StatsService) {}
+
+  @Post('groups')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get analytics for multiple groups and a rolling day range',
+    description:
+      'Returns combined and per-group analytics for the supplied WhatsApp group IDs. Results are restricted to the session in the URL.',
+  })
+  @ApiBody({
+    type: GroupAnalyticsRequestDto,
+    examples: {
+      sevenDays: {
+        summary: 'Last seven days for two groups',
+        value: {
+          groupIds: ['120363000000000001@g.us', '120363000000000002@g.us'],
+          days: 7,
+        },
+      },
+    },
+  })
+  @ApiParam({
+    name: 'sessionId',
+    description: 'WhatsApp session UUID whose stored message analytics should be queried.',
+    example: '57c032a1-a20d-4849-aa6a-eaeac756883a',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics for the requested session, groups, and rolling day window.',
+    type: GroupAnalyticsResponseDto,
+  })
+  async getGroupAnalytics(
+    @Param('sessionId') sessionId: string,
+    @Body() body: GroupAnalyticsRequestDto,
+  ): Promise<GroupAnalyticsResponseDto> {
+    return this.statsService.getGroupAnalytics(sessionId, body.groupIds, body.days);
   }
 }

@@ -218,6 +218,29 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ BIGQUERY_ANALYTICS_EXPORT_START_AT: 'not-a-date' })).toThrow(
       /BIGQUERY_ANALYTICS_EXPORT_START_AT/,
     );
+    expect(() =>
+      validateEnv({
+        BIGQUERY_ANALYTICS_EXPORT_ENABLED: 'true',
+        BIGQUERY_PROJECT_ID: 'openwa-prod',
+        BIGQUERY_API_SESSION_IDS: 'api-1',
+      }),
+    ).toThrow(/must both be configured/);
+    expect(() =>
+      validateEnv({
+        BIGQUERY_ANALYTICS_EXPORT_ENABLED: 'true',
+        BIGQUERY_PROJECT_ID: 'openwa-prod',
+        BIGQUERY_NORMAL_SESSION_IDS: 'normal-1',
+        BIGQUERY_API_SESSION_IDS: 'normal-1',
+      }),
+    ).toThrow(/must not overlap/);
+    expect(() =>
+      validateEnv({
+        BIGQUERY_ANALYTICS_EXPORT_ENABLED: 'true',
+        BIGQUERY_PROJECT_ID: 'openwa-prod',
+        BIGQUERY_NORMAL_SESSION_IDS: 'normal-1',
+        BIGQUERY_API_SESSION_IDS: 'api-1,api-2',
+      }),
+    ).not.toThrow();
   });
 
   it('rejects a mistyped value for the datastore, webhook and engine booleans too', () => {
