@@ -33,7 +33,7 @@ import { HookManager } from '../../core/hooks';
 import { assertBase64WithinMediaCap, stripBase64DataUri } from './media-cap.util';
 import { SsrfBlockedError, SSRF_BLOCKED_CLIENT_MESSAGE } from '../../common/security/ssrf-guard';
 import { renderTemplate } from '../../common/utils/template-render';
-import { IWhatsAppEngine, MessageResult } from '../../engine/interfaces/whatsapp-engine.interface';
+import { EngineStatus, IWhatsAppEngine, MessageResult } from '../../engine/interfaces/whatsapp-engine.interface';
 import { resolveNonNegativeIntEnv } from '../../config/configuration';
 
 // Type definitions for bulk message content
@@ -101,6 +101,8 @@ interface BatchExecutionState {
 interface BatchCreationOptions {
   /** Apply the configured delay before the first send as well as between later sends. */
   delayBeforeFirstMessage?: boolean;
+  /** Internal scheduler policy: pause a campaign while its WhatsApp session reconnects. */
+  waitForSessionReconnect?: boolean;
 }
 
 @Injectable()
@@ -108,6 +110,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BulkMessageService.name);
   private readonly processingBatches = new Map<string, boolean>(); // Track active batches for cancellation
   private inFlightBatches = 0; // count of batches currently in processBatch (memory bound, see cap above)
+  private readonly scheduledReconnectPollMs = 5000;
 
   hasBatchCapacity(): boolean {
     const limit = resolveMaxConcurrentBatches();
@@ -260,6 +263,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
       minDelayBetweenMessages: dto.options?.minDelayBetweenMessages,
       maxDelayBetweenMessages: dto.options?.maxDelayBetweenMessages,
       delayBeforeFirstMessage: creationOptions.delayBeforeFirstMessage ?? false,
+      waitForSessionReconnect: creationOptions.waitForSessionReconnect ?? false,
       stopOnError: dto.options?.stopOnError ?? false,
     };
 
@@ -401,8 +405,11 @@ export class BulkMessageService implements OnApplicationBootstrap {
   private async executeBatch(batch: MessageBatch): Promise<void> {
     if (!(await this.markBatchProcessing(batch))) return;
 
-    const engine = this.engines.get(batch.sessionId);
+    const engine = batch.options.waitForSessionReconnect
+      ? await this.waitForReadyEngine(batch)
+      : this.engines.get(batch.sessionId);
     if (!engine) {
+      if (!this.processingBatches.get(batch.id)) return;
       await this.failBatchWithoutEngine(batch);
       return;
     }
@@ -460,8 +467,25 @@ export class BulkMessageService implements OnApplicationBootstrap {
       if (!this.processingBatches.get(batch.id)) return;
     }
     for (let i = batch.currentIndex; i < batch.messages.length; i++) {
-      if (!(await this.processBatchMessage(batch, engine, i, state))) break;
+      // Re-read the registry before every scheduled recipient. Reconnection replaces the engine,
+      // and retaining the pre-disconnect instance is exactly how a campaign remained stuck/failed.
+      const sendEngine = batch.options.waitForSessionReconnect ? await this.waitForReadyEngine(batch) : engine;
+      if (!sendEngine || !(await this.processBatchMessage(batch, sendEngine, i, state))) break;
     }
+  }
+
+  /**
+   * Wait without consuming or failing the current message. The schedule row remains PROCESSING and
+   * therefore retains its place in the per-session durable queue. A reconnect can replace the
+   * engine object, so every poll obtains the current registry entry rather than retaining one.
+   */
+  private async waitForReadyEngine(batch: MessageBatch): Promise<IWhatsAppEngine | undefined> {
+    while (this.processingBatches.get(batch.id)) {
+      const engine = this.engines.get(batch.sessionId);
+      if (engine?.getStatus() === EngineStatus.READY) return engine;
+      await setTimeout(this.scheduledReconnectPollMs);
+    }
+    return undefined;
   }
 
   /**

@@ -11,6 +11,8 @@ import { LessThanOrEqual, Repository } from 'typeorm';
 import { BulkMessageService } from '../message/bulk-message.service';
 import { BatchStatus } from '../message/entities/message-batch.entity';
 import { CustomGroupService } from '../custom-group/custom-group.service';
+import { EngineRegistry } from '../../engine/engine-registry.service';
+import { EngineStatus } from '../../engine/interfaces/whatsapp-engine.interface';
 import { CreateScheduledMessageDto } from './dto';
 import {
   ScheduledMessage,
@@ -31,6 +33,7 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
     @InjectRepository(ScheduledMessage, 'data') private readonly repository: Repository<ScheduledMessage>,
     private readonly customGroups: CustomGroupService,
     private readonly bulkMessages: BulkMessageService,
+    private readonly engines: EngineRegistry,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -153,6 +156,9 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
       });
       for (const schedule of due) {
         if (busySessions.has(schedule.sessionId)) continue;
+        // A due schedule is a durable promise, not a one-shot timer. Keep it PENDING while its
+        // WhatsApp session is disconnected so the next poll after READY can start it.
+        if (!this.isSessionReady(schedule.sessionId)) continue;
         // Leave due schedules queued when send capacity is full, rather than fail the campaign.
         if (!this.bulkMessages.hasBatchCapacity()) break;
         if (await this.start(schedule)) busySessions.add(schedule.sessionId);
@@ -181,6 +187,9 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
   }
 
   private async start(schedule: ScheduledMessage): Promise<boolean> {
+    // Close the gap between tick()'s readiness check and claiming the row. A reconnect replaces the
+    // engine instance, so status must be read again immediately before PENDING -> PROCESSING.
+    if (!this.isSessionReady(schedule.sessionId)) return false;
     const batchId = `scheduled_${schedule.id.replace(/-/g, '').slice(0, 20)}_${schedule.runCount + 1}`;
     const claimed = await this.repository.update(
       { id: schedule.id, status: ScheduledMessageStatus.PENDING },
@@ -210,12 +219,27 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
             stopOnError: false,
           },
         },
-        { delayBeforeFirstMessage: true },
+        { delayBeforeFirstMessage: true, waitForSessionReconnect: true },
       );
     } catch (error) {
       const completedAt = new Date();
       const message = error instanceof Error ? error.message : String(error);
-      if (schedule.scheduleType === ScheduledMessageScheduleType.WEEKLY) {
+      // The session can disconnect after the readiness check but before createBatch validates its
+      // engine. Undo the claim and let the normal poll retry after reconnection; this is not a run.
+      if (!this.isSessionReady(schedule.sessionId)) {
+        await this.repository.update(
+          { id: schedule.id, status: ScheduledMessageStatus.PROCESSING },
+          {
+            status: ScheduledMessageStatus.PENDING,
+            batchId: null,
+            startedAt: null,
+            completedAt: null,
+            error: null,
+          },
+        );
+        this.logger.warn(`Scheduled message ${schedule.id} is waiting for its session to reconnect`);
+        return false;
+      } else if (schedule.scheduleType === ScheduledMessageScheduleType.WEEKLY) {
         await this.rescheduleWeekly(schedule, completedAt, message);
       } else {
         await this.repository.update(
@@ -232,6 +256,10 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
       this.logger.error(`Scheduled message ${schedule.id} failed to start: ${message}`);
     }
     return true;
+  }
+
+  private isSessionReady(sessionId: string): boolean {
+    return this.engines.get(sessionId)?.getStatus() === EngineStatus.READY;
   }
 
   private async reconcile(schedule: ScheduledMessage): Promise<void> {

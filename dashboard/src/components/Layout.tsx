@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,12 +24,14 @@ import {
   UsersRound,
   CalendarClock,
   BookOpen,
+  Loader2,
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { type UserRole } from '../hooks/useRole';
 import { languageOptions, resolveSupportedLanguage, rtlLanguages, type SupportedLanguage } from '../i18n';
 import { healthApi } from '../services/api';
 import { appAssetUrl } from '../utils/appBase';
+import { preloadPage, preloadPages, type PageLoaderKey } from '../utils/pageLoaders';
 import './Layout.css';
 
 interface LayoutProps {
@@ -37,16 +39,32 @@ interface LayoutProps {
   userRole: UserRole | null;
 }
 
-const allNavItems = [
-  { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false, operatorOnly: false },
-  { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false, operatorOnly: false },
-  { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false, operatorOnly: false },
+const allNavItems: Array<{
+  to: string;
+  icon: typeof LayoutDashboard;
+  key: string;
+  page: PageLoaderKey;
+  adminOnly: boolean;
+  operatorOnly: boolean;
+  label?: string;
+}> = [
+  {
+    to: '/',
+    icon: LayoutDashboard,
+    key: 'dashboard',
+    page: 'dashboard',
+    adminOnly: false,
+    operatorOnly: false,
+  },
+  { to: '/sessions', icon: Smartphone, key: 'sessions', page: 'sessions', adminOnly: false, operatorOnly: false },
+  { to: '/chats', icon: MessageSquare, key: 'chats', page: 'chats', adminOnly: false, operatorOnly: false },
   // { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
   // { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
   {
     to: '/custom-groups',
     icon: UsersRound,
     key: 'customGroups' as const,
+    page: 'customGroups',
     adminOnly: true,
     operatorOnly: false,
     label: 'Custom Groups',
@@ -55,20 +73,29 @@ const allNavItems = [
     to: '/scheduled-messages',
     icon: CalendarClock,
     key: 'scheduledMessages' as const,
+    page: 'scheduledMessages',
     adminOnly: true,
     operatorOnly: false,
     label: 'Scheduled Messages',
   },
-  { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true, operatorOnly: false },
+  { to: '/api-keys', icon: Key, key: 'apiKeys', page: 'apiKeys', adminOnly: true, operatorOnly: false },
   {
     to: '/api-documentation',
     icon: BookOpen,
     key: 'apiDocumentation' as const,
+    page: 'apiDocumentation',
     adminOnly: false,
     operatorOnly: true,
     label: 'API Documentation',
   },
-  { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: true, operatorOnly: false },
+  {
+    to: '/message-tester',
+    icon: Send,
+    key: 'messageTester',
+    page: 'messageTester',
+    adminOnly: true,
+    operatorOnly: false,
+  },
   // Backend /infra/* is ADMIN-only; hide the nav item from non-admins (UX + defense-in-depth).
   // { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true },
   // { to: '/plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true },
@@ -83,8 +110,12 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
   const ThemeIcon = themeIcons[theme];
   const themeLabel = t(`theme.${theme}`);
 
-  const navItems = allNavItems.filter(
-    item => (!item.adminOnly || userRole === 'admin') && (!item.operatorOnly || userRole === 'operator'),
+  const navItems = useMemo(
+    () =>
+      allNavItems.filter(
+        item => (!item.adminOnly || userRole === 'admin') && (!item.operatorOnly || userRole === 'operator'),
+      ),
+    [userRole],
   );
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -105,6 +136,13 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Warm the small route chunks once the authenticated shell is idle. A mouse hover/focus below
+  // also starts the relevant import immediately, while this timeout covers touch navigation.
+  useEffect(() => {
+    const timer = window.setTimeout(() => preloadPages(navItems.map(item => item.page)), 250);
+    return () => window.clearTimeout(timer);
+  }, [navItems]);
 
   useEffect(() => {
     let active = true;
@@ -215,7 +253,7 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
         )}
 
         <nav className="sidebar-nav">
-          {navItems.map(({ to, icon: Icon, key, label: customLabel }) => {
+          {navItems.map(({ to, icon: Icon, key, page, label: customLabel }) => {
             const label = customLabel ?? t(`nav.${key}`);
             return (
               <NavLink
@@ -224,6 +262,8 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 end={to === '/'}
                 onClick={handleNavClick}
+                onPointerEnter={() => preloadPage(page)}
+                onFocus={() => preloadPage(page)}
                 title={isCollapsed ? label : undefined}
               >
                 <Icon size={20} />
@@ -283,7 +323,15 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
       </aside>
 
       <main className={`main-content ${isCollapsed ? 'expanded' : ''} ${isMobile ? 'mobile' : ''}`}>
-        <Outlet />
+        <Suspense
+          fallback={
+            <div className="route-loading" role="status" aria-label={t('common.loading')}>
+              <Loader2 className="animate-spin" size={32} />
+            </div>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

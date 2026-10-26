@@ -70,6 +70,8 @@ export class MessageBatch {
     maxDelayBetweenMessages?: number;
     /** Internal scheduler option: apply jitter before the first (or resumed) send too. */
     delayBeforeFirstMessage?: boolean;
+    /** Internal scheduler option: pause instead of failing while the session reconnects. */
+    waitForSessionReconnect?: boolean;
     stopOnError: boolean;
   };
 

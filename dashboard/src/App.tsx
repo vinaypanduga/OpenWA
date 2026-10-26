@@ -11,20 +11,21 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { API_BASE_URL } from './services/api';
 import { clearActorState, isUserRole, resolveStartupValidation } from './utils/authLifecycle';
 import { APP_BASE_PATH } from './utils/appBase';
+import { pageLoaders } from './utils/pageLoaders';
 import './App.css';
 
-const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
-const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
-const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.Sessions })));
-const Chats = lazy(() => import('./pages/Chats').then(m => ({ default: m.Chats })));
+const Login = lazy(pageLoaders.login);
+const Dashboard = lazy(pageLoaders.dashboard);
+const Sessions = lazy(pageLoaders.sessions);
+const Chats = lazy(pageLoaders.chats);
 // const Webhooks = lazy(() => import('./pages/Webhooks').then(m => ({ default: m.Webhooks })));
-const Templates = lazy(() => import('./pages/Templates').then(m => ({ default: m.Templates })));
-const CustomGroups = lazy(() => import('./pages/CustomGroups').then(m => ({ default: m.CustomGroups })));
-const ScheduledMessages = lazy(() => import('./pages/ScheduledMessages').then(m => ({ default: m.ScheduledMessages })));
-const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
-const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
-const ApiDocumentation = lazy(() => import('./pages/ApiDocumentation').then(m => ({ default: m.ApiDocumentation })));
-const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
+const Templates = lazy(pageLoaders.templates);
+const CustomGroups = lazy(pageLoaders.customGroups);
+const ScheduledMessages = lazy(pageLoaders.scheduledMessages);
+const Logs = lazy(pageLoaders.logs);
+const ApiKeys = lazy(pageLoaders.apiKeys);
+const ApiDocumentation = lazy(pageLoaders.apiDocumentation);
+const MessageTester = lazy(pageLoaders.messageTester);
 // const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
 // const Plugins = lazy(() => import('./pages/Plugins'));
 
@@ -180,26 +181,24 @@ function AppContent() {
   return (
     <ToastProvider>
       <BrowserRouter basename={APP_BASE_PATH || undefined}>
-        <Suspense fallback={loadingFallback}>
-          <Routes>
-            <Route path="/" element={<Layout onLogout={handleLogout} userRole={role} />}>
-              <Route index element={<Dashboard />} />
-              <Route path="sessions" element={<Sessions />} />
-              <Route path="chats" element={<Chats />} />
-              {/* <Route path="webhooks" element={<Webhooks />} /> */}
-              <Route path="templates" element={<Templates />} />
-              {role === 'admin' && <Route path="custom-groups" element={<CustomGroups />} />}
-              {role === 'admin' && <Route path="scheduled-messages" element={<ScheduledMessages />} />}
-              {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
-              {role === 'operator' && <Route path="api-documentation" element={<ApiDocumentation />} />}
-              <Route path="logs" element={<Logs />} />
-              {role === 'admin' && <Route path="message-tester" element={<MessageTester />} />}
-              {/* {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />} */}
-              {/* {role === 'admin' && <Route path="plugins" element={<Plugins />} />} */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/" element={<Layout onLogout={handleLogout} userRole={role} />}>
+            <Route index element={<Dashboard />} />
+            <Route path="sessions" element={<Sessions />} />
+            <Route path="chats" element={<Chats />} />
+            {/* <Route path="webhooks" element={<Webhooks />} /> */}
+            <Route path="templates" element={<Templates />} />
+            {role === 'admin' && <Route path="custom-groups" element={<CustomGroups />} />}
+            {role === 'admin' && <Route path="scheduled-messages" element={<ScheduledMessages />} />}
+            {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
+            {role === 'operator' && <Route path="api-documentation" element={<ApiDocumentation />} />}
+            <Route path="logs" element={<Logs />} />
+            {role === 'admin' && <Route path="message-tester" element={<MessageTester />} />}
+            {/* {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />} */}
+            {/* {role === 'admin' && <Route path="plugins" element={<Plugins />} />} */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
       </BrowserRouter>
     </ToastProvider>
   );

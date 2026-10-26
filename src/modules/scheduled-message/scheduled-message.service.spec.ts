@@ -8,6 +8,8 @@ import {
   ScheduledMessageStatus,
 } from './entities/scheduled-message.entity';
 import { ScheduledMessageService } from './scheduled-message.service';
+import { EngineRegistry } from '../../engine/engine-registry.service';
+import { EngineStatus, IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
 
 describe('ScheduledMessageService recurrence', () => {
   const repository = {
@@ -22,15 +24,20 @@ describe('ScheduledMessageService recurrence', () => {
     getBatchSummary: jest.fn(),
     hasBatchCapacity: jest.fn(() => false),
   };
+  let engines: EngineRegistry;
   let service: ScheduledMessageService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers().setSystemTime(new Date('2026-09-07T05:00:00.000Z'));
+    engines = new EngineRegistry();
+    engines.set('session-1', { getStatus: jest.fn(() => EngineStatus.READY) } as unknown as IWhatsAppEngine);
+    engines.set('session-2', { getStatus: jest.fn(() => EngineStatus.READY) } as unknown as IWhatsAppEngine);
     service = new ScheduledMessageService(
       repository as unknown as Repository<ScheduledMessage>,
       customGroups as unknown as CustomGroupService,
       bulkMessages as unknown as BulkMessageService,
+      engines,
     );
   });
 
@@ -65,7 +72,54 @@ describe('ScheduledMessageService recurrence', () => {
     expect(bulkMessages.createBatch).toHaveBeenCalledTimes(1);
     expect(bulkMessages.createBatch).toHaveBeenCalledWith('session-2', expect.any(Object), {
       delayBeforeFirstMessage: true,
+      waitForSessionReconnect: true,
     });
+  });
+
+  it('keeps a due schedule pending until its disconnected session becomes ready', async () => {
+    bulkMessages.hasBatchCapacity.mockReturnValue(true);
+    const getStatus = jest.fn(() => EngineStatus.DISCONNECTED);
+    engines.set('session-1', { getStatus } as unknown as IWhatsAppEngine);
+    const due = scheduledMessage();
+    repository.find.mockResolvedValueOnce([]).mockResolvedValueOnce([due]).mockResolvedValueOnce([]);
+
+    await (service as unknown as { tick(): Promise<void> }).tick();
+
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(bulkMessages.createBatch).not.toHaveBeenCalled();
+
+    getStatus.mockReturnValue(EngineStatus.READY);
+    repository.find.mockResolvedValueOnce([]).mockResolvedValueOnce([due]).mockResolvedValueOnce([]);
+    await (service as unknown as { tick(): Promise<void> }).tick();
+
+    expect(repository.update).toHaveBeenCalledWith(
+      { id: due.id, status: ScheduledMessageStatus.PENDING },
+      expect.objectContaining({ status: ScheduledMessageStatus.PROCESSING }),
+    );
+    expect(bulkMessages.createBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('undoes its processing claim when the session disconnects during batch creation', async () => {
+    const getStatus = jest
+      .fn<EngineStatus, []>()
+      .mockReturnValueOnce(EngineStatus.READY)
+      .mockReturnValue(EngineStatus.DISCONNECTED);
+    engines.set('session-1', { getStatus } as unknown as IWhatsAppEngine);
+    bulkMessages.createBatch.mockRejectedValueOnce(new Error("Session 'session-1' is not active"));
+    const schedule = scheduledMessage();
+
+    await expect(
+      (service as unknown as { start(value: ScheduledMessage): Promise<boolean> }).start(schedule),
+    ).resolves.toBe(false);
+
+    expect(repository.update).toHaveBeenLastCalledWith(
+      { id: schedule.id, status: ScheduledMessageStatus.PROCESSING },
+      expect.objectContaining({
+        status: ScheduledMessageStatus.PENDING,
+        batchId: null,
+        startedAt: null,
+      }),
+    );
   });
 
   it('starts only the oldest due schedule when several are queued for one session', async () => {

@@ -12,7 +12,7 @@ import { MessageBatch, BatchStatus, BatchMessageStatus, BatchMessageResult } fro
 import { MessageStatus } from './entities/message.entity';
 import { SendBulkMessageDto } from './dto/bulk-message.dto';
 import { EngineRegistry } from '../../engine/engine-registry.service';
-import type { IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
+import { EngineStatus, type IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
 import { MessageService } from './message.service';
 import { SendPacingService, SEND_PACING_LIMITED } from './send-pacing.service';
 import { SessionOwnershipService } from '../session/session-ownership.service';
@@ -246,6 +246,7 @@ describe('BulkMessageService.processBatch', () => {
     sendImageMessage?: jest.Mock;
     sendVideoMessage?: jest.Mock;
     sendAudioMessage?: jest.Mock;
+    getStatus: jest.Mock;
   };
   let engines: EngineRegistry;
   let hookManager: { execute: jest.Mock };
@@ -278,6 +279,7 @@ describe('BulkMessageService.processBatch', () => {
       sendTextMessage: jest.fn().mockResolvedValue({ id: 'wa1', timestamp: 111 }),
       sendImageMessage: jest.fn().mockResolvedValue({ id: 'wa1', timestamp: 111 }),
       sendAudioMessage: jest.fn().mockResolvedValue({ id: 'wa1', timestamp: 111 }),
+      getStatus: jest.fn(() => EngineStatus.READY),
     };
     engines = new EngineRegistry();
     engines.set('s1', engine as unknown as IWhatsAppEngine);
@@ -342,6 +344,29 @@ describe('BulkMessageService.processBatch', () => {
       expect(engine.sendTextMessage).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
+    }
+  });
+
+  it('pauses a scheduled batch until its session reconnects, then uses the replacement engine', async () => {
+    const batch = makeBatch(1);
+    try {
+      batch.options.waitForSessionReconnect = true;
+      engine.getStatus.mockReturnValue(EngineStatus.DISCONNECTED);
+      inFlightMarkers().set(batch.id, true);
+      (service as unknown as { scheduledReconnectPollMs: number }).scheduledReconnectPollMs = 1;
+      const waiting = (
+        service as unknown as { waitForReadyEngine(value: MessageBatch): Promise<IWhatsAppEngine | undefined> }
+      ).waitForReadyEngine(batch);
+
+      const replacement = {
+        getStatus: jest.fn(() => EngineStatus.READY),
+        sendTextMessage: jest.fn().mockResolvedValue({ id: 'wa-after-reconnect', timestamp: 222 }),
+      };
+      engines.set('s1', replacement as unknown as IWhatsAppEngine);
+
+      await expect(waiting).resolves.toBe(replacement);
+    } finally {
+      inFlightMarkers().delete(batch.id);
     }
   });
 
