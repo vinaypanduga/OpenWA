@@ -1,13 +1,12 @@
 import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Activity, Loader2, Users } from 'lucide-react';
+import { MessageSquare, Loader2, Users } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
   useSessionsQuery,
   useSessionGroupListsQueries,
   useSessionStatsQuery,
-  useStatsOverviewQuery,
 } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
 import { WidgetTooltip } from '../components/WidgetTooltip';
@@ -24,11 +23,9 @@ export function Dashboard() {
   const { data: stats } = useSessionStatsQuery();
   const readySessionIds = sessions.filter(session => session.status === 'ready').map(session => session.id);
   const groupListQueries = useSessionGroupListsQueries(readySessionIds);
-  // Administrators receive the installation-wide overview; a session-scoped API login receives
-  // the same cards reduced to its assigned WhatsApp sessions.
-  const { data: overview } = useStatsOverviewQuery();
-  const messagesToday = overview ? overview.messages.today.sent + overview.messages.today.received : '—';
-  const totalMessages = overview ? overview.messages.sent + overview.messages.received : '—';
+  // Message analytics deliberately stays behind DashboardCharts' "Show analytics" button. The
+  // installation-wide overview scans the full messages table on SQLite; loading it here defeated
+  // that button and could block the single Node event loop during every tab change/hard refresh.
   const groupsLoading = readySessionIds.length > 0 && groupListQueries.some(query => query.isLoading);
   const groupsUnavailable = groupListQueries.some(query => query.isError);
   const whatsappGroupCount =
@@ -53,14 +50,6 @@ export function Dashboard() {
       }),
     },
     {
-      label: t('dashboard.stats.messagesToday'),
-      value: messagesToday,
-      icon: Send,
-      tooltip: t('dashboard.tooltips.messagesToday', {
-        defaultValue: "Incoming and outgoing messages recorded since midnight in the server's local time.",
-      }),
-    },
-    {
       label: t('dashboard.stats.whatsappGroups', { defaultValue: 'WhatsApp Groups' }),
       value: whatsappGroupCount,
       icon: Users,
@@ -82,14 +71,6 @@ export function Dashboard() {
       }),
     },
     // The "Webhooks Configured" widget is intentionally hidden from the dashboard.
-    {
-      label: t('dashboard.stats.totalMessages'),
-      value: totalMessages,
-      icon: Activity,
-      tooltip: t('dashboard.tooltips.totalMessages', {
-        defaultValue: 'All incoming and outgoing messages stored across every session.',
-      }),
-    },
   ];
 
   if (loading) {

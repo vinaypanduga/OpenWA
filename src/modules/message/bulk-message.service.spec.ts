@@ -370,6 +370,58 @@ describe('BulkMessageService.processBatch', () => {
     }
   });
 
+  it('resumes a scheduled batch that was persisted but never started', async () => {
+    const batch = makeBatch(2);
+    batch.batchId = 'scheduled_schedule1_1';
+    batch.options.waitForSessionReconnect = true;
+    repo.findOne.mockResolvedValue(batch);
+    const process = jest
+      .spyOn(service as unknown as { processBatch(id: string, reserved: boolean): Promise<void> }, 'processBatch')
+      .mockResolvedValue(undefined);
+
+    await expect(service.resumeUntouchedScheduledBatch('s1', batch.batchId)).resolves.toBe(true);
+
+    expect(repo.findOne).toHaveBeenCalledWith({
+      where: { sessionId: 's1', batchId: batch.batchId, status: BatchStatus.PENDING },
+    });
+    expect(process).toHaveBeenCalledWith(batch.id, true);
+  });
+
+  it('does not resume an ambiguous scheduled batch with recorded progress', async () => {
+    const batch = makeBatch(2);
+    batch.options.waitForSessionReconnect = true;
+    batch.currentIndex = 1;
+    batch.progress.sent = 1;
+    batch.progress.pending = 1;
+    repo.findOne.mockResolvedValue(batch);
+    const process = jest.spyOn(
+      service as unknown as { processBatch(id: string, reserved: boolean): Promise<void> },
+      'processBatch',
+    );
+
+    await expect(service.resumeUntouchedScheduledBatch('s1', batch.batchId)).resolves.toBe(false);
+
+    expect(process).not.toHaveBeenCalled();
+  });
+
+  it('upgrades and resumes an untouched legacy scheduled batch', async () => {
+    const batch = makeBatch(1);
+    batch.batchId = 'scheduled_legacy_1';
+    expect(batch.options.waitForSessionReconnect).toBeUndefined();
+    repo.findOne.mockResolvedValue(batch);
+    const process = jest
+      .spyOn(service as unknown as { processBatch(id: string, reserved: boolean): Promise<void> }, 'processBatch')
+      .mockResolvedValue(undefined);
+
+    await expect(service.resumeUntouchedScheduledBatch('s1', batch.batchId)).resolves.toBe(true);
+
+    expect(repo.update).toHaveBeenCalledWith(
+      { id: batch.id, status: BatchStatus.PENDING },
+      { options: expect.objectContaining({ waitForSessionReconnect: true }) },
+    );
+    expect(process).toHaveBeenCalledWith(batch.id, true);
+  });
+
   it('rejects a new batch (before persisting) when the concurrent in-flight cap is reached', async () => {
     const prev = process.env.BULK_MAX_CONCURRENT_BATCHES;
     process.env.BULK_MAX_CONCURRENT_BATCHES = '2';

@@ -2,10 +2,12 @@ export const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 const INTEGRATION_OPERATIONS = [
+  ['SessionController_findOne', 'Check whether session is active'],
   ['MessageController_sendText', 'Send text message'],
   ['MessageController_sendVideo', 'Send video message'],
   ['MessageController_sendAudio', 'Send voice message'],
   ['MessageController_sendDocument', 'Send file/document'],
+  ['MessageController_sendPoll', 'Send poll message'],
   ['GroupController_findOne', 'Get group data by group ID'],
   ['SessionController_getGroups', 'Get all groups'],
   ['GroupController_joinInfo', 'Get group data by invite link'],

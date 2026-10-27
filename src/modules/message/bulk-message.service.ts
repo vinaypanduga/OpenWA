@@ -126,6 +126,55 @@ export class BulkMessageService implements OnApplicationBootstrap {
     return batch;
   }
 
+  /**
+   * Restart a scheduled batch that was persisted but never began sending. This is the narrow safe
+   * recovery case after a process restart: index zero, no results, and no successful/failed
+   * attempts means there is nothing that could be duplicated. Partially-run batches deliberately
+   * remain excluded because their last engine send may have succeeded without its progress write.
+   */
+  async resumeUntouchedScheduledBatch(sessionId: string, batchId: string): Promise<boolean> {
+    if (!this.hasBatchCapacity()) return false;
+    const batch = await this.batchRepository.findOne({
+      where: { sessionId, batchId, status: BatchStatus.PENDING },
+    });
+    // `waitForSessionReconnect` was added after scheduled batches already existed in production.
+    // Their scheduler-owned id is the durable legacy discriminator; API-created batch ids cannot
+    // enter this method because only ScheduledMessageService calls it with a linked schedule row.
+    const isScheduledBatch = batch?.options?.waitForSessionReconnect || batch?.batchId.startsWith('scheduled_');
+    if (
+      !batch ||
+      !isScheduledBatch ||
+      batch.currentIndex !== 0 ||
+      batch.progress?.sent !== 0 ||
+      batch.progress?.failed !== 0 ||
+      (batch.results?.length ?? 0) !== 0 ||
+      this.processingBatches.has(batch.id)
+    ) {
+      return false;
+    }
+
+    // Upgrade a legacy untouched batch before launching it. processBatch reloads the entity, so
+    // this must be durable rather than an in-memory assignment; otherwise the next disconnect
+    // would use the old fail-fast behaviour again.
+    if (!batch.options.waitForSessionReconnect) {
+      batch.options = { ...batch.options, waitForSessionReconnect: true };
+      const upgraded = await this.batchRepository.update(
+        { id: batch.id, status: BatchStatus.PENDING },
+        { options: batch.options },
+      );
+      if (!upgraded.affected) return false;
+    }
+
+    // Reserve before yielding so two scheduler ticks cannot both launch the same pending batch.
+    this.processingBatches.set(batch.id, true);
+    this.inFlightBatches++;
+    void this.processBatch(batch.id, true).catch(error => {
+      this.logger.error(`Recovered batch ${batch.batchId} processing error: ${String(error)}`);
+    });
+    this.logger.warn(`Resuming untouched scheduled batch ${batch.batchId} after an interrupted start`);
+    return true;
+  }
+
   constructor(
     @InjectRepository(MessageBatch, 'data')
     private readonly batchRepository: Repository<MessageBatch>,

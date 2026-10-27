@@ -209,7 +209,9 @@ test('a fresh sign-in with a role-less login response still degrades to viewer',
 });
 
 test('a page reload with a saved key re-validates once at startup and refreshes the cached role', async () => {
-  localStorage.setItem(LOGIN_KEY, 'saved-key');
+  // App only restores dashboard-session credentials; operator API keys intentionally cannot sign
+  // into the browser dashboard. Use the real dashboard-key prefix so this exercises validation.
+  localStorage.setItem(LOGIN_KEY, 'owa_ds_saved-key');
   localStorage.setItem(ROLE_KEY, 'viewer'); // stale cached role
   validateBody = { valid: true, role: 'admin' };
   rtl.render(createElement(App));

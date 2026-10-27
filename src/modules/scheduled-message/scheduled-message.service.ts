@@ -266,6 +266,14 @@ export class ScheduledMessageService implements OnApplicationBootstrap, OnModule
     if (!schedule.batchId) return;
     try {
       const batch = await this.bulkMessages.getBatchSummary(schedule.sessionId, schedule.batchId);
+      // A crash can land after createBatch persisted its row but before its asynchronous worker
+      // began. The schedule is then PROCESSING while the batch stays untouched PENDING forever,
+      // blocking every later campaign for that session. Once the session is ready, restart only
+      // that provably-unsent batch; BulkMessageService rejects any partial/ambiguous run.
+      if (batch.status === BatchStatus.PENDING && this.isSessionReady(schedule.sessionId)) {
+        await this.bulkMessages.resumeUntouchedScheduledBatch(schedule.sessionId, schedule.batchId);
+        return;
+      }
       const terminalStatus =
         batch.status === BatchStatus.COMPLETED
           ? ScheduledMessageStatus.COMPLETED

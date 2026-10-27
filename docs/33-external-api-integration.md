@@ -57,7 +57,71 @@ curl -X POST 'https://mcp.chimple.net/openwa/api/auth/validate' \
 Do not include `+`, spaces, or hyphens in individual phone numbers. In JSON, `@` does not need to be
 escaped: use `120363406850971874@g.us`, not `120363406850971874\@g.us`.
 
-## 1. Send a text message
+## 1. Check whether the WhatsApp session is active
+
+Use this endpoint before sending when the caller needs to know whether the WhatsApp session is ready.
+The request is read-only and does not enter the message jitter queue.
+
+**Method:** `GET`
+
+**Production URL:**
+
+```text
+https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a
+```
+
+### Required parameters
+
+| Parameter   | Location | Type        | Required | Description                                   |
+| ----------- | -------- | ----------- | -------- | --------------------------------------------- |
+| `sessionId` | URL path | UUID string | Yes      | Already included in the production URL above. |
+| `X-API-Key` | Header   | String      | Yes      | Active API key allowed to access the session. |
+
+### cURL example
+
+```bash
+curl 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a' \
+  -H 'X-API-Key: YOUR_API_KEY'
+```
+
+### Successful response
+
+Status: `200 OK`
+
+```json
+{
+  "id": "57c032a1-a20d-4849-aa6a-eaeac756883a",
+  "name": "api-session",
+  "status": "ready",
+  "phone": "919876543210",
+  "pushName": "Chimple",
+  "connectedAt": "2026-10-27T08:40:00.000Z",
+  "lastActive": "2026-10-27T08:45:00.000Z",
+  "lastError": null,
+  "restriction": null,
+  "engineLoaded": true
+}
+```
+
+Treat the session as available for message sending only when `status` is exactly `ready`.
+`engineLoaded: true` only means the gateway has an engine process; it can remain true temporarily
+while that engine is disconnected or reconnecting.
+
+| `status` value    | Can send? | Meaning                                           |
+| ----------------- | --------- | ------------------------------------------------- |
+| `ready`           | Yes       | WhatsApp is connected and ready to send/receive.  |
+| `initializing`    | No        | The engine is starting. Retry after a delay.      |
+| `qr_ready`        | No        | The session must be linked using QR/pairing.      |
+| `authenticating`  | No        | Login is being completed. Retry after a delay.    |
+| `disconnected`    | No        | WhatsApp is offline or reconnecting.              |
+| `action_required` | No        | Human action is required; inspect `lastError`.    |
+| `failed`          | No        | The engine failed; inspect `lastError`.           |
+| `created`         | No        | The session exists but has not finished starting. |
+
+Other responses are `401` for a missing/invalid key, `403` when the key cannot access this session,
+and `404` when the session UUID does not exist.
+
+## 2. Send a text message
 
 **Method:** `POST`
 
@@ -132,7 +196,7 @@ Status: `201 Created`
 `201` means the message was accepted by the connected WhatsApp client. It does not itself confirm
 delivery or reading by every recipient.
 
-## 2. Send a video message
+## 3. Send a video message
 
 **Method:** `POST`
 
@@ -171,7 +235,7 @@ Success returns `201 Created` with `messageId` and `timestamp`.
 
 The `caption` field is the text message displayed with the video.
 
-## 3. Send a voice message
+## 4. Send a voice message
 
 **Method:** `POST`
 
@@ -240,7 +304,7 @@ API request, use the bulk endpoint and place an `audio` item followed by a `text
 }
 ```
 
-## 4. Send a file or document
+## 5. Send a file or document
 
 **Method:** `POST`
 
@@ -281,7 +345,58 @@ curl -X POST 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6
 
 Success returns `201 Created` with `messageId` and `timestamp`.
 
-## 5. Get all groups
+## 6. Send a poll message
+
+This endpoint sends a native WhatsApp poll to a group or individual chat. It uses the same
+per-session FIFO queue as the other send APIs, so simultaneous calls for the same session are sent
+one at a time with the configured 2–10 second jitter.
+
+**Method:** `POST`
+
+**Production URL:**
+
+```text
+https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a/messages/send-poll
+```
+
+### Required parameters
+
+| Parameter      | Location  | Type         | Required | Description                                                            |
+| -------------- | --------- | ------------ | -------- | ---------------------------------------------------------------------- |
+| `X-API-Key`    | Header    | String       | Yes      | Active operator API key.                                               |
+| `Content-Type` | Header    | String       | Yes      | Must be `application/json`.                                            |
+| `chatId`       | JSON body | String       | Yes      | Target group ending in `@g.us`, or individual ending in `@c.us`.       |
+| `name`         | JSON body | String       | Yes      | Poll question/title. Maximum 255 characters.                           |
+| `options`      | JSON body | String array | Yes      | Between 2 and 12 choices. Each choice has a maximum of 100 characters. |
+
+### Optional body parameters
+
+| Parameter              | Type    | Description                                                     |
+| ---------------------- | ------- | --------------------------------------------------------------- |
+| `allowMultipleAnswers` | Boolean | `false` by default. Set to `true` to allow multiple selections. |
+| `quotedMessageId`      | String  | Message ID to quote when sending the poll.                      |
+
+### cURL example: single-choice poll
+
+```bash
+curl -X POST 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a/messages/send-poll' \
+  -H 'X-API-Key: YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "chatId": "120363406850971874@g.us",
+    "name": "Which day should we conduct the meeting?",
+    "options": ["Monday", "Tuesday", "Wednesday"],
+    "allowMultipleAnswers": false
+  }'
+```
+
+For a poll where participants can choose more than one answer, send
+`"allowMultipleAnswers": true`.
+
+Success returns `201 Created` with `messageId` and `timestamp`. The poll send is included in message
+analytics as an outgoing message of type `poll`.
+
+## 7. Get all groups
 
 **Method:** `GET`
 
@@ -323,7 +438,7 @@ Status: `200 OK`
 If more than 1,000 groups exist, request the next page with `offset=1000`, then `offset=2000`, until
 the response contains fewer than `limit` records.
 
-## 6. Get group data by group ID
+## 8. Get group data by group ID
 
 **Method:** `GET`
 
@@ -350,7 +465,7 @@ curl 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac7
 The response includes the group ID, name, description, owner, participants, creation time, and group
 settings when WhatsApp makes those fields available.
 
-## 7. Get group data from an invite link
+## 9. Get group data from an invite link
 
 This endpoint previews information exposed by an invite without joining the group.
 
@@ -382,7 +497,7 @@ curl --get 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-
 The successful response includes at least `id` and `name`. It may also include `description`,
 `owner`, `createdAt`, and `participantCount` when WhatsApp discloses them.
 
-## 8. Get analytics for multiple groups
+## 10. Get analytics for multiple groups
 
 **Method:** `POST`
 
@@ -428,7 +543,7 @@ The response includes:
 The result is restricted to the session UUID in the URL. A session-scoped API key cannot use this
 endpoint to read analytics from another login's WhatsApp session.
 
-## 9. Send messages to multiple groups with jitter
+## 11. Send messages to multiple groups with jitter
 
 The bulk API accepts up to 100 messages per request and starts asynchronous processing. Messages for
 the same WhatsApp session are processed sequentially, with random pacing between sends.

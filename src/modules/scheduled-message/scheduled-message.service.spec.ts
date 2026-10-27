@@ -22,6 +22,7 @@ describe('ScheduledMessageService recurrence', () => {
   const bulkMessages = {
     createBatch: jest.fn(),
     getBatchSummary: jest.fn(),
+    resumeUntouchedScheduledBatch: jest.fn(),
     hasBatchCapacity: jest.fn(() => false),
   };
   let engines: EngineRegistry;
@@ -212,6 +213,23 @@ describe('ScheduledMessageService recurrence', () => {
         runCount: 1,
       }),
     );
+  });
+
+  it('resumes an untouched pending batch after its session reconnects', async () => {
+    bulkMessages.getBatchSummary.mockResolvedValue({ status: BatchStatus.PENDING });
+    bulkMessages.resumeUntouchedScheduledBatch.mockResolvedValue(true);
+    const schedule = scheduledMessage({
+      status: ScheduledMessageStatus.PROCESSING,
+      batchId: 'scheduled_schedule1_1',
+    });
+
+    await (service as unknown as { reconcile(value: ScheduledMessage): Promise<void> }).reconcile(schedule);
+
+    expect(bulkMessages.resumeUntouchedScheduledBatch).toHaveBeenCalledWith(
+      schedule.sessionId,
+      schedule.batchId,
+    );
+    expect(repository.update).not.toHaveBeenCalled();
   });
 });
 

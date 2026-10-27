@@ -80,6 +80,9 @@ export class Message {
     type: 'varchar',
     default: MessageDirection.OUTGOING,
   })
+  // Cover the all-history direction aggregate without reading multi-megabyte body/metadata pages.
+  // The explicit name matches AddMessagesDirectionIndex on migration-managed deployments.
+  @Index('IDX_messages_direction')
   direction!: MessageDirection;
 
   @Column({ type: 'bigint', nullable: true, transformer: bigintToNumberTransformer })

@@ -51,7 +51,10 @@ function AppContent() {
     return null;
   });
   const [isAuthenticated, setIsAuthenticated] = useState(!!savedKey);
-  const [authRestoreComplete, setAuthRestoreComplete] = useState(false);
+  // A saved dashboard key is enough to render the cached shell immediately. Validation still runs
+  // below and logs out an explicitly rejected key, but a slow database/API must not turn every hard
+  // refresh into a full-screen spinner with no navigation.
+  const [authRestoreComplete, setAuthRestoreComplete] = useState(!!savedKey);
   const [, setApiKey] = useState(savedKey || '');
   const { setRole, role } = useRole();
 
@@ -126,7 +129,11 @@ function AppContent() {
   // storage was cleared. Do not render Login until this one startup check finishes.
   useEffect(() => {
     if (!savedKey) {
-      fetch(`${API_BASE_URL}/auth/dashboard/session`, { method: 'POST', credentials: 'include' })
+      fetch(`${API_BASE_URL}/auth/dashboard/session`, {
+        method: 'POST',
+        credentials: 'include',
+        signal: AbortSignal.timeout(10_000),
+      })
         .then(async res => {
           if (!res.ok) return;
           const data: { apiKey?: string; role?: string } = await res.json().catch(() => ({}));
@@ -144,6 +151,7 @@ function AppContent() {
     fetch(`${API_BASE_URL}/auth/validate`, {
       method: 'POST',
       headers: { 'X-API-Key': savedKey },
+      signal: AbortSignal.timeout(10_000),
     })
       .then(async res => {
         const decision = resolveStartupValidation(res.status, await res.json().catch(() => null));

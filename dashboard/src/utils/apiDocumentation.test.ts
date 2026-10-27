@@ -118,10 +118,12 @@ test('the integration page exposes only the requested APIs in product order', ()
   assert.deepEqual(
     collectIntegrationOperations(fullDocument).map(operation => operation.summary),
     [
+      'Check whether session is active',
       'Send text message',
       'Send video message',
       'Send voice message',
       'Send file/document',
+      'Send poll message',
       'Get group data by group ID',
       'Get all groups',
       'Get group data by invite link',
