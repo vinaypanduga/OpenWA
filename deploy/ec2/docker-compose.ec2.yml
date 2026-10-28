@@ -6,6 +6,9 @@ services:
     environment:
       MESSAGE_HISTORY_RETENTION_DAYS: ${MESSAGE_HISTORY_RETENTION_DAYS:-3}
       BULK_MAX_CONCURRENT_BATCHES: ${BULK_MAX_CONCURRENT_BATCHES:-2}
+      # Analytics only: retain the lightweight media message envelope/type for counts, but never
+      # download or base64-store incoming images, videos, audio, or documents in SQLite.
+      MEDIA_DOWNLOAD_ENABLED: ${MEDIA_DOWNLOAD_ENABLED:-false}
       INBOUND_MEDIA_CONCURRENCY: ${INBOUND_MEDIA_CONCURRENCY:-1}
       BAILEYS_SESSION_STORE_MAX_ENTRIES: ${BAILEYS_SESSION_STORE_MAX_ENTRIES:-1000}
       BAILEYS_MESSAGE_STORE_LIMIT: ${BAILEYS_MESSAGE_STORE_LIMIT:-1000}

@@ -119,6 +119,7 @@ test('the integration page exposes only the requested APIs in product order', ()
     collectIntegrationOperations(fullDocument).map(operation => operation.summary),
     [
       'Check whether session is active',
+      'Check multiple WhatsApp numbers',
       'Send text message',
       'Send video message',
       'Send voice message',

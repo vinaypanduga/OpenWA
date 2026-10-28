@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { EngineRegistry } from '../../engine/engine-registry.service';
-import { IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
+import { EngineStatus, IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
+import { EngineNotReadyError } from '../../common/errors/engine-not-ready.error';
 
 describe('ContactService', () => {
   const makeService = (engine: Partial<IWhatsAppEngine> | undefined) => {
@@ -53,6 +54,44 @@ describe('ContactService', () => {
     const getNumberId = jest.fn().mockResolvedValue('628123@c.us');
     await expect(makeService({ getNumberId }).getNumberId('s1', '628123')).resolves.toBe('628123@c.us');
     expect(getNumberId).toHaveBeenCalledWith('628123');
+  });
+
+  it('bulk-checks normalized unique numbers and summarizes registered/unregistered results', async () => {
+    const getNumberId = jest.fn().mockResolvedValueOnce('628123@c.us').mockResolvedValueOnce(null);
+    const service = makeService({ getStatus: () => EngineStatus.READY, getNumberId });
+
+    await expect(service.checkNumbers('s1', ['+628123', '628123', '628124'])).resolves.toEqual({
+      total: 2,
+      registered: 1,
+      notRegistered: 1,
+      failed: 0,
+      results: [
+        { number: '628123', exists: true, whatsappId: '628123@c.us', error: null },
+        { number: '628124', exists: false, whatsappId: null, error: null },
+      ],
+    });
+    expect(getNumberId).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a transient per-number failure distinct from not registered', async () => {
+    const getNumberId = jest.fn().mockRejectedValue(new Error('timeout'));
+    const service = makeService({ getStatus: () => EngineStatus.READY, getNumberId });
+    const result = await service.checkNumbers('s1', ['628123']);
+
+    expect(result).toMatchObject({ total: 1, registered: 0, notRegistered: 0, failed: 1 });
+    expect(result.results[0]).toEqual({
+      number: '628123',
+      exists: null,
+      whatsappId: null,
+      error: 'WhatsApp did not answer this number-check query; retry this number later',
+    });
+  });
+
+  it('rejects a bulk check with 409 before any lookup when the session is disconnected', async () => {
+    const getNumberId = jest.fn();
+    const service = makeService({ getStatus: () => EngineStatus.DISCONNECTED, getNumberId });
+    await expect(service.checkNumbers('s1', ['628123'])).rejects.toBeInstanceOf(EngineNotReadyError);
+    expect(getNumberId).not.toHaveBeenCalled();
   });
 
   it('delegates resolveContactPhone to the engine', async () => {

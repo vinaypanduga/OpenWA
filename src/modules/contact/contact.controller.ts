@@ -6,12 +6,14 @@ import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { UpsertContactDto } from './dto/upsert-contact.dto';
 import {
   ContactAckResponseDto,
+  BulkNumberCheckResponseDto,
   ContactDto,
   NumberCheckResponseDto,
   ProfilePictureResponseDto,
   ProfilePicturesResponseDto,
   ResolvedPhoneResponseDto,
 } from './dto/contact-response.dto';
+import { CheckNumbersDto } from './dto/check-numbers.dto';
 import { ENGINE_NOT_READY_409 } from '../../common/openapi/engine-status-responses';
 
 @ApiTags('contacts')
@@ -129,6 +131,23 @@ export class ContactController {
       exists: whatsappId !== null,
       whatsappId,
     };
+  }
+
+  @Post('check-bulk')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Check multiple phone numbers on WhatsApp',
+    description:
+      'Checks up to 100 numbers in one client request. The server removes duplicates and performs ' +
+      'the WhatsApp lookups sequentially with a 250–500 ms random pause, preventing an unbounded ' +
+      'lookup burst. A per-number transport failure returns exists:null and does not stop later numbers.',
+  })
+  @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @ApiResponse({ status: 200, description: 'Bulk number-check result', type: BulkNumberCheckResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid or empty numbers array, or more than 100 numbers' })
+  @ApiResponse({ status: 409, description: ENGINE_NOT_READY_409 })
+  async checkNumbers(@Param('sessionId') sessionId: string, @Body() dto: CheckNumbersDto) {
+    return this.contactService.checkNumbers(sessionId, dto.numbers);
   }
 
   // ========== Gap Quick Wins: Profile Picture, Block/Unblock ==========

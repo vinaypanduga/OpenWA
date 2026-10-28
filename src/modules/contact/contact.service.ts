@@ -1,9 +1,10 @@
 import { HttpException, BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EngineRegistry } from '../../engine/engine-registry.service';
 import { createLogger } from '../../common/services/logger.service';
-import { IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
+import { EngineStatus, IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
 import { paginate, ListOptions } from '../../common/utils/paginate';
 import { isIndividualWid, parseWaId, toNeutralJid } from '../../engine/identity/wa-id';
+import { EngineNotReadyError } from '../../common/errors/engine-not-ready.error';
 
 /**
  * Owns engine access for contact operations so the "session not started" guard and
@@ -47,6 +48,62 @@ export class ContactService {
 
   getNumberId(sessionId: string, number: string) {
     return this.getEngine(sessionId).getNumberId(number);
+  }
+
+  /** Minimum/maximum pause between sequential WhatsApp registration lookups in one bulk request. */
+  private static readonly BULK_NUMBER_CHECK_MIN_DELAY_MS = 250;
+  private static readonly BULK_NUMBER_CHECK_MAX_DELAY_MS = 500;
+
+  /**
+   * Check a client-supplied list through one HTTP call without firing an unbounded burst at WhatsApp.
+   * Numbers are normalized and de-duplicated, then queried sequentially with a small random pause.
+   * A transient failure belongs to that number and is represented by `exists: null`; a disconnected
+   * session aborts with the normal retryable 409 instead of returning a page of misleading failures.
+   */
+  async checkNumbers(sessionId: string, numbers: string[]) {
+    const engine = this.getEngine(sessionId);
+    if (engine.getStatus() !== EngineStatus.READY) throw new EngineNotReadyError();
+
+    const uniqueNumbers = [...new Set(numbers.map(number => number.replace(/^\+/, '')))];
+    const results: Array<{
+      number: string;
+      exists: boolean | null;
+      whatsappId: string | null;
+      error: string | null;
+    }> = [];
+
+    for (let index = 0; index < uniqueNumbers.length; index += 1) {
+      const number = uniqueNumbers[index];
+      try {
+        const whatsappId = await engine.getNumberId(number);
+        results.push({ number, exists: whatsappId !== null, whatsappId, error: null });
+      } catch (error) {
+        if (error instanceof EngineNotReadyError) throw error;
+        this.logger.debug(`Bulk number lookup failed for ${number}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        results.push({
+          number,
+          exists: null,
+          whatsappId: null,
+          error: 'WhatsApp did not answer this number-check query; retry this number later',
+        });
+      }
+
+      if (index < uniqueNumbers.length - 1) {
+        const range = ContactService.BULK_NUMBER_CHECK_MAX_DELAY_MS - ContactService.BULK_NUMBER_CHECK_MIN_DELAY_MS;
+        const delay = ContactService.BULK_NUMBER_CHECK_MIN_DELAY_MS + Math.floor(Math.random() * (range + 1));
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    return {
+      total: results.length,
+      registered: results.filter(result => result.exists === true).length,
+      notRegistered: results.filter(result => result.exists === false).length,
+      failed: results.filter(result => result.exists === null).length,
+      results,
+    };
   }
 
   /**

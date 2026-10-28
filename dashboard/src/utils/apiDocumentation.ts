@@ -3,6 +3,7 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 const INTEGRATION_OPERATIONS = [
   ['SessionController_findOne', 'Check whether session is active'],
+  ['ContactController_checkNumbers', 'Check multiple WhatsApp numbers'],
   ['MessageController_sendText', 'Send text message'],
   ['MessageController_sendVideo', 'Send video message'],
   ['MessageController_sendAudio', 'Send voice message'],

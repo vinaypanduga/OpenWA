@@ -629,6 +629,85 @@ curl 'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac7
   -H 'X-API-Key: YOUR_API_KEY'
 ```
 
+## 12. Check multiple numbers on WhatsApp
+
+This read-only endpoint checks up to 100 phone numbers in one HTTP request. The server removes a
+leading `+`, checks duplicate numbers once, and preserves first-seen order. WhatsApp lookups run
+sequentially with a random 250–500 ms pause so one bulk request does not create an unbounded burst.
+
+**Method:** `POST`
+
+**Production URL:**
+
+```text
+https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a/contacts/check-bulk
+```
+
+### Required parameters
+
+| Parameter      | Location  | Type         | Required | Description                                        |
+| -------------- | --------- | ------------ | -------- | -------------------------------------------------- |
+| `sessionId`    | URL path  | UUID string  | Yes      | Already included in the production URL above.      |
+| `X-API-Key`    | Header    | String       | Yes      | Active API key allowed to access the session.      |
+| `Content-Type` | Header    | String       | Yes      | Use `application/json; charset=utf-8`.             |
+| `numbers`      | JSON body | String array | Yes      | Between 1 and 100 numbers, including country code. |
+
+Each number must contain 5–15 digits. A single leading `+` is accepted; spaces, hyphens, and other
+characters are rejected.
+
+### cURL example
+
+```bash
+curl -X POST \
+  'https://mcp.chimple.net/openwa/api/sessions/57c032a1-a20d-4849-aa6a-eaeac756883a/contacts/check-bulk' \
+  -H 'X-API-Key: YOUR_API_KEY' \
+  -H 'Content-Type: application/json; charset=utf-8' \
+  -d '{
+    "numbers": [
+      "919876543210",
+      "919876543211",
+      "+919876543212"
+    ]
+  }'
+```
+
+### Successful response
+
+Status: `200 OK`
+
+```json
+{
+  "total": 3,
+  "registered": 1,
+  "notRegistered": 1,
+  "failed": 1,
+  "results": [
+    {
+      "number": "919876543210",
+      "exists": true,
+      "whatsappId": "919876543210@c.us",
+      "error": null
+    },
+    {
+      "number": "919876543211",
+      "exists": false,
+      "whatsappId": null,
+      "error": null
+    },
+    {
+      "number": "919876543212",
+      "exists": null,
+      "whatsappId": null,
+      "error": "WhatsApp did not answer this number-check query; retry this number later"
+    }
+  ]
+}
+```
+
+`exists: false` is a confirmed unregistered number. `exists: null` means WhatsApp did not answer that
+lookup, so retry that number later; it must not be treated as unregistered. A disconnected session
+returns `409` for the whole request.
+
 ## Queue and jitter behavior
 
 All outbound API send endpoints use a server-side FIFO queue for each WhatsApp session. When several

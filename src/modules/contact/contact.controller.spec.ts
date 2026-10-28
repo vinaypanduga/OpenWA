@@ -7,6 +7,7 @@ describe('ContactController', () => {
     getProfilePictures: jest.fn(),
     getContactById: jest.fn(),
     getNumberId: jest.fn(),
+    checkNumbers: jest.fn(),
     getProfilePicture: jest.fn(),
     resolveContactPhone: jest.fn(),
     upsertContact: jest.fn(),
@@ -66,6 +67,13 @@ describe('ContactController', () => {
       exists: true,
       whatsappId: '628123@c.us',
     });
+  });
+
+  it('checkNumbers delegates the submitted array to the bulk service', async () => {
+    const response = { total: 1, registered: 1, notRegistered: 0, failed: 0, results: [] };
+    service.checkNumbers.mockResolvedValue(response);
+    await expect(controller.checkNumbers('s1', { numbers: ['628123'] })).resolves.toBe(response);
+    expect(service.checkNumbers).toHaveBeenCalledWith('s1', ['628123']);
   });
 
   it('getProfilePicture wraps the url', async () => {

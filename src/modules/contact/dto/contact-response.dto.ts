@@ -83,6 +83,53 @@ export class NumberCheckResponseDto {
   whatsappId!: string | null;
 }
 
+export class BulkNumberCheckResultDto {
+  @ApiProperty({ description: 'Normalized digits-only number that was checked.', example: '919876543210' })
+  number!: string;
+
+  @ApiProperty({
+    type: Boolean,
+    nullable: true,
+    description:
+      'True when registered, false when WhatsApp definitively reports no account, or null when the lookup failed.',
+    example: true,
+  })
+  exists!: boolean | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Canonical WhatsApp id, or null when unregistered or when the lookup failed.',
+    example: '919876543210@c.us',
+  })
+  whatsappId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'A retryable per-number lookup error, otherwise null.',
+    example: null,
+  })
+  error!: string | null;
+}
+
+export class BulkNumberCheckResponseDto {
+  @ApiProperty({ description: 'Unique normalized numbers processed.', example: 3 })
+  total!: number;
+
+  @ApiProperty({ description: 'Numbers confirmed as registered on WhatsApp.', example: 2 })
+  registered!: number;
+
+  @ApiProperty({ description: 'Numbers confirmed as not registered on WhatsApp.', example: 1 })
+  notRegistered!: number;
+
+  @ApiProperty({ description: 'Lookups that failed without claiming the number is unregistered.', example: 0 })
+  failed!: number;
+
+  @ApiProperty({ type: [BulkNumberCheckResultDto] })
+  results!: BulkNumberCheckResultDto[];
+}
+
 export class ResolvedPhoneResponseDto {
   @ApiProperty({ description: 'The contact id exactly as supplied in the path.', example: '12345678901234@lid' })
   contactId!: string;

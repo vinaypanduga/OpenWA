@@ -6253,6 +6253,55 @@
         ]
       }
     },
+    "/api/sessions/{sessionId}/contacts/check-bulk": {
+      "post": {
+        "description": "Checks up to 100 numbers in one client request. The server removes duplicates and performs the WhatsApp lookups sequentially with a 250–500 ms random pause, preventing an unbounded lookup burst. A per-number transport failure returns exists:null and does not stop later numbers.",
+        "operationId": "ContactController_checkNumbers",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "description": "Session ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckNumbersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk number-check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkNumberCheckResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or empty numbers array, or more than 100 numbers"
+          },
+          "409": {
+            "description": "The session is not connected — an engine exists for it but is not `ready`: disconnected, reconnecting, or still initializing, so the request never reached WhatsApp. Wait for `ready` and retry. A session that was never started answers `400` instead, and the session lifecycle routes answer `409` for a conflicting state rather than this. One window answers this while the session still reads `ready`: WhatsApp Web periodically reloads its own page and the engine re-injects into it — for those few seconds the answer is a `409` naming the reload; retry shortly."
+          }
+        },
+        "summary": "Check multiple phone numbers on WhatsApp",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
     "/api/sessions/{sessionId}/contacts/{contactId}/profile-picture": {
       "get": {
         "operationId": "ContactController_getProfilePicture",
@@ -15855,6 +15904,99 @@
           "number",
           "exists",
           "whatsappId"
+        ]
+      },
+      "CheckNumbersDto": {
+        "type": "object",
+        "properties": {
+          "numbers": {
+            "description": "Phone numbers with country code. A leading + is accepted and removed before lookup. Duplicates are checked once, preserving first-seen order.",
+            "example": [
+              "919876543210",
+              "919876543211"
+            ],
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "numbers"
+        ]
+      },
+      "BulkNumberCheckResultDto": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "Normalized digits-only number that was checked.",
+            "example": "919876543210"
+          },
+          "exists": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "True when registered, false when WhatsApp definitively reports no account, or null when the lookup failed.",
+            "example": true
+          },
+          "whatsappId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Canonical WhatsApp id, or null when unregistered or when the lookup failed.",
+            "example": "919876543210@c.us"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true,
+            "description": "A retryable per-number lookup error, otherwise null.",
+            "example": null
+          }
+        },
+        "required": [
+          "number",
+          "exists",
+          "whatsappId",
+          "error"
+        ]
+      },
+      "BulkNumberCheckResponseDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "Unique normalized numbers processed.",
+            "example": 3
+          },
+          "registered": {
+            "type": "number",
+            "description": "Numbers confirmed as registered on WhatsApp.",
+            "example": 2
+          },
+          "notRegistered": {
+            "type": "number",
+            "description": "Numbers confirmed as not registered on WhatsApp.",
+            "example": 1
+          },
+          "failed": {
+            "type": "number",
+            "description": "Lookups that failed without claiming the number is unregistered.",
+            "example": 0
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkNumberCheckResultDto"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "registered",
+          "notRegistered",
+          "failed",
+          "results"
         ]
       },
       "ProfilePictureResponseDto": {
